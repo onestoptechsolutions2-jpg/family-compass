@@ -13,9 +13,11 @@ import { randomToken } from "@/lib/slug";
 import {
   createBarePerson,
   setVitalEvent,
+  createPersonEvent,
   ensureMarriageEvent,
   addChildRef,
 } from "@/lib/person-write";
+import { isPersonEventType } from "@/lib/event-types";
 
 const personBits = {
   first: z.string().trim().max(200).optional().default(""),
@@ -243,6 +245,56 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
       eventType: "Death",
       dateText: d.deathDate || null,
       placeText: d.deathPlace || null,
+      actorUserId: ctx.user.id,
+    });
+  }
+
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+/** Add any timeline event (Baptism, Graduation, Residence, …) to a person.
+ *  A Death/Burial here also flips `living` and notifies relatives, so it
+ *  stays consistent with recordDeath. */
+export async function addEvent(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const d = z
+    .object({
+      type: z.string().trim().min(1).max(40),
+      date: z.string().trim().max(40).optional().default(""),
+      place: z.string().trim().max(300).optional().default(""),
+      description: z.string().trim().max(500).optional().default(""),
+    })
+    .parse(Object.fromEntries(formData));
+
+  const type = isPersonEventType(d.type) ? d.type : "Other";
+  const person = await db.person.findFirst({ where: { id: personId, treeId }, select: { id: true } });
+  if (!person) throw new Error("Person not found in this tree");
+
+  await createPersonEvent(treeId, personId, type, d.date, d.place, d.description);
+
+  const isDeath = type === "Death" || type === "Burial";
+  if (isDeath) {
+    await db.person.update({ where: { id: personId }, data: { living: false } });
+  }
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "person",
+    objectId: personId,
+    summary: `added a ${type} event`,
+  });
+
+  // only ping relatives for the milestones that matter to a family
+  const NOTIFY_TYPES = ["Birth", "Death", "Burial", "Baptism", "Christening", "Adoption"];
+  if (NOTIFY_TYPES.includes(type)) {
+    await notifyRelativesOfEvent({
+      treeId,
+      personId,
+      eventType: type,
+      dateText: d.date || null,
+      placeText: d.place || null,
       actorUserId: ctx.user.id,
     });
   }

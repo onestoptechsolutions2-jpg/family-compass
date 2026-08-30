@@ -13,6 +13,7 @@ import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
 import { Dialog } from "@/components/Dialog";
+import { ActionMenu, actionItemClass } from "@/components/ActionMenu";
 import { CopyButton } from "@/components/CopyButton";
 import { QrShare } from "@/components/QrShare";
 import { primaryName } from "@/lib/person";
@@ -24,9 +25,11 @@ import {
   addChildToFamily,
   addFirstChild,
   recordDeath,
+  addEvent,
   createClaimInvite,
   revokeClaimInvite,
 } from "./quick-actions";
+import { PERSON_EVENT_TYPES } from "@/lib/event-types";
 
 export default async function PersonDetailPage({
   params,
@@ -98,12 +101,40 @@ export default async function PersonDetailPage({
                 This is you
               </span>
             )}
-            {editable && !deceased && (
-              <span className="ml-2 inline-block align-middle text-xs font-normal">
+          </h2>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            {person.gender.toLowerCase()}
+            {deceased ? " · deceased" : person.living ? " · living" : ""}
+            {person.clan ? ` · ${person.clan.name} clan` : ""}
+            {person.subClan ? ` (${person.subClan})` : ""}
+            {person.phone ? ` · ${person.phone}` : ""}
+            {person.claimedByUserId && person.claimedByUserId !== ctx.user.id
+              ? ` · claimed by ${person.claimedBy?.name ?? "a relative"}`
+              : ""}
+            {person.grampsId ? ` · ${person.grampsId}` : ""}
+          </p>
+        </div>
+        {editable && (
+          <div className="flex flex-wrap items-start gap-2">
+            {deceased && (
+              <Link
+                href={`/trees/${treeId}/people/${personId}/memorial`}
+                className="rounded-lg border px-3 py-1.5 text-sm"
+                style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
+              >
+                Memorial
+              </Link>
+            )}
+            <ActionMenu>
+              <Link href={`/trees/${treeId}/people/${personId}/edit`} className={actionItemClass}>
+                Edit details
+              </Link>
+
+              {!deceased && (
                 <Dialog
                   title={`Record a death — ${displayName(person.names)}`}
                   label="✝ Record death"
-                  buttonClass="rounded-full border px-2 py-0.5 text-xs"
+                  buttonClass={actionItemClass}
                 >
                   <form action={recordDeath.bind(null, treeId, personId)} className="flex flex-col gap-3">
                     <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -123,47 +154,49 @@ export default async function PersonDetailPage({
                     </button>
                   </form>
                 </Dialog>
-              </span>
-            )}
-          </h2>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            {person.gender.toLowerCase()}
-            {deceased ? " · deceased" : person.living ? " · living" : ""}
-            {person.clan ? ` · ${person.clan.name} clan` : ""}
-            {person.subClan ? ` (${person.subClan})` : ""}
-            {person.phone ? ` · ${person.phone}` : ""}
-            {person.claimedByUserId && person.claimedByUserId !== ctx.user.id
-              ? ` · claimed by ${person.claimedBy?.name ?? "a relative"}`
-              : ""}
-            {person.grampsId ? ` · ${person.grampsId}` : ""}
-          </p>
-        </div>
-        {editable && (
-          <div className="flex flex-wrap gap-2">
-            {deceased && (
-              <Link
-                href={`/trees/${treeId}/people/${personId}/memorial`}
-                className="rounded-lg border px-3 py-1.5 text-sm"
-                style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
+              )}
+
+              <Dialog
+                title={`Add an event — ${displayName(person.names)}`}
+                label="＋ Add event"
+                buttonClass={actionItemClass}
               >
-                Memorial
-              </Link>
-            )}
-            <Link
-              href={`/trees/${treeId}/people/${personId}/edit`}
-              className="rounded-lg border px-3 py-1.5 text-sm"
-              style={{ borderColor: "var(--border)" }}
-            >
-              Edit
-            </Link>
-            <form action={deletePerson.bind(null, treeId, personId)}>
-              <button
-                className="rounded-lg border px-3 py-1.5 text-sm text-red-600"
-                style={{ borderColor: "var(--border)" }}
-              >
-                Delete
-              </button>
-            </form>
+                <form action={addEvent.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Type</span>
+                    <select
+                      name="type"
+                      defaultValue="Baptism"
+                      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                      style={fieldStyle}
+                    >
+                      {PERSON_EVENT_TYPES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Date (optional)</span>
+                    <input name="date" placeholder="YYYY-MM-DD or free text" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                  </label>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Place (optional)</span>
+                    <input name="place" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} list="ke-loc" />
+                  </label>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Note (optional)</span>
+                    <input name="description" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                  </label>
+                  <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Add event
+                  </button>
+                </form>
+              </Dialog>
+
+              <form action={deletePerson.bind(null, treeId, personId)}>
+                <button className={`${actionItemClass} text-red-600`}>Delete person</button>
+              </form>
+            </ActionMenu>
           </div>
         )}
       </div>

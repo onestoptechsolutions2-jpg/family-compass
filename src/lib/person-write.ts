@@ -140,6 +140,37 @@ export async function ensureMarriageEvent(
     });
 }
 
+/** Add a standalone timeline event to a person (any type). Returns the new id. */
+export async function createPersonEvent(
+  treeId: string,
+  personId: string,
+  type: string,
+  rawDate: string,
+  rawPlace: string,
+  description: string,
+): Promise<string> {
+  const d = dateFields(rawDate);
+  const placeId = await upsertPlaceByTitle(treeId, rawPlace);
+  const ev = await db.event.create({
+    data: {
+      treeId,
+      type,
+      placeId,
+      description: description.trim() || null,
+      dateModifier: d?.dateModifier ?? DateModifier.NONE,
+      dateQuality: d?.dateQuality ?? DateQuality.NONE,
+      dateYear: d?.dateYear ?? null,
+      dateMonth: d?.dateMonth ?? null,
+      dateDay: d?.dateDay ?? null,
+      dateText: d?.dateText ?? null,
+      dateSortKey: d?.dateSortKey ?? null,
+      eventRefs: { create: { personId, role: "PRIMARY" } },
+    },
+    select: { id: true },
+  });
+  return ev.id;
+}
+
 export async function addChildRef(familyId: string, personId: string): Promise<void> {
   const count = await db.childRef.count({ where: { familyId } });
   await db.childRef.upsert({
