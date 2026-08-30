@@ -1,0 +1,94 @@
+import { notFound } from "next/navigation";
+
+import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
+import { db } from "@/lib/db";
+import { personOptions } from "@/lib/queries/people";
+import { PersonSelect } from "@/components/PersonSelect";
+import { renameTree, setHomePerson, deleteTree } from "./actions";
+
+export const metadata = { title: "Settings" };
+
+export default async function TreeSettingsPage({
+  params,
+}: {
+  params: Promise<{ treeId: string }>;
+}) {
+  const { treeId } = await params;
+  const ctx = await loadTreeContext(treeId);
+  if (!canManageTree(ctx.role)) notFound();
+
+  const tree = await db.tree.findUniqueOrThrow({
+    where: { id: treeId },
+    select: { name: true, description: true, homePersonId: true },
+  });
+  const options = await personOptions(treeId);
+
+  return (
+    <div className="flex max-w-xl flex-col gap-6">
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h3 className="font-medium">Tree details</h3>
+        <form action={renameTree.bind(null, treeId)} className="mt-3 flex flex-col gap-3">
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Name</span>
+            <input
+              name="name"
+              defaultValue={tree.name}
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Description</span>
+            <textarea
+              name="description"
+              defaultValue={tree.description ?? ""}
+              rows={3}
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            />
+          </label>
+          <div>
+            <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+              Save
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h3 className="font-medium">Home person</h3>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          The default person tree views and shares are centered on.
+        </p>
+        <form action={setHomePerson.bind(null, treeId)} className="mt-3 flex items-end gap-2">
+          <label className="flex-1 text-sm">
+            <PersonSelect name="homePersonId" options={options} defaultValue={tree.homePersonId} />
+          </label>
+          <button className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
+            Set
+          </button>
+        </form>
+      </section>
+
+      {canManageWorkspace(ctx.role) && (
+        <section className="rounded-xl border p-4" style={{ borderColor: "#ef4444" }}>
+          <h3 className="font-medium text-red-600">Danger zone</h3>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Deleting a tree permanently removes all its people, families, media and shares.
+          </p>
+          <form action={deleteTree.bind(null, treeId)} className="mt-3">
+            <button className="rounded-lg border border-red-500 px-3 py-1.5 text-sm text-red-600">
+              Delete this tree
+            </button>
+          </form>
+        </section>
+      )}
+    </div>
+  );
+}
