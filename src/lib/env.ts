@@ -34,6 +34,22 @@ const schema = z.object({
   EMAIL_SERVER: z.string().optional().default(""),
   EMAIL_FROM: z.string().optional().default(""),
 
+  // --- M-Pesa Daraja (STK Push) ---------------------------------------
+  // All optional: the Daraja provider stays dormant until these are set and
+  // PaymentSettings.provider is switched to "mpesa_daraja".
+  MPESA_ENV: z
+    .string()
+    .optional()
+    .transform((v) => (v === "production" ? "production" : "sandbox")),
+  MPESA_CONSUMER_KEY: z.string().optional().default(""),
+  MPESA_CONSUMER_SECRET: z.string().optional().default(""),
+  MPESA_SHORTCODE: z.string().optional().default(""),
+  MPESA_PASSKEY: z.string().optional().default(""),
+  MPESA_TRANSACTION_TYPE: z
+    .string()
+    .optional()
+    .transform((v) => (v === "CustomerPayBillOnline" ? "CustomerPayBillOnline" : "CustomerBuyGoodsOnline")),
+
   ADMIN_EMAILS: z
     .string()
     .optional()
@@ -89,6 +105,9 @@ export const env = (parsed.success ? parsed.data : schema.parse(BUILD_FALLBACKS)
 
 export const hasGoogleOAuth = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 export const hasEmailProvider = Boolean(env.EMAIL_SERVER && env.EMAIL_FROM);
+export const hasDaraja = Boolean(
+  env.MPESA_CONSUMER_KEY && env.MPESA_CONSUMER_SECRET && env.MPESA_SHORTCODE && env.MPESA_PASSKEY,
+);
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;

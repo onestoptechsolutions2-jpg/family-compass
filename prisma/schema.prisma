@@ -1144,6 +1144,7 @@ model GenerationJob {
 
 enum PaymentStatus {
   PENDING
+  AWAITING_STK
   AWAITING_VERIFICATION
   PAID
   REJECTED
@@ -1161,26 +1162,32 @@ enum PaymentKind {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  generationJobId String?       @unique
-  workspaceId     String
-  treeId          String?
-  userId          String
-  provider        String        @default("manual_mpesa")
-  kind            PaymentKind   @default(SINGLE)
-  creditsGranted  Int           @default(0)
-  amountKes       Int
-  currency        String        @default("KES")
-  reference       String        @unique
-  mpesaCode       String?
-  payerPhone      String?
-  payerNote       String?       @db.Text
-  status          PaymentStatus @default(PENDING)
-  rejectionReason String?       @db.Text
-  verifiedById    String?
-  verifiedAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  generationJobId   String?       @unique
+  workspaceId       String
+  treeId            String?
+  userId            String
+  provider          String        @default("manual_mpesa")
+  kind              PaymentKind   @default(SINGLE)
+  creditsGranted    Int           @default(0)
+  amountKes         Int
+  currency          String        @default("KES")
+  reference         String        @unique
+  mpesaCode         String?
+  payerPhone        String?
+  payerNote         String?       @db.Text
+  // Daraja STK Push (M-Pesa Express)
+  checkoutRequestId String?       @unique
+  merchantRequestId String?
+  providerRef       String?
+  resultCode        Int?
+  resultDesc        String?
+  status            PaymentStatus @default(PENDING)
+  rejectionReason   String?       @db.Text
+  verifiedById      String?
+  verifiedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   generationJob GenerationJob?      @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
   workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

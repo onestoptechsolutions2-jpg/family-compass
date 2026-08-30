@@ -1,5 +1,6 @@
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { getPaymentSettings } from "@/lib/payments";
+import { darajaConfigured } from "@/lib/payments/daraja";
 import { updatePaymentSettings } from "./actions";
 
 export const metadata = { title: "Payment settings" };
@@ -15,9 +16,16 @@ export default async function AdminSettingsPage() {
     <div className="flex max-w-xl flex-col gap-4">
       <h1 className="text-2xl font-semibold">Payment settings</h1>
       <p className="text-sm" style={{ color: "var(--muted)" }}>
-        The M-Pesa details buyers see at checkout, and how payments are verified. Only
-        <code> manual_mpesa </code> is wired up today; aggregator providers (IntaSend / Paystack
-        STK push) plug into the same interface later.
+        The M-Pesa details buyers see at checkout, and how payments are verified.{" "}
+        <code>manual_mpesa</code> = pay to the Till and paste the code (admin verifies).{" "}
+        <code>mpesa_daraja</code> = STK Push straight from Safaricom — it needs the{" "}
+        <code>MPESA_*</code> server variables set{" "}
+        {darajaConfigured ? (
+          <strong style={{ color: "var(--success)" }}>(configured ✓)</strong>
+        ) : (
+          <strong style={{ color: "var(--warning)" }}>(not configured yet)</strong>
+        )}
+        .
       </p>
 
       <form
@@ -29,13 +37,8 @@ export default async function AdminSettingsPage() {
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Provider</span>
             <select name="provider" defaultValue={s.provider} className={field} style={style}>
-              <option value="manual_mpesa">Manual M-Pesa Till</option>
-              <option value="intasend" disabled>
-                IntaSend (coming soon)
-              </option>
-              <option value="paystack" disabled>
-                Paystack (coming soon)
-              </option>
+              <option value="manual_mpesa">Manual M-Pesa Till (paste code)</option>
+              <option value="mpesa_daraja">M-Pesa STK Push (Daraja){darajaConfigured ? "" : " — set MPESA_* first"}</option>
             </select>
           </label>
           <label className="text-sm">
