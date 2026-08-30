@@ -55,9 +55,9 @@ export const BIO_FIELDS: { key: keyof BioNotes; label: string; hint: string; row
 ];
 
 function pronoun(g: EulogyFacts["gender"]) {
-  if (g === "MALE") return { subj: "He", poss: "his", obj: "him" };
-  if (g === "FEMALE") return { subj: "She", poss: "her", obj: "her" };
-  return { subj: "They", poss: "their", obj: "them" };
+  if (g === "MALE") return { subj: "He", poss: "his", obj: "him", was: "was" };
+  if (g === "FEMALE") return { subj: "She", poss: "her", obj: "her", was: "was" };
+  return { subj: "They", poss: "their", obj: "them", was: "were" };
 }
 
 function list(items: string[] | undefined): string {
@@ -80,7 +80,7 @@ export function buildEulogyDraft(f: EulogyFacts): string {
     if (f.bornPlace) bits.push(`in ${f.bornPlace}`);
     let s = bits.join(" ") + ".";
     if (f.parents && f.parents.length) {
-      s += ` ${p.subj} was born to ${list(f.parents)}.`;
+      s += ` ${p.subj} ${p.was} born to ${list(f.parents)}.`;
     }
     if (f.clan) {
       s += ` ${p.subj} belonged to the ${f.clan}${f.subClan ? ` (${f.subClan})` : ""} clan`;
@@ -100,7 +100,7 @@ export function buildEulogyDraft(f: EulogyFacts): string {
     }
     if (f.children && f.children.length) {
       bits.push(
-        `${p.subj} was blessed with ${f.children.length} child${f.children.length === 1 ? "" : "ren"}: ${list(f.children)}.`,
+        `${p.subj} ${p.was} blessed with ${f.children.length} child${f.children.length === 1 ? "" : "ren"}: ${list(f.children)}.`,
       );
     }
     if (bits.length) paras.push(bits.join(" "));
@@ -115,7 +115,7 @@ export function buildEulogyDraft(f: EulogyFacts): string {
   const ed = lead(n.education);
   if (el || ed) {
     storyParas.push(
-      [el && `${el}`, ed && `${p.subj} was educated at ${ed.replace(/^(at|in)\s+/i, "")}.`]
+      [el && `${el}`, ed && `${p.subj} ${p.was} educated at ${ed.replace(/^(at|in)\s+/i, "")}.`]
         .filter(Boolean)
         .join(" "),
     );
@@ -123,7 +123,7 @@ export function buildEulogyDraft(f: EulogyFacts): string {
   const ca = lead(n.career);
   if (ca) storyParas.push(`In ${p.poss} working life, ${lowerFirst(ca)}`.replace(/\.?$/, "."));
   const fa = lead(n.faith);
-  if (fa) storyParas.push(`${p.subj} was a person of faith. ${capitalise(fa)}`.replace(/\.?$/, "."));
+  if (fa) storyParas.push(`${p.subj} ${p.was} a person of faith. ${capitalise(fa)}`.replace(/\.?$/, "."));
   const ch = lead(n.character);
   const inx = lead(n.interests);
   if (ch || inx) {
@@ -164,11 +164,11 @@ export function buildEulogyDraft(f: EulogyFacts): string {
     if (f.diedDate) bits.push(`on ${f.diedDate}`);
     if (f.diedPlace) bits.push(`at ${f.diedPlace}`);
     let s = bits.join(" ") + ".";
-    if (f.ageYears && f.ageYears > 0) s += ` ${p.subj} was ${f.ageYears} years old.`;
-    if (f.restingPlace) s += ` ${p.subj} is laid to rest at ${f.restingPlace}.`;
+    if (f.ageYears && f.ageYears > 0) s += ` ${p.subj} ${p.was} ${f.ageYears} years old.`;
+    if (f.restingPlace) s += ` ${p.subj} ${p.was === "were" ? "are" : "is"} laid to rest at ${f.restingPlace}.`;
     const fav = lead(n.favouriteScripture);
     if (fav) s += ` ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} favourite scripture was ${fav}.`;
-    s += ` ${p.subj} is survived and remembered by ${p.poss} family and community.`;
+    s += ` ${p.subj} ${p.was === "were" ? "are" : "is"} survived and remembered by ${p.poss} family and community.`;
     paras.push(s);
   }
 
