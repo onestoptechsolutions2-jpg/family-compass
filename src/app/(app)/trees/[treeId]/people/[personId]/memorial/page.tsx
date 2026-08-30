@@ -5,18 +5,23 @@ import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
-import { getMemorialForEditor, type ProgramItem } from "@/lib/queries/memorial";
+import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/memorial";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { personMedia } from "@/lib/queries/media";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { CopyButton } from "@/components/CopyButton";
 import { QrShare } from "@/components/QrShare";
+import { Dialog } from "@/components/Dialog";
 import {
   createMemorial,
   updateMemorial,
   setMemorialCover,
   saveProgram,
+  addProgramItem,
+  updateProgramItem,
+  removeProgramItem,
+  moveProgramItem,
   moderateGuestbook,
   deleteMemorial,
   draftEulogy,
@@ -91,7 +96,8 @@ export default async function MemorialEditorPage({
   }
 
   const media = await personMedia(treeId, personId);
-  const order = ((memorial.program?.order as ProgramItem[]) ?? []).concat([{ title: "", detail: "" }]);
+  const order = normaliseOrder(memorial.program?.order);
+  const orderDays = groupByDay(order);
   const origin = await publicOrigin();
   const url = `${origin}/m/${memorial.slug}`;
   const pending = memorial.guestbook.filter((g) => g.status === "PENDING");
@@ -346,57 +352,134 @@ export default async function MemorialEditorPage({
         </form>
       )}
 
-      {/* ---- Funeral program (audited) ---- */}
-      <form
-        action={saveProgram.bind(null, treeId, memorial.id)}
+      {/* ---- Funeral programme (audited) ---- */}
+      <section
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <h2 className="font-medium">Funeral program</h2>
+        <h2 className="font-medium">Funeral programme</h2>
         <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-          Every save is recorded. {memorial.program?.updatedAt ? (
+          Every change is recorded. {memorial.program?.updatedAt ? (
             <>Last edited {memorial.program.updatedAt.toISOString().slice(0, 16).replace("T", " ")} by{" "}
               {memorial.program.updatedBy?.name ?? memorial.program.updatedBy?.email ?? "someone"}.</>
           ) : null}
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">
-            <span style={{ color: "var(--muted)" }}>Venue</span>
-            <input name="venue" defaultValue={memorial.program?.venue ?? ""} className={field} style={style} />
-          </label>
-          <label className="text-sm">
-            <span style={{ color: "var(--muted)" }}>Service date</span>
-            <input
-              type="date"
-              name="serviceDate"
-              defaultValue={memorial.program?.serviceDate?.toISOString().slice(0, 10) ?? ""}
-              className={field}
-              style={style}
-            />
-          </label>
-        </div>
-        <label className="mt-3 block text-sm">
-          <span style={{ color: "var(--muted)" }}>Committee / contacts</span>
-          <textarea name="committee" rows={2} defaultValue={memorial.program?.committee ?? ""} className={field} style={style} />
-        </label>
 
-        <div className="mt-3 text-sm font-medium">Order of service</div>
-        {order.map((it, i) => (
-          <div key={i} className="mt-2 grid grid-cols-[1fr,1fr] gap-2">
-            <input name="itemTitle" defaultValue={it.title} placeholder="Item" className="rounded-lg border px-3 py-2 text-sm" style={style} />
-            <input name="itemDetail" defaultValue={it.detail} placeholder="Who / note" className="rounded-lg border px-3 py-2 text-sm" style={style} />
+        <form action={saveProgram.bind(null, treeId, memorial.id)} className="mt-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Venue</span>
+              <input name="venue" defaultValue={memorial.program?.venue ?? ""} className={field} style={style} />
+            </label>
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Main service date</span>
+              <input
+                type="date"
+                name="serviceDate"
+                defaultValue={memorial.program?.serviceDate?.toISOString().slice(0, 10) ?? ""}
+                className={field}
+                style={style}
+              />
+            </label>
+          </div>
+          <label className="mt-3 block text-sm">
+            <span style={{ color: "var(--muted)" }}>Committee / contacts</span>
+            <textarea name="committee" rows={2} defaultValue={memorial.program?.committee ?? ""} className={field} style={style} />
+          </label>
+          <button className="mt-3 rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+            Save details
+          </button>
+        </form>
+
+        {/* order of service, grouped by day */}
+        <div className="mt-5 flex items-center justify-between">
+          <h3 className="text-sm font-medium">Order of service</h3>
+          <Dialog
+            title="Add a programme item"
+            label="➕ Add item"
+            buttonClass="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
+          >
+            <form action={addProgramItem.bind(null, treeId, memorial.id)} className="flex flex-col gap-3">
+              <label className="text-sm">
+                <span style={{ color: "var(--muted)" }}>Day (optional — e.g. “Fri 12 Sep · Viewing”)</span>
+                <input name="day" list="programme-days" className={field} style={style} placeholder="Programme" />
+                <datalist id="programme-days">
+                  {orderDays.map((g) => (
+                    <option key={g.day} value={g.day === "Programme" ? "" : g.day} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="text-sm">
+                <span style={{ color: "var(--muted)" }}>Item</span>
+                <input name="title" required className={field} style={style} placeholder="Scripture reading" />
+              </label>
+              <label className="text-sm">
+                <span style={{ color: "var(--muted)" }}>Who / note (optional)</span>
+                <input name="detail" className={field} style={style} placeholder="Pastor J. Otieno" />
+              </label>
+              <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                Add item
+              </button>
+            </form>
+          </Dialog>
+        </div>
+
+        {order.length === 0 && (
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>No items yet.</p>
+        )}
+
+        {orderDays.map((g) => (
+          <div key={g.day} className="mt-3">
+            {orderDays.length > 1 || g.day !== "Programme" ? (
+              <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+                {g.day}
+              </div>
+            ) : null}
+            <ol className="mt-1 flex flex-col">
+              {g.items.map((it, idx) => (
+                <li
+                  key={it.id}
+                  className="flex items-center gap-2 border-t py-2 text-sm"
+                  style={{ borderColor: "var(--hairline)" }}
+                >
+                  <span className="w-5 shrink-0 text-right" style={{ color: "var(--muted)" }}>{idx + 1}.</span>
+                  <span className="min-w-0 flex-1">
+                    {it.title}
+                    {it.detail ? <span style={{ color: "var(--muted)" }}> — {it.detail}</span> : null}
+                  </span>
+                  <form action={moveProgramItem.bind(null, treeId, memorial.id, it.id, "up")}>
+                    <button className="px-1 text-xs" style={{ color: "var(--muted)" }} title="Move up">↑</button>
+                  </form>
+                  <form action={moveProgramItem.bind(null, treeId, memorial.id, it.id, "down")}>
+                    <button className="px-1 text-xs" style={{ color: "var(--muted)" }} title="Move down">↓</button>
+                  </form>
+                  <Dialog title="Edit item" label="✏️" buttonClass="px-1 text-xs">
+                    <form action={updateProgramItem.bind(null, treeId, memorial.id, it.id)} className="flex flex-col gap-3">
+                      <label className="text-sm">
+                        <span style={{ color: "var(--muted)" }}>Day</span>
+                        <input name="day" defaultValue={it.day ?? ""} className={field} style={style} />
+                      </label>
+                      <label className="text-sm">
+                        <span style={{ color: "var(--muted)" }}>Item</span>
+                        <input name="title" required defaultValue={it.title} className={field} style={style} />
+                      </label>
+                      <label className="text-sm">
+                        <span style={{ color: "var(--muted)" }}>Who / note</span>
+                        <input name="detail" defaultValue={it.detail ?? ""} className={field} style={style} />
+                      </label>
+                      <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                        Save item
+                      </button>
+                    </form>
+                  </Dialog>
+                  <form action={removeProgramItem.bind(null, treeId, memorial.id, it.id)}>
+                    <button className="px-1 text-xs" style={{ color: "var(--danger)" }} title="Remove">✕</button>
+                  </form>
+                </li>
+              ))}
+            </ol>
           </div>
         ))}
-        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-          Fill the blank row to add an item; clear a row to remove it.
-        </p>
-        <label className="mt-3 block text-sm">
-          <span style={{ color: "var(--muted)" }}>Change note (for the audit log)</span>
-          <input name="note" className={field} style={style} />
-        </label>
-        <button className="mt-3 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-          Save program
-        </button>
 
         {memorial.program?.revisions?.length ? (
           <div className="mt-4 text-xs" style={{ color: "var(--muted)" }}>
@@ -412,7 +495,7 @@ export default async function MemorialEditorPage({
             </ul>
           </div>
         ) : null}
-      </form>
+      </section>
 
       </fieldset>
 

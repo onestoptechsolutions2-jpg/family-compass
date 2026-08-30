@@ -16,7 +16,36 @@ const NAME_SELECT = {
 } as const;
 const MINI = { id: true, living: true, privacy: true, names: { select: NAME_SELECT } } as const;
 
-export type ProgramItem = { title: string; detail?: string };
+export type ProgramItem = { id: string; day?: string; title: string; detail?: string };
+
+/** Normalise stored order JSON (older rows may lack id/day). */
+export function normaliseOrder(raw: unknown): ProgramItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r, i) => {
+    const o = (r ?? {}) as Record<string, unknown>;
+    return {
+      id: typeof o.id === "string" && o.id ? o.id : `it${i}`,
+      day: typeof o.day === "string" && o.day.trim() ? o.day.trim() : undefined,
+      title: String(o.title ?? "").trim(),
+      detail: typeof o.detail === "string" && o.detail.trim() ? o.detail.trim() : undefined,
+    };
+  }).filter((x) => x.title);
+}
+
+/** Group items by their day label, preserving order; undated go under "Programme". */
+export function groupByDay(items: ProgramItem[]): { day: string; items: ProgramItem[] }[] {
+  const out: { day: string; items: ProgramItem[] }[] = [];
+  for (const it of items) {
+    const key = it.day ?? "Programme";
+    let bucket = out.find((b) => b.day === key);
+    if (!bucket) {
+      bucket = { day: key, items: [] };
+      out.push(bucket);
+    }
+    bucket.items.push(it);
+  }
+  return out;
+}
 
 export async function getMemorialForEditor(treeId: string, personId: string) {
   return db.memorial.findFirst({
@@ -209,7 +238,7 @@ export async function getPublicMemorial(slug: string) {
     program: m.program
       ? {
           ...m.program,
-          order: (m.program.order as ProgramItem[]) ?? [],
+          order: normaliseOrder(m.program.order),
         }
       : null,
   };
@@ -379,7 +408,7 @@ export async function getMemorialBookData(treeId: string, personId: string) {
           venue: m.program.venue,
           serviceDate: m.program.serviceDate,
           committee: m.program.committee,
-          order: (m.program.order as ProgramItem[]) ?? [],
+          order: normaliseOrder(m.program.order),
         }
       : null,
   };

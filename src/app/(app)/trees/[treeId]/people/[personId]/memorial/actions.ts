@@ -9,7 +9,7 @@ import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
 import { slugify, randomToken } from "@/lib/slug";
 import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
-import { draftEulogyText } from "@/lib/queries/memorial";
+import { draftEulogyText, normaliseOrder, type ProgramItem } from "@/lib/queries/memorial";
 import { logActivity } from "@/lib/activity";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyTreeManagers } from "@/lib/notify";
@@ -200,36 +200,51 @@ export async function setMemorialCover(treeId: string, memorialId: string, formD
   revalidatePath(`/trees/${treeId}/people/${m.personId}/memorial`);
 }
 
-export async function saveProgram(treeId: string, memorialId: string, formData: FormData) {
-  const ctx = await requireTreeEdit(treeId);
-  const m = await ownMemorial(treeId, memorialId);
-  assertUnlocked(m);
+/** Load the program's current order as normalised ProgramItem[] (empty if none). */
+async function currentOrder(memorialId: string): Promise<ProgramItem[]> {
+  const p = await db.funeralProgram.findUnique({ where: { memorialId }, select: { order: true } });
+  return normaliseOrder(p?.order);
+}
 
-  const titles = formData.getAll("itemTitle").map(String);
-  const details = formData.getAll("itemDetail").map(String);
-  const order = titles
-    .map((t, i) => ({ title: t.trim(), detail: (details[i] ?? "").trim() }))
-    .filter((x) => x.title);
-
-  const venue = String(formData.get("venue") ?? "").trim() || null;
-  const committee = String(formData.get("committee") ?? "").trim() || null;
-  const serviceDateRaw = String(formData.get("serviceDate") ?? "").trim();
-  const serviceDate = /^\d{4}-\d{2}-\d{2}/.test(serviceDateRaw) ? new Date(serviceDateRaw) : null;
-  const note = String(formData.get("note") ?? "").trim() || null;
-
+async function commitOrder(
+  memorialId: string,
+  actorId: string,
+  order: ProgramItem[],
+  note: string,
+  extra: { venue?: string | null; committee?: string | null; serviceDate?: Date | null } = {},
+) {
   const program = await db.funeralProgram.upsert({
     where: { memorialId },
-    update: { venue, committee, serviceDate, order, updatedById: ctx.user.id },
-    create: { memorialId, venue, committee, serviceDate, order, updatedById: ctx.user.id },
+    update: { ...extra, order: order as unknown as object, updatedById: actorId },
+    create: { memorialId, ...extra, order: order as unknown as object, updatedById: actorId },
     select: { id: true },
   });
   await db.programRevision.create({
     data: {
       programId: program.id,
-      editedById: ctx.user.id,
+      editedById: actorId,
       note,
-      snapshot: { venue, committee, serviceDate: serviceDate?.toISOString() ?? null, order },
+      snapshot: { order } as unknown as object,
     },
+  });
+}
+
+/** Venue / date / committee / service text — not the order of service items. */
+export async function saveProgram(treeId: string, memorialId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+
+  const venue = String(formData.get("venue") ?? "").trim() || null;
+  const committee = String(formData.get("committee") ?? "").trim() || null;
+  const serviceDateRaw = String(formData.get("serviceDate") ?? "").trim();
+  const serviceDate = /^\d{4}-\d{2}-\d{2}/.test(serviceDateRaw) ? new Date(serviceDateRaw) : null;
+  const note = String(formData.get("note") ?? "").trim() || "details";
+
+  await commitOrder(memorialId, ctx.user.id, await currentOrder(memorialId), note, {
+    venue,
+    committee,
+    serviceDate,
   });
   await logActivity({
     treeId,
@@ -237,9 +252,75 @@ export async function saveProgram(treeId: string, memorialId: string, formData: 
     verb: "updated",
     objectType: "funeralProgram",
     objectId: m.personId,
-    summary: `updated the funeral program${note ? ` — ${note}` : ""}`,
+    summary: "updated the funeral programme details",
   });
-  revalidatePath(`/trees/${treeId}/people/${m.personId}/memorial`);
+  revalidate(treeId, m.personId);
+}
+
+export async function addProgramItem(treeId: string, memorialId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+  const title = String(formData.get("title") ?? "").trim().slice(0, 200);
+  const detail = String(formData.get("detail") ?? "").trim().slice(0, 400) || undefined;
+  const day = String(formData.get("day") ?? "").trim().slice(0, 80) || undefined;
+  if (!title) throw new Error("Add a title for the item");
+
+  const order = await currentOrder(memorialId);
+  order.push({ id: `it_${randomToken(8)}`, day, title, detail });
+  await commitOrder(memorialId, ctx.user.id, order, `added "${title}"`);
+  revalidate(treeId, m.personId);
+}
+
+export async function updateProgramItem(
+  treeId: string,
+  memorialId: string,
+  itemId: string,
+  formData: FormData,
+) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+  const title = String(formData.get("title") ?? "").trim().slice(0, 200);
+  const detail = String(formData.get("detail") ?? "").trim().slice(0, 400) || undefined;
+  const day = String(formData.get("day") ?? "").trim().slice(0, 80) || undefined;
+  if (!title) throw new Error("Add a title for the item");
+
+  const order = await currentOrder(memorialId).then((o) =>
+    o.map((it) => (it.id === itemId ? { ...it, title, detail, day } : it)),
+  );
+  await commitOrder(memorialId, ctx.user.id, order, `edited "${title}"`);
+  revalidate(treeId, m.personId);
+}
+
+export async function removeProgramItem(treeId: string, memorialId: string, itemId: string) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+  const order = (await currentOrder(memorialId)).filter((it) => it.id !== itemId);
+  await commitOrder(memorialId, ctx.user.id, order, "removed an item");
+  revalidate(treeId, m.personId);
+}
+
+export async function moveProgramItem(
+  treeId: string,
+  memorialId: string,
+  itemId: string,
+  dir: "up" | "down",
+) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+  const order = await currentOrder(memorialId);
+  const i = order.findIndex((it) => it.id === itemId);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= order.length) {
+    revalidate(treeId, m.personId);
+    return;
+  }
+  [order[i], order[j]] = [order[j]!, order[i]!];
+  await commitOrder(memorialId, ctx.user.id, order, "reordered");
+  revalidate(treeId, m.personId);
 }
 
 export async function moderateGuestbook(

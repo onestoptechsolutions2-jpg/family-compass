@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { db } from "@/lib/db";
-import { getPublicMemorial } from "@/lib/queries/memorial";
+import { getPublicMemorial, groupByDay } from "@/lib/queries/memorial";
 import { publicOrigin } from "@/lib/origin";
 import { templateTheme } from "@/lib/memorial-templates";
 import { MediaThumb } from "@/components/media/MediaThumb";
@@ -226,14 +226,25 @@ export default async function MemorialPage({
             {m.program?.serviceDate && <p>Date: {m.program.serviceDate.toISOString().slice(0, 10)}</p>}
             {m.serviceText && <p className="mt-1 whitespace-pre-wrap">{m.serviceText}</p>}
             {m.program && m.program.order.length > 0 && (
-              <ol className="mt-2 list-decimal space-y-1 pl-5">
-                {m.program.order.map((it, i) => (
-                  <li key={i}>
-                    {it.title}
-                    {it.detail ? <span style={{ color: "var(--muted)" }}> — {it.detail}</span> : null}
-                  </li>
+              <div className="mt-2 flex flex-col gap-3">
+                {groupByDay(m.program.order).map((g) => (
+                  <div key={g.day}>
+                    {(groupByDay(m.program!.order).length > 1 || g.day !== "Programme") && (
+                      <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+                        {g.day}
+                      </div>
+                    )}
+                    <ol className="mt-1 list-decimal space-y-1 pl-5">
+                      {g.items.map((it) => (
+                        <li key={it.id}>
+                          {it.title}
+                          {it.detail ? <span style={{ color: "var(--muted)" }}> — {it.detail}</span> : null}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 ))}
-              </ol>
+              </div>
             )}
             {m.program?.committee && (
               <p className="mt-2 whitespace-pre-wrap" style={{ color: "var(--muted)" }}>{m.program.committee}</p>

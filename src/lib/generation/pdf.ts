@@ -84,7 +84,7 @@ export type MemorialBookData = {
   survivors: string[];
   preceded: string[];
   timeline?: { type: string; date: string; place: string | null; note: string | null }[];
-  program: { venue: string | null; serviceDate: Date | null; committee: string | null; order: { title: string; detail?: string }[] } | null;
+  program: { venue: string | null; serviceDate: Date | null; committee: string | null; order: { id?: string; day?: string; title: string; detail?: string }[] } | null;
   guestbook?: { name: string; relation: string | null; message: string; date: string }[];
   cover: { bytes: Buffer; mime: string } | null;
   photos?: { bytes: Buffer; mime: string; caption?: string | null }[];
@@ -132,9 +132,24 @@ export async function memorialBookPdf(
   let page = doc.addPage([A4.w, A4.h]);
   let y = A4.h - margin;
 
-  const stamp = () => opts.watermark && stampPreview(page, bold);
+  const previewMode = !!opts.watermark;
+  const previewMax = 3; // cover + ~2 pages of "A life", Scribd-style
+  let cut = false;
+
+  const footer = (pg: PDFPage, n: number) => {
+    if (n <= 1) return;
+    pg.drawText(`${d.name}`, { x: margin, y: 28, size: 8, font: reg, color: rgb(...th.muted) });
+    pg.drawText(`${n}`, { x: A4.w - margin - 6, y: 28, size: 8, font: reg, color: rgb(...th.muted) });
+  };
+  const stamp = () => previewMode && stampPreview(page, bold);
   const newPage = () => {
+    if (previewMode && cut) return;
+    footer(page, doc.getPageCount());
     stamp();
+    if (previewMode && doc.getPageCount() >= previewMax) {
+      cut = true;
+      return;
+    }
     page = doc.addPage([A4.w, A4.h]);
     y = A4.h - margin;
   };
@@ -145,20 +160,39 @@ export async function memorialBookPdf(
     s: string,
     o: { size?: number; font?: PDFFont; gap?: number; color?: Rgb; x?: number; maxW?: number } = {},
   ) => {
+    if (cut) return;
     const size = o.size ?? 10.5;
     const f = o.font ?? bodyFont;
     for (const l of wrap(s, f, size, o.maxW ?? contentW)) {
       ensure(size + 5);
+      if (cut) return;
       page.drawText(l, { x: o.x ?? margin, y, size, font: f, color: rgb(...(o.color ?? th.ink)) });
       y -= size + 4.5;
     }
     if (o.gap) y -= o.gap;
   };
-  const section = (title: string) => {
+  /** Start a section on a fresh page. Returns false when the preview is cut. */
+  const section = (title: string, eyebrow?: string): boolean => {
+    if (cut) return false;
     newPage();
-    page.drawRectangle({ x: margin, y: y - 2, width: 46, height: 3, color: rgb(...th.accent) });
-    y -= 20;
-    text(title, { size: 20, font: headFont, gap: 12 });
+    if (cut) return false;
+    if (eyebrow) {
+      page.drawText(eyebrow.toUpperCase(), { x: margin, y, size: 8, font: bold, color: rgb(...th.accent) });
+      y -= 13;
+    }
+    page.drawRectangle({ x: margin, y: y - 2, width: 44, height: 3, color: rgb(...th.accent) });
+    y -= 18;
+    page.drawText(title, { x: margin, y, size: 20, font: headFont, color: rgb(...th.ink) });
+    y -= 12;
+    page.drawLine({
+      start: { x: margin, y },
+      end: { x: A4.w - margin, y },
+      thickness: 0.6,
+      color: rgb(...th.muted),
+      opacity: 0.4,
+    });
+    y -= 16;
+    return true;
   };
   const kv = (label: string, value: string) => {
     if (!value) return;
@@ -183,19 +217,20 @@ export async function memorialBookPdf(
   };
 
   // ---------- cover ----------
-  page.drawRectangle({ x: 0, y: A4.h - 210, width: A4.w, height: 210, color: rgb(...th.coverTint) });
+  page.drawRectangle({ x: 0, y: A4.h - 220, width: A4.w, height: 220, color: rgb(...th.coverTint) });
+  page.drawRectangle({ x: 0, y: A4.h - 224, width: A4.w, height: 4, color: rgb(...th.accent) });
   y = A4.h - 150;
   if (d.cover) await drawImage(d.cover.bytes, d.cover.mime, 300, 300, A4.w / 2);
-  y -= 8;
-  text(d.headline ?? `In loving memory of ${d.name}`, { size: 26, font: headFont, gap: 6 });
-  text(d.name, { size: 13, color: th.muted, gap: 4 });
-  const years = [d.born, d.died].filter(Boolean).join("  —  ");
+  y -= 10;
+  text("IN MEMORY OF", { size: 9, font: bold, color: th.accent, gap: 4 });
+  text(d.headline ?? d.name, { size: 26, font: headFont, gap: 6 });
+  if (d.headline) text(d.name, { size: 13, color: th.muted, gap: 4 });
+  const years = [d.born, d.died].filter(Boolean).join("   —   ");
   if (years) text(years, { size: 11, color: th.muted });
   if (d.restingPlace) text(`Laid to rest at ${d.restingPlace}`, { size: 10, color: th.muted });
 
   // ---------- life ----------
-  if (d.eulogy) {
-    section("A life");
+  if (d.eulogy && section("A life", "Biography")) {
     for (const para of d.eulogy.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean)) {
       text(para, { size: 11, gap: 9 });
     }
@@ -209,18 +244,17 @@ export async function memorialBookPdf(
     d.survivors.length ? ["Survived by", d.survivors.join(", ")] : null,
     d.preceded.length ? ["Preceded in death by", d.preceded.join(", ")] : null,
   ].filter(Boolean) as [string, string][];
-  if (fam.length) {
-    section("Family");
+  if (fam.length && section("Family", "Those who remain")) {
     for (const [k, v] of fam) kv(k, v);
   }
 
   // ---------- milestones ----------
-  if (d.timeline && d.timeline.length) {
-    section("Milestones");
+  if (d.timeline && d.timeline.length && section("Milestones", "A life in dates")) {
     for (const e of d.timeline) {
       ensure(20);
+      if (cut) break;
       page.drawText(e.type, { x: margin, y, size: 10.5, font: bold, color: rgb(...th.ink) });
-      if (e.date) page.drawText(e.date, { x: margin + 120, y, size: 10.5, font: bodyFont, color: rgb(...th.muted) });
+      if (e.date) page.drawText(e.date, { x: margin + 130, y, size: 10.5, font: bodyFont, color: rgb(...th.muted) });
       y -= 14;
       const detail = [e.place, e.note].filter(Boolean).join(" — ");
       if (detail) text(detail, { size: 10, color: th.muted, gap: 4 });
@@ -229,8 +263,7 @@ export async function memorialBookPdf(
   }
 
   // ---------- roots ----------
-  if (d.clan || d.community || d.subClan) {
-    section("Roots");
+  if ((d.clan || d.community || d.subClan) && section("Roots", "Clan & origin")) {
     kv("Clan", [d.clan, d.subClan ? `(${d.subClan})` : ""].filter(Boolean).join(" "));
     if (d.community) kv("Community", d.community);
     if (d.clanOrigin) kv("Origin", d.clanOrigin);
@@ -238,25 +271,36 @@ export async function memorialBookPdf(
   }
 
   // ---------- photographs ----------
-  if (d.photos && d.photos.length) {
-    section("Photographs");
+  if (d.photos && d.photos.length && section("Photographs", "In pictures")) {
     for (const ph of d.photos.slice(0, 12)) {
+      if (cut) break;
       const ok = await drawImage(ph.bytes, ph.mime, contentW, 300, A4.w / 2);
       if (ok && ph.caption) text(ph.caption, { size: 9, color: th.muted, gap: 10 });
       else if (ok) y -= 6;
     }
   }
 
-  // ---------- order of service ----------
-  if (d.program || d.serviceText) {
-    section("Order of service");
+  // ---------- order of service (grouped by day) ----------
+  if ((d.program || d.serviceText) && section("Order of service", "The farewell")) {
     if (d.program?.venue) kv("Venue", d.program.venue);
-    if (d.program?.serviceDate) kv("Date", d.program.serviceDate.toISOString().slice(0, 10));
+    if (d.program?.serviceDate) kv("Main service date", d.program.serviceDate.toISOString().slice(0, 10));
     if (d.program && d.program.order.length) {
-      y -= 2;
-      d.program.order.forEach((it, i) =>
-        text(`${i + 1}.  ${it.title}${it.detail ? `  —  ${it.detail}` : ""}`, { size: 10.5, gap: 3 }),
-      );
+      const groups: { day: string; items: typeof d.program.order }[] = [];
+      for (const it of d.program.order) {
+        const key = it.day?.trim() || "Programme";
+        let g = groups.find((x) => x.day === key);
+        if (!g) groups.push((g = { day: key, items: [] }));
+        g.items.push(it);
+      }
+      for (const g of groups) {
+        y -= 4;
+        if (groups.length > 1 || g.day !== "Programme") {
+          text(g.day, { size: 10, font: bold, color: th.accent, gap: 3 });
+        }
+        g.items.forEach((it, i) =>
+          text(`${i + 1}.  ${it.title}${it.detail ? `  —  ${it.detail}` : ""}`, { size: 10.5, gap: 3 }),
+        );
+      }
     }
     if (d.serviceText) {
       y -= 6;
@@ -269,27 +313,46 @@ export async function memorialBookPdf(
   }
 
   // ---------- tributes ----------
-  if (d.guestbook && d.guestbook.length) {
-    section("Tributes");
+  if (d.guestbook && d.guestbook.length && section("Tributes", "From the guestbook")) {
     for (const g of d.guestbook) {
-      ensure(30);
-      page.drawText(
-        `${g.name}${g.relation ? ` · ${g.relation}` : ""}`,
-        { x: margin, y, size: 10, font: bold, color: rgb(...th.ink) },
-      );
+      if (cut) break;
+      ensure(34);
+      page.drawRectangle({ x: margin - 10, y: y - 24, width: 3, height: 28, color: rgb(...th.accent) });
+      page.drawText(`${g.name}${g.relation ? ` · ${g.relation}` : ""}`, {
+        x: margin, y, size: 10, font: bold, color: rgb(...th.ink),
+      });
       page.drawText(g.date, { x: A4.w - margin - 60, y, size: 9, font: bodyFont, color: rgb(...th.muted) });
       y -= 13;
-      text(g.message, { size: 10, gap: 10 });
+      text(g.message, { size: 10, gap: 12 });
     }
   }
 
-  // ---------- colophon ----------
-  newPage();
-  y = A4.h / 2;
-  text("Compiled with Family Compass", { size: 11, font: headFont, gap: 4 });
-  text(new Date().toISOString().slice(0, 10), { size: 9, color: th.muted });
-
+  // ---------- lock page (preview) or colophon ----------
+  footer(page, doc.getPageCount());
   stamp();
+  if (cut) {
+    const lp = doc.addPage([A4.w, A4.h]);
+    stampPreview(lp, bold);
+    const cx = A4.w / 2;
+    lp.drawText("Preview", { x: cx - 44, y: A4.h / 2 + 40, size: 24, font: headFont, color: rgb(...th.ink) });
+    for (const [i, s] of [
+      "This is a free preview of the first pages.",
+      "Unlock the full memorial book to download every page —",
+      "biography, family, milestones, roots, photographs,",
+      "the order of service and all the guestbook tributes.",
+    ].entries()) {
+      lp.drawText(s, { x: cx - 170, y: A4.h / 2 - i * 16, size: 10, font: reg, color: rgb(...th.muted) });
+    }
+  } else {
+    const cp = doc.addPage([A4.w, A4.h]);
+    cp.drawText("Compiled with Family Compass", {
+      x: A4.w / 2 - 90, y: A4.h / 2, size: 11, font: headFont, color: rgb(...th.ink),
+    });
+    cp.drawText(new Date().toISOString().slice(0, 10), {
+      x: A4.w / 2 - 30, y: A4.h / 2 - 16, size: 9, font: reg, color: rgb(...th.muted),
+    });
+  }
+
   return Buffer.from(await doc.save());
 }
 
