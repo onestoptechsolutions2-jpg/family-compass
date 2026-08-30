@@ -20,7 +20,7 @@ data exports costs **KES 750 per download**, paid by M-Pesa.
 | 3 | Interactive pan/zoom tree — ancestors / hourglass / descendants / fan chart, click-to-re-root, keyboard nav, jump-to-person, set home person | ✅ done |
 | 4 | Media upload (Postgres bytea) + `sharp` thumbnails + `/api/media/[id]` with auth, ETag, range · gallery + per-person photos · 10 MB/file, 250 MB/tree quota | ✅ done |
 | 5 | Email invitations + accept flow, role management, `/trees/…/sharing`, public `/s/[slug]` read-only tree with living-person redaction + optional password/expiry, `/updates` activity feed | ✅ done |
-| 6 | Paid chart/export generation + manual M-Pesa Till payment + admin verification | ⏳ planned |
+| 6 | Paid generation — watermarked preview → first-free / credit / M-Pesa Till bundle → admin verify → clean download. Pedigree/fan/descendant PDF, family-book PDF, GEDCOM + `.gramps` exports. Pluggable payment provider + `/admin/payments` + `/admin/settings` | ✅ done |
 | 7 | Marketing pages, rate limiting, audit log, backups, admin console | ⏳ planned |
 
 Full plan: `.claude/plans/async-inventing-fountain.md` (or ask).
@@ -75,8 +75,21 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    migration race.
 5. First deploy only: set `RUN_SEED_ON_MIGRATE=true` **or** run
    `npm run db:seed` once via a Coolify terminal to create the global
-   `PaymentSettings` row, then configure your M-Pesa Till in **/admin/settings**
-   (phase 6).
+   `PaymentSettings` row, then sign in as an `ADMIN_EMAILS` user and set your
+   M-Pesa Till / Store number in **/admin/settings**. Verify payments at
+   **/admin/payments**.
+
+### Monetization model (phase 6)
+
+Free to build, invite, and publish shared links. Downloads cost credits:
+first export per tree is **free**, then **1 credit per download**. Credits are
+bought in bundles (`SINGLE` KES 750 · `BUNDLE_5` KES 2,500 · `BUNDLE_15`
+KES 6,000, all editable). Flow: generate a **watermarked preview** free →
+*Unlock* spends the free/credit, or moves to *awaiting payment* → buyer pays
+the Till and pastes the M-Pesa code → admin approves at `/admin/payments` →
+credits land → *Unlock* again → clean file at `/api/generations/[id]/download`.
+Swap `PaymentSettings.provider` to an aggregator (IntaSend/Paystack STK push)
+later — same `PaymentProvider` interface, webhook route already stubbed.
 
 Health check: `GET /api/health` → `{ ok: true, db: "up" }`.
 

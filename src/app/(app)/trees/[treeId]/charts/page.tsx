@@ -1,16 +1,343 @@
-import { loadTreeContext } from "@/lib/rbac";
-import { Placeholder } from "@/components/Placeholder";
+import { GenerationKind, PaymentKind } from "@prisma/client";
+
+import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
+import { getChartsData } from "@/lib/queries/charts";
+import { personOptions } from "@/lib/queries/people";
+import { formatName } from "@/lib/person";
+import { BUNDLES, GENERATION_LABELS, GENERATION_NEEDS_CENTRAL } from "@/lib/pricing";
+import { getPaymentSettings } from "@/lib/payments";
+import { getProvider } from "@/lib/payments";
+import { PersonSelect } from "@/components/PersonSelect";
+import { MediaThumb } from "@/components/media/MediaThumb";
+import {
+  createGeneration,
+  unlockGeneration,
+  startCreditPurchase,
+  submitMpesaCode,
+  cancelPayment,
+} from "./actions";
 
 export const metadata = { title: "Charts & exports" };
 
-export default async function ChartsPage({ params }: { params: Promise<{ treeId: string }> }) {
+const STATUS_LABEL: Record<string, string> = {
+  QUEUED: "Queued…",
+  RENDERING_PREVIEW: "Rendering preview…",
+  PREVIEW_READY: "Preview ready",
+  AWAITING_PAYMENT: "Needs a credit",
+  PAID: "Unlocked — rendering…",
+  RENDERING_OUTPUT: "Rendering download…",
+  OUTPUT_READY: "Ready to download",
+  FAILED: "Failed",
+};
+
+export default async function ChartsPage({
+  params,
+}: {
+  params: Promise<{ treeId: string }>;
+}) {
   const { treeId } = await params;
-  await loadTreeContext(treeId);
+  const ctx = await loadTreeContext(treeId);
+  const editable = canEdit(ctx.role);
+  const canBuy = canManageTree(ctx.role);
+
+  const [{ credits, jobs, payments }, options, settings] = await Promise.all([
+    getChartsData(treeId, ctx.workspace.id),
+    personOptions(treeId),
+    getPaymentSettings(),
+  ]);
+
+  const pending = payments.find((p) => p.status === "PENDING" || p.status === "AWAITING_VERIFICATION");
+  const checkout = pending
+    ? await getProvider(settings.provider).checkout({
+        reference: pending.reference,
+        amountKes: pending.amountKes,
+        settings,
+      })
+    : null;
+
   return (
-    <Placeholder title="Charts & exports — coming in phase 6">
-      Generate pedigree, fan, descendant and family-book PDFs, plus GEDCOM / .gramps exports.
-      Preview any of them free with a watermark, then pay KES 750 by M-Pesa to download a clean
-      high-resolution copy.
-    </Placeholder>
+    <div className="flex flex-col gap-8">
+      {/* credits banner */}
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <div>
+          <div className="text-sm" style={{ color: "var(--muted)" }}>
+            Export credits
+          </div>
+          <div className="text-2xl font-semibold">{credits}</div>
+          <div className="text-xs" style={{ color: "var(--muted)" }}>
+            Your first export on this tree is free. After that, 1 credit per download.
+          </div>
+        </div>
+        {canBuy && (
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(BUNDLES) as (keyof typeof BUNDLES)[]).map((k) => (
+              <form key={k} action={startCreditPurchase.bind(null, treeId)}>
+                <input type="hidden" name="kind" value={k} />
+                <button
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <div className="font-medium">{BUNDLES[k].label}</div>
+                  <div style={{ color: "var(--muted)" }}>
+                    {settings.currency}{" "}
+                    {(k === "SINGLE" ? settings.defaultPriceKes : BUNDLES[k].priceKes).toLocaleString()} ·{" "}
+                    {BUNDLES[k].blurb}
+                  </div>
+                </button>
+              </form>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* active payment */}
+      {pending && checkout && (
+        <section
+          className="rounded-xl border p-4"
+          style={{ borderColor: "var(--color-brand-600)", background: "var(--card)" }}
+        >
+          <h3 className="font-medium">
+            Complete your payment — {settings.currency} {pending.amountKes.toLocaleString()} for{" "}
+            {pending.creditsGranted} credit{pending.creditsGranted === 1 ? "" : "s"}
+          </h3>
+          {checkout.mode === "manual" && (
+            <>
+              <table className="mt-3 text-sm">
+                <tbody>
+                  {checkout.payTo?.map((row) => (
+                    <tr key={row.label}>
+                      <td className="pr-4" style={{ color: "var(--muted)" }}>
+                        {row.label}
+                      </td>
+                      <td className="font-mono font-medium">{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {checkout.note && (
+                <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+                  {checkout.note}
+                </p>
+              )}
+              {pending.status === "AWAITING_VERIFICATION" ? (
+                <p className="mt-3 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
+                  Code <strong>{pending.mpesaCode}</strong> submitted — we&apos;ll verify it shortly and
+                  add your credits.
+                  {pending.rejectionReason && (
+                    <span className="text-red-600"> Rejected: {pending.rejectionReason}</span>
+                  )}
+                </p>
+              ) : (
+                <form
+                  action={submitMpesaCode.bind(null, treeId, pending.id)}
+                  className="mt-3 flex flex-wrap items-end gap-2"
+                >
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>M-Pesa confirmation code</span>
+                    <input
+                      name="mpesaCode"
+                      required
+                      placeholder="e.g. SGH7X8K2ML"
+                      className="mt-1 block rounded-lg border px-3 py-2 uppercase"
+                      style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Phone (optional)</span>
+                    <input
+                      name="payerPhone"
+                      placeholder="07…"
+                      className="mt-1 block rounded-lg border px-3 py-2"
+                      style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+                    />
+                  </label>
+                  <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    I&apos;ve paid
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+          <form action={cancelPayment.bind(null, treeId, pending.id)} className="mt-2">
+            <button className="text-xs text-red-600 hover:underline">cancel this payment</button>
+          </form>
+        </section>
+      )}
+
+      {/* new generation */}
+      {editable && (
+        <section>
+          <h2 className="text-lg font-semibold">New chart or export</h2>
+          <form
+            action={createGeneration.bind(null, treeId)}
+            className="mt-3 grid gap-3 rounded-xl border p-4 sm:grid-cols-2"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+          >
+            <label className="text-sm sm:col-span-2">
+              <span style={{ color: "var(--muted)" }}>Type</span>
+              <select
+                name="kind"
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              >
+                {Object.values(GenerationKind).map((k) => (
+                  <option key={k} value={k}>
+                    {GENERATION_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Central person (for charts)</span>
+              <PersonSelect
+                name="centralPersonId"
+                options={options}
+                defaultValue={ctx.tree.homePersonId}
+              />
+            </label>
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Generations</span>
+              <input
+                type="number"
+                name="generations"
+                min={2}
+                max={6}
+                defaultValue={4}
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              />
+            </label>
+            <label className="text-sm sm:col-span-2">
+              <span style={{ color: "var(--muted)" }}>Title (optional)</span>
+              <input
+                name="title"
+                placeholder={ctx.tree.name}
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              />
+            </label>
+            <div className="sm:col-span-2">
+              <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                Generate free preview
+              </button>
+            </div>
+          </form>
+          <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+            Charts need a central person. Family book, GEDCOM and .gramps exports use the whole tree.
+          </p>
+        </section>
+      )}
+
+      {/* generation list */}
+      <section>
+        <h2 className="text-lg font-semibold">Your charts &amp; exports</h2>
+        <div className="mt-3 flex flex-col gap-3">
+          {jobs.map((j) => {
+            const central = j.centralPerson
+              ? formatName(
+                  j.centralPerson.names.find((n) => n.preferred) ??
+                    j.centralPerson.names.find((n) => n.type === "BIRTH") ??
+                    j.centralPerson.names[0],
+                )
+              : null;
+            const canPreview = j.previewMediaId && ["PREVIEW_READY", "AWAITING_PAYMENT", "PAID", "RENDERING_OUTPUT", "OUTPUT_READY"].includes(j.status);
+            return (
+              <div
+                key={j.id}
+                className="flex flex-wrap items-start gap-4 rounded-xl border p-4"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
+              >
+                {canPreview && j.previewMediaId ? (
+                  <a
+                    href={`/api/media/${j.previewMediaId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block h-24 w-32 shrink-0 overflow-hidden rounded-lg border"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <MediaThumb mediaId={j.previewMediaId} mimeType="image/png" alt="preview" />
+                  </a>
+                ) : (
+                  <div
+                    className="grid h-24 w-32 shrink-0 place-items-center rounded-lg border text-xs"
+                    style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+                  >
+                    {STATUS_LABEL[j.status] ?? j.status}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="font-medium">{GENERATION_LABELS[j.kind]}</div>
+                  <div className="text-sm" style={{ color: "var(--muted)" }}>
+                    {central ? `Centered on ${central} · ` : ""}
+                    {STATUS_LABEL[j.status] ?? j.status}
+                    {j.freeUnlock ? " · free" : ""}
+                  </div>
+                  {j.error && <div className="mt-1 text-sm text-red-600">{j.error}</div>}
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {j.status === "PREVIEW_READY" && editable && (
+                      <form action={unlockGeneration.bind(null, treeId, j.id)}>
+                        <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+                          {credits > 0 ? "Unlock download (1 credit)" : "Unlock download"}
+                        </button>
+                      </form>
+                    )}
+                    {j.status === "AWAITING_PAYMENT" && (
+                      <span className="text-sm text-amber-600">
+                        Buy a credit above, then press unlock again.
+                      </span>
+                    )}
+                    {j.status === "AWAITING_PAYMENT" && editable && (
+                      <form action={unlockGeneration.bind(null, treeId, j.id)}>
+                        <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+                          Try unlock
+                        </button>
+                      </form>
+                    )}
+                    {j.status === "OUTPUT_READY" && j.outputMediaId && (
+                      <a
+                        href={`/api/generations/${j.id}/download`}
+                        className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+                      >
+                        Download
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {jobs.length === 0 && (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              Nothing generated yet.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* payment history */}
+      {payments.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold">Payments</h2>
+          <ul className="mt-3 flex flex-col gap-1 text-sm">
+            {payments.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-2">
+                <span className="font-mono">{p.reference}</span>
+                <span style={{ color: "var(--muted)" }}>
+                  · {p.currency} {p.amountKes.toLocaleString()} · {p.creditsGranted} credits ·{" "}
+                  {p.status.toLowerCase().replace(/_/g, " ")}
+                </span>
+                {p.status === "REJECTED" && p.rejectionReason && (
+                  <span className="text-red-600">— {p.rejectionReason}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   );
 }

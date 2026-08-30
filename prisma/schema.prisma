@@ -41,6 +41,7 @@ model User {
   sharedViews     SharedView[]     @relation("SharedViewCreator")
   auditLogs       AuditLog[]
   activityEvents  ActivityEvent[]
+  creditLedger    CreditLedger[]   @relation("CreditActor")
 }
 
 model Account {
@@ -92,17 +93,19 @@ enum Role {
 }
 
 model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  exportCredits Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   memberships    Membership[]
   invitations    Invitation[]
   trees          Tree[]
   payments       Payment[]
   pricingConfigs PricingConfig[]
+  creditLedger   CreditLedger[]
 
   @@index([slug])
 }
@@ -146,6 +149,7 @@ model Tree {
   description String?  @db.Text
   slug        String
   homePersonId String?
+  freeExportUsedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -765,6 +769,8 @@ model GenerationJob {
   priceKes        Int
   previewMediaId  String?
   outputMediaId   String?
+  freeUnlock      Boolean          @default(false)
+  unlockedAt      DateTime?
   error           String?          @db.Text
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -791,12 +797,21 @@ enum PaymentStatus {
   CANCELLED
 }
 
+enum PaymentKind {
+  SINGLE
+  BUNDLE_5
+  BUNDLE_15
+  KEEPER
+}
+
 model Payment {
   id              String        @id @default(cuid())
-  generationJobId String        @unique
+  generationJobId String?       @unique
   workspaceId     String
   userId          String
   provider        String        @default("manual_mpesa")
+  kind            PaymentKind   @default(SINGLE)
+  creditsGranted  Int           @default(0)
   amountKes       Int
   currency        String        @default("KES")
   reference       String        @unique
@@ -810,15 +825,43 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  generationJob GenerationJob @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
-  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user          User          @relation("PaymentUser", fields: [userId], references: [id])
-  verifiedBy    User?         @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  generationJob GenerationJob? @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User           @relation("PaymentUser", fields: [userId], references: [id])
+  verifiedBy    User?          @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  ledgerEntries CreditLedger[]
 
   @@index([workspaceId])
   @@index([userId])
   @@index([status])
   @@index([mpesaCode])
+}
+
+enum CreditReason {
+  PURCHASE
+  SPEND
+  GRANT
+  REFUND
+  FREE
+}
+
+model CreditLedger {
+  id              String       @id @default(cuid())
+  workspaceId     String
+  delta           Int
+  balanceAfter    Int
+  reason          CreditReason
+  generationJobId String?
+  paymentId       String?
+  actorId         String?
+  note            String?
+  createdAt       DateTime     @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  payment   Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  actor     User?     @relation("CreditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
 }
 
 model PricingConfig {
