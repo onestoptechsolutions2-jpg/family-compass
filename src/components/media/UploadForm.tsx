@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
+
+import { COMMON_OCCASIONS } from "@/lib/occasions";
 
 export function UploadForm({
   action,
@@ -20,6 +22,7 @@ export function UploadForm({
   const [dragOver, setDragOver] = useState(false);
   const [occasion, setOccasion] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const listId = useId();
 
   const submit = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -45,10 +48,16 @@ export function UploadForm({
           <input
             value={occasion}
             onChange={(e) => setOccasion(e.target.value)}
+            list={listId}
             placeholder="e.g. wedding 1998, graduation, portrait"
             className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--bg)" }}
           />
+          <datalist id={listId}>
+            {COMMON_OCCASIONS.map((o) => (
+              <option key={o} value={o} />
+            ))}
+          </datalist>
           <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
             Files are renamed with the person&apos;s name and this occasion, kept unique.
           </span>
