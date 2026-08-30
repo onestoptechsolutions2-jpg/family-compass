@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 
@@ -75,7 +76,9 @@ export type TreeContext = {
  * Throws AccessError (caught by route handlers) or redirects (server components
  * via requireUser).
  */
-export async function loadTreeContext(treeId: string): Promise<TreeContext> {
+export const loadTreeContext = cache(async function loadTreeContext(
+  treeId: string,
+): Promise<TreeContext> {
   const user = await requireUser();
 
   const tree = await db.tree.findUnique({
@@ -113,7 +116,7 @@ export async function loadTreeContext(treeId: string): Promise<TreeContext> {
     tree: { id: tree.id, name: tree.name, slug: tree.slug, homePersonId: tree.homePersonId },
     role: membership?.role ?? Role.OWNER,
   };
-}
+});
 
 export async function requireTreeEdit(treeId: string): Promise<TreeContext> {
   const ctx = await loadTreeContext(treeId);
