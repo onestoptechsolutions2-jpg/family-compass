@@ -182,8 +182,6 @@ export default async function MemorialPage({
       <article className="flex flex-col gap-6">
         <Hero />
 
-        <SaveMemorial url={url} pdfUrl={`${url}/pdf`} name={m.name} />
-
         {eulogyParas.length > 0 && (
           <section className="flex flex-col gap-3 text-[15px] leading-relaxed">
             <h2 className="text-lg" style={{ fontFamily: theme.headingFont }}>Eulogy</h2>
@@ -345,6 +343,10 @@ export default async function MemorialPage({
             </div>
           )}
         </section>
+
+        <div className="mt-4 border-t pt-6" style={{ borderColor: "var(--hairline)" }}>
+          <SaveMemorial url={url} pdfUrl={`${url}/pdf`} name={m.name} />
+        </div>
       </article>
     </Frame>
   );
