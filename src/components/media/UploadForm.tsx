@@ -7,21 +7,25 @@ export function UploadForm({
   name = "files",
   multiple = true,
   label = "Upload photos & documents",
+  withOccasion = false,
 }: {
   action: (formData: FormData) => Promise<void>;
   name?: string;
   multiple?: boolean;
   label?: string;
+  withOccasion?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [occasion, setOccasion] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const submit = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const fd = new FormData();
     Array.from(files).forEach((f) => fd.append(name, f));
+    if (occasion.trim()) fd.append("occasion", occasion.trim());
     setError(null);
     start(async () => {
       try {
@@ -35,6 +39,22 @@ export function UploadForm({
 
   return (
     <div>
+      {withOccasion && (
+        <label className="mb-2 block text-sm">
+          <span style={{ color: "var(--muted)" }}>Occasion / event (optional)</span>
+          <input
+            value={occasion}
+            onChange={(e) => setOccasion(e.target.value)}
+            placeholder="e.g. wedding 1998, graduation, portrait"
+            className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+          />
+          <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
+            Files are renamed with the person&apos;s name and this occasion, kept unique.
+          </span>
+        </label>
+      )}
+
       <div
         onDragOver={(e) => {
           e.preventDefault();

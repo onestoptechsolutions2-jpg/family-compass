@@ -1,7 +1,45 @@
 import sharp from "sharp";
 
+import { slugify, randomToken } from "@/lib/slug";
+
 export const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
 export const TREE_QUOTA_BYTES = 250 * 1024 * 1024; // 250 MB per tree
+
+/** File extension from the original name, falling back to the mime type. */
+export function fileExt(originalName: string, mime: string): string {
+  const m = /\.([a-z0-9]{1,5})$/i.exec(originalName.trim());
+  if (m?.[1]) return m[1].toLowerCase();
+  if (mime.includes("png")) return "png";
+  if (mime.includes("webp")) return "webp";
+  if (mime.includes("gif")) return "gif";
+  if (mime.includes("avif")) return "avif";
+  if (mime.includes("tiff")) return "tif";
+  if (mime.includes("pdf")) return "pdf";
+  if (mime.startsWith("image/")) return "jpg";
+  return "bin";
+}
+
+/**
+ * Build a stable, human-readable, unique file name + title for an upload:
+ *   "<owner>-<occasion>-<NN>-<token>.<ext>"  /  "Owner Name · Occasion · N"
+ * The random token guarantees uniqueness; NN is the per-owner sequence.
+ */
+export function buildMediaName(opts: {
+  owner: string;
+  occasion?: string | null;
+  seq: number;
+  ext: string;
+}): { fileName: string; title: string } {
+  const owner = (opts.owner || "photo").trim();
+  const occasion = (opts.occasion ?? "").trim();
+  const slug =
+    [owner, occasion || "photo"].map((s) => slugify(s)).filter(Boolean).join("-") || "photo";
+  const nn = String(Math.max(1, opts.seq)).padStart(2, "0");
+  return {
+    fileName: `${slug}-${nn}-${randomToken(5)}.${opts.ext}`,
+    title: `${owner}${occasion ? ` · ${occasion}` : ""} · ${Math.max(1, opts.seq)}`,
+  };
+}
 
 const ALLOWED = [
   "image/jpeg",

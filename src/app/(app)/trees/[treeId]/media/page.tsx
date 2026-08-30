@@ -16,7 +16,7 @@ export default async function MediaPage({ params }: { params: Promise<{ treeId: 
 
   return (
     <div className="flex flex-col gap-5">
-      {editable && <UploadForm action={uploadMedia.bind(null, treeId)} />}
+      {editable && <UploadForm action={uploadMedia.bind(null, treeId)} withOccasion />}
 
       <div className="flex items-center gap-3 text-sm" style={{ color: "var(--muted)" }}>
         <div className="h-2 w-40 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>

@@ -401,6 +401,7 @@ export default async function PersonDetailPage({
               action={uploadPersonPhoto.bind(null, treeId, personId)}
               name="file"
               multiple={false}
+              withOccasion
               label="Add a photo for this person"
             />
           </div>
