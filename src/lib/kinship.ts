@@ -99,3 +99,36 @@ export function bloodRelationship(graph: TreeGraph, aId: string, bId: string): K
     closeness: a + b,
   };
 }
+
+const g = (male: string, female: string, neutral: string, gender?: string | null) =>
+  gender === "MALE" ? male : gender === "FEMALE" ? female : neutral;
+
+/**
+ * A short directional term for what `subject` (degreeA up to the common
+ * ancestor) is to the other person (degreeB up). e.g. "grandson", "aunt",
+ * "sister". Returns null when not blood-related.
+ */
+export function kinTermToward(k: Kinship, subjectGender?: string | null): string | null {
+  if (k.samePerson) return "the same person";
+  if (!k.related) return null;
+  const a = k.degreeA;
+  const b = k.degreeB;
+  const greats = (n: number) => (n <= 0 ? "" : n === 1 ? "great-" : `${n}×great-`);
+
+  if (a === 0) {
+    if (b === 1) return g("father", "mother", "parent", subjectGender);
+    return `${greats(b - 2)}${g("grandfather", "grandmother", "grandparent", subjectGender)}`;
+  }
+  if (b === 0) {
+    if (a === 1) return g("son", "daughter", "child", subjectGender);
+    return `${greats(a - 2)}${g("grandson", "granddaughter", "grandchild", subjectGender)}`;
+  }
+  if (a === 1 && b === 1) return g("brother", "sister", "sibling", subjectGender);
+  if (a === 1 && b >= 2) return `${greats(b - 2)}${g("uncle", "aunt", "aunt or uncle", subjectGender)}`;
+  if (b === 1 && a >= 2) return `${greats(a - 2)}${g("nephew", "niece", "niece or nephew", subjectGender)}`;
+  const cousinDegree = Math.min(a, b) - 1;
+  const removed = Math.abs(a - b);
+  return `${["first", "second", "third", "fourth", "fifth"][cousinDegree] ?? `${cousinDegree + 1}th`} cousin${
+    removed ? ` ${removed === 1 ? "once" : removed === 2 ? "twice" : `${removed}×`} removed` : ""
+  }`;
+}

@@ -41,10 +41,10 @@ export default async function MemorialPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ posted?: string; err?: string }>;
+  searchParams: Promise<{ posted?: string; err?: string; rel?: string; new?: string }>;
 }) {
   const { slug } = await params;
-  const { posted, err } = await searchParams;
+  const { posted, err, rel, new: isNew } = await searchParams;
   const m = await getPublicMemorial(slug);
   if (!m) notFound();
 
@@ -306,10 +306,28 @@ export default async function MemorialPage({
             </span>
           </div>
 
-          {posted === "review" && (
-            <p className="mt-1 text-sm" style={{ color: "var(--success)" }}>Thank you — your message will show once approved.</p>
+          {(posted === "review" || posted === "1") && (
+            <div className="mt-2 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}>
+              <p style={{ color: "var(--success)" }}>
+                {posted === "review"
+                  ? "Thank you — your message will show once a family member approves it."
+                  : "Thank you for your message."}
+              </p>
+              {rel && (
+                <p className="mt-1">
+                  We found you in the family tree — recorded as <strong>{rel}</strong> of {m.name}.
+                </p>
+              )}
+              {isNew && (
+                <p className="mt-1" style={{ color: "var(--muted)" }}>
+                  Not in this family&apos;s tree?{" "}
+                  <Link href="/login" className="hover:underline" style={{ color: "var(--link)" }}>
+                    Build your own on Family Compass →
+                  </Link>
+                </p>
+              )}
+            </div>
           )}
-          {posted === "1" && <p className="mt-1 text-sm" style={{ color: "var(--success)" }}>Thank you for your message.</p>}
           {err && <p className="mt-1 text-sm" style={{ color: "var(--danger)" }}>Please add your name and a message.</p>}
 
           {theme.feed ? (

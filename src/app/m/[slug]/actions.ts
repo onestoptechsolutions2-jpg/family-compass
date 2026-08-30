@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { notifyTreeManagers } from "@/lib/notify";
 import { emitEvent } from "@/lib/webhooks";
+import { resolveGuestRelationship } from "@/lib/queries/memorial";
 
 export async function postGuestbook(slug: string, formData: FormData) {
   const m = await db.memorial.findUnique({
@@ -17,6 +18,7 @@ export async function postGuestbook(slug: string, formData: FormData) {
       guestbookOpen: true,
       guestbookModerated: true,
       treeId: true,
+      personId: true,
       headline: true,
       tree: { select: { workspaceId: true } },
     },
@@ -25,9 +27,16 @@ export async function postGuestbook(slug: string, formData: FormData) {
 
   const name = String(formData.get("name") ?? "").trim().slice(0, 120);
   const message = String(formData.get("message") ?? "").trim().slice(0, 4000);
-  const relation = String(formData.get("relation") ?? "").trim().slice(0, 80) || null;
+  const typedRelation = String(formData.get("relation") ?? "").trim().slice(0, 80) || null;
   const phone = String(formData.get("phone") ?? "").trim().slice(0, 30) || null;
   if (name.length < 2 || message.length < 3) redirect(`/m/${slug}?err=1`);
+
+  // If the signer's name matches someone in the tree, use their recorded
+  // relationship to the deceased instead of a guessed one.
+  const matched = await resolveGuestRelationship(m.treeId, m.personId, name).catch(() => null);
+  const relation = matched
+    ? matched.label + (typedRelation && !typedRelation.includes(matched.label) ? ` · ${typedRelation}` : "")
+    : typedRelation;
 
   const h = await headers();
   const entry = await db.guestbookEntry.create({
@@ -57,5 +66,8 @@ export async function postGuestbook(slug: string, formData: FormData) {
   );
 
   revalidatePath(`/m/${slug}`);
-  redirect(`/m/${slug}?posted=${m.guestbookModerated ? "review" : "1"}#guestbook`);
+  const q = new URLSearchParams({ posted: m.guestbookModerated ? "review" : "1" });
+  if (matched) q.set("rel", matched.label);
+  else q.set("new", "1");
+  redirect(`/m/${slug}?${q.toString()}#guestbook`);
 }

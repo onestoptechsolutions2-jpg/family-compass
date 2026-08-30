@@ -531,6 +531,56 @@ export function isDeceased(events: { type: string }[]): boolean {
   return events.some((e) => e.type === "Death" || e.type === "Burial");
 }
 
+/**
+ * If a guestbook signer's typed name matches exactly one person in the tree,
+ * work out how they relate to the deceased. Returns null when there's no
+ * confident match (0 matches, or ambiguous).
+ */
+export async function resolveGuestRelationship(
+  treeId: string,
+  deceasedPersonId: string,
+  rawName: string,
+): Promise<{ personId: string; label: string } | null> {
+  const parts = rawName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
+  const first = parts[0]!;
+  const last = parts[parts.length - 1]!;
+
+  const rows = await db.person.findMany({
+    where: {
+      treeId,
+      names: {
+        some: {
+          AND: [
+            { first: { equals: first, mode: "insensitive" } },
+            { surname: { equals: last, mode: "insensitive" } },
+          ],
+        },
+      },
+    },
+    select: { id: true, gender: true },
+    take: 3,
+  });
+  if (rows.length !== 1) return null;
+  const match = rows[0]!;
+  if (match.id === deceasedPersonId) return { personId: match.id, label: "the person being remembered" };
+
+  const { getTreeGraph } = await import("@/lib/queries/graph");
+  const { bloodRelationship, kinTermToward } = await import("@/lib/kinship");
+  const { affinalRelationship } = await import("@/lib/affinity");
+
+  const graph = await getTreeGraph(treeId, deceasedPersonId);
+  const k = bloodRelationship(graph, match.id, deceasedPersonId);
+  if (k.related) {
+    const term = kinTermToward(k, match.gender);
+    if (term) return { personId: match.id, label: term };
+  }
+  const aff = affinalRelationship(graph, match.id, deceasedPersonId);
+  if (aff.found) return { personId: match.id, label: aff.aToB.en };
+
+  return { personId: match.id, label: "a member of this family" };
+}
+
 /** The most recently updated published memorials — for the small "recent" ribbon. */
 export async function getRecentMemorials(limit = 3, exceptSlug?: string) {
   const rows = await db.memorial.findMany({
