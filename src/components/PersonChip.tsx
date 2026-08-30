@@ -7,6 +7,8 @@ type PersonMini = {
   id: string;
   gender?: string;
   living?: boolean;
+  /** true only when a Death/Burial event is recorded */
+  deceased?: boolean;
   names: Pick<
     Name,
     "type" | "preferred" | "order" | "first" | "surname" | "surnamePrefix" | "nick" | "suffix" | "title"
@@ -38,7 +40,7 @@ export function PersonChip({
           {genderSymbol(person.gender)}
         </span>
       )}
-      {person.living === false && (
+      {person.deceased && (
         <span aria-label="deceased" title="Deceased" style={{ color: "var(--muted)" }}>
           †
         </span>

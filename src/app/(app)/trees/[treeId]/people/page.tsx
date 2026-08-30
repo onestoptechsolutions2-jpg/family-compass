@@ -62,25 +62,24 @@ export default async function PeoplePage({
             {people.map((p) => (
               <tr key={p.id} className="border-t" style={{ borderColor: "var(--border)" }}>
                 <td className="px-3 py-2">
-                  <span
-                    className="grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold text-white"
-                    title={genderLabel(p.gender)}
-                    style={{ background: genderColor(p.gender) }}
-                  >
-                    {genderSymbol(p.gender) || "·"}
-                  </span>
+                  {genderSymbol(p.gender) ? (
+                    <span
+                      className="text-sm font-bold"
+                      title={genderLabel(p.gender)}
+                      style={{ color: genderColor(p.gender) }}
+                    >
+                      {genderSymbol(p.gender)}
+                    </span>
+                  ) : (
+                    <span title="Unspecified" style={{ color: "var(--muted)" }}>·</span>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <Link href={`/trees/${treeId}/people/${p.id}`} className="font-medium hover:underline">
                     {p.name}
                   </Link>
-                  {p.living === false && (
+                  {p.deceased && (
                     <span className="ml-2" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
-                  )}
-                  {p.living && (
-                    <span className="ml-2 text-xs" style={{ color: "var(--muted)" }}>
-                      living
-                    </span>
                   )}
                 </td>
                 <td className="px-3 py-2" style={{ color: "var(--muted)" }}>

@@ -23,6 +23,7 @@ export type PersonListRow = {
   sortKey: string;
   gender: string;
   living: boolean;
+  deceased: boolean;
   birth: string;
   death: string;
 };
@@ -50,7 +51,7 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
       living: true,
       names: { select: NAME_SELECT },
       eventRefs: {
-        where: { role: "PRIMARY", event: { type: { in: ["Birth", "Death"] } } },
+        where: { role: "PRIMARY", event: { type: { in: ["Birth", "Death", "Burial"] } } },
         select: {
           event: {
             select: {
@@ -75,12 +76,14 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
   const rows = people.map((p) => {
     const birth = p.eventRefs.find((r) => r.event.type === "Birth")?.event;
     const death = p.eventRefs.find((r) => r.event.type === "Death")?.event;
+    const deceased = p.eventRefs.some((r) => r.event.type === "Death" || r.event.type === "Burial");
     return {
       id: p.id,
       name: displayName(p.names),
       sortKey: sortableName(p.names),
       gender: p.gender,
       living: p.living,
+      deceased,
       birth: birth ? formatDate(birth) : "",
       death: death ? formatDate(death) : "",
     };

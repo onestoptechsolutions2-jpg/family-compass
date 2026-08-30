@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { loadTreeContext, canEdit } from "@/lib/rbac";
+import { db } from "@/lib/db";
+import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations } from "@/lib/queries/people";
 import { personMedia } from "@/lib/queries/media";
 import { displayName, genderSymbol, genderColor } from "@/lib/person";
@@ -11,10 +13,20 @@ import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
 import { Dialog } from "@/components/Dialog";
+import { CopyButton } from "@/components/CopyButton";
+import { QrShare } from "@/components/QrShare";
 import { primaryName } from "@/lib/person";
 import { deletePerson } from "../actions";
 import { uploadPersonPhoto, detachPersonMedia } from "../../media/actions";
-import { addParent, addPartner, addChildToFamily, addFirstChild, recordDeath } from "./quick-actions";
+import {
+  addParent,
+  addPartner,
+  addChildToFamily,
+  addFirstChild,
+  recordDeath,
+  createClaimInvite,
+  revokeClaimInvite,
+} from "./quick-actions";
 
 export default async function PersonDetailPage({
   params,
@@ -33,9 +45,25 @@ export default async function PersonDetailPage({
     .map((r) => r.event)
     .sort((a, b) => dateSortKey(a).localeCompare(dateSortKey(b)));
 
-  const hasDeathEvent = events.some((e) => e.type === "Death" || e.type === "Burial");
-  const deceased = person.living === false || hasDeathEvent;
+  // "Deceased" is driven ONLY by a recorded Death/Burial event. Person.living
+  // defaults to false on import, so it is not evidence of death.
+  const deceased = events.some((e) => e.type === "Death" || e.type === "Burial");
   const fieldStyle = { borderColor: "var(--border)", background: "var(--surface-2)" };
+
+  const claimable = editable && !deceased && !person.claimedByUserId;
+  const claimInvite = claimable
+    ? await db.claimInvite.findFirst({
+        where: { personId, revokedAt: null, usedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, token: true, expiresAt: true },
+      })
+    : null;
+  const claimUrl = claimInvite ? `${await publicOrigin()}/claim/${claimInvite.token}` : null;
+  const claimWa = claimUrl
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `Hi — this is your profile on our family tree. Confirm it's you here: ${claimUrl}`,
+      )}`
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,6 +160,80 @@ export default async function PersonDetailPage({
           </div>
         )}
       </div>
+
+      {person.claimedByUserId && person.claimedByUserId !== ctx.user.id && (
+        <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)", color: "var(--muted)" }}>
+          Claimed by {person.claimedBy?.name ?? "a relative"}.
+        </p>
+      )}
+
+      {claimable && (
+        <div
+          className="rounded-xl border p-4"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="font-medium">Claim link</h3>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Send this person a private link so they can confirm the profile is theirs and keep it
+                updated. You approve every claim.
+              </p>
+            </div>
+            {!claimInvite && (
+              <Dialog
+                title={`Send ${displayName(person.names)} a claim link`}
+                label="Create claim link"
+                buttonClass="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+              >
+                <form action={createClaimInvite.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    Generates a one-person link valid for 30 days. Share it from your own phone.
+                  </p>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Note for them (optional)</span>
+                    <textarea name="note" rows={2} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                  </label>
+                  <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Create link
+                  </button>
+                </form>
+              </Dialog>
+            )}
+          </div>
+
+          {claimInvite && claimUrl && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <code className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-xs">{claimUrl}</code>
+              <CopyButton value={claimUrl} label="Copy link" />
+              <a
+                href={claimWa ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+                style={{ background: "#25D366" }}
+              >
+                WhatsApp
+              </a>
+              <QrShare
+                value={claimUrl}
+                title="Claim link QR"
+                label="QR"
+                caption={`${displayName(person.names)} can scan this to claim the profile.`}
+                buttonClass="rounded-md border px-2 py-1 text-xs"
+              />
+              <form action={revokeClaimInvite.bind(null, treeId, personId, claimInvite.id)}>
+                <button className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)", color: "var(--danger)" }}>
+                  revoke
+                </button>
+              </form>
+              <span className="text-xs" style={{ color: "var(--muted)" }}>
+                {claimInvite.expiresAt ? `expires ${claimInvite.expiresAt.toISOString().slice(0, 10)}` : ""}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>

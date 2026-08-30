@@ -54,6 +54,7 @@ model User {
   claimedPerson        Person?                @relation("PersonClaimedBy")
   claimsDecided        PersonClaim[]          @relation("ClaimDecidedBy")
   claimsCreatedFor     PersonClaim[]          @relation("ClaimCreatedUser")
+  claimInvitesCreated  ClaimInvite[]          @relation("ClaimInviteCreator")
   loginTokens          LoginToken[]
   deepSearches         DeepSearch[]           @relation("DeepSearchRequester")
   engagementsRequested ResearchEngagement[]   @relation("EngagementRequester")
@@ -413,6 +414,7 @@ model Tree {
   activityEvents ActivityEvent[]
   importJobs     ImportJob[]
   personClaims   PersonClaim[]
+  claimInvites   ClaimInvite[]
   payments       Payment[]       @relation("TreePayments")
   clans          Clan[]
   memorials      Memorial[]
@@ -508,6 +510,7 @@ model Person {
   centralOfSharedViews    SharedView[]    @relation("SharedViewCentral")
   centralOfGenerationJobs GenerationJob[] @relation("GenerationCentral")
   claims                  PersonClaim[]
+  claimInvites            ClaimInvite[]
   memorial                Memorial?
 
   tags Tag[] @relation("PersonTags")
@@ -552,6 +555,30 @@ model PersonClaim {
 
   @@index([treeId, status])
   @@index([code])
+}
+
+/// A tokenised "this is your profile — claim it" link that a tree editor
+/// generates for a specific living, unclaimed person and sends (e.g. over
+/// WhatsApp). The recipient opens /claim/<token> and files a PersonClaim.
+model ClaimInvite {
+  id          String    @id @default(cuid())
+  treeId      String
+  personId    String
+  token       String    @unique
+  note        String?   @db.Text
+  createdById String?
+  claimId     String?
+  expiresAt   DateTime?
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  tree      Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("ClaimInviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([treeId])
+  @@index([personId])
 }
 
 enum NameType {

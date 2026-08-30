@@ -1,12 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Gender, FamilyType } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
+import { randomToken } from "@/lib/slug";
 import {
   createBarePerson,
   setVitalEvent,
@@ -167,6 +169,58 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
     summary: "recorded a death",
   });
   redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+/** Editor generates a "claim your profile" link for a specific living,
+ *  unclaimed person, to send to that relative (e.g. over WhatsApp). */
+export async function createClaimInvite(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const person = await db.person.findFirst({
+    where: { id: personId, treeId },
+    select: {
+      claimedByUserId: true,
+      eventRefs: { where: { event: { type: { in: ["Death", "Burial"] } } }, select: { id: true } },
+    },
+  });
+  if (!person) throw new Error("Person not found in this tree");
+  if (person.claimedByUserId) throw new Error("This profile is already claimed");
+  if (person.eventRefs.length > 0) throw new Error("This person is recorded as deceased");
+
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
+
+  // keep a single live invite per person
+  await db.claimInvite.updateMany({
+    where: { personId, revokedAt: null, usedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  await db.claimInvite.create({
+    data: {
+      treeId,
+      personId,
+      token: randomToken(24),
+      note,
+      createdById: ctx.user.id,
+      expiresAt: new Date(Date.now() + 30 * 864e5),
+    },
+  });
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "invited",
+    objectType: "person",
+    objectId: personId,
+    summary: "sent a profile claim link",
+  });
+  revalidatePath(`/trees/${treeId}/people/${personId}`);
+}
+
+export async function revokeClaimInvite(treeId: string, personId: string, inviteId: string) {
+  await requireTreeEdit(treeId);
+  await db.claimInvite.updateMany({
+    where: { id: inviteId, treeId },
+    data: { revokedAt: new Date() },
+  });
+  revalidatePath(`/trees/${treeId}/people/${personId}`);
 }
 
 /** Add a first child to a person who has no family yet. */
