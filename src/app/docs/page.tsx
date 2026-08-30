@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 import { EVENTS, EVENT_NAMES } from "@/lib/events-catalog";
 import { PeanutArt } from "@/components/GradientArt";
 
@@ -8,8 +8,6 @@ export const metadata = {
   title: "API & Webhooks — Family Compass",
   description: "REST API and signed webhooks for integrating other applications with Family Compass.",
 };
-
-const BASE = `${env.APP_URL}/api/v1`;
 
 function Code({ children }: { children: React.ReactNode }) {
   return (
@@ -42,7 +40,8 @@ const ENDPOINTS: { m: string; path: string; scope: string; desc: string }[] = [
   { m: "GET", path: "/trees/{treeId}/events?limit&cursor", scope: "read", desc: "Recent activity stream for the tree." },
 ];
 
-export default function DocsPage() {
+export default async function DocsPage() {
+  const BASE = `${await publicOrigin()}/api/v1`;
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <Link href="/" className="text-lg font-semibold">🧭 Family Compass</Link>

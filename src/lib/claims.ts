@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { ClaimStatus, Role } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 import { normalizePhone, isValidPhone, claimCode } from "@/lib/wa";
 import { verifySharePassword } from "@/lib/share";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
@@ -129,7 +129,7 @@ export async function approveClaim(
     return {
       phone: existing!.phone,
       name: existing!.claimantName,
-      signInUrl: `${env.APP_URL}/api/auth/wa/${existing!.signInToken}`,
+      signInUrl: `${await publicOrigin()}/api/auth/wa/${existing!.signInToken}`,
     };
   }
   if (claim.status !== ClaimStatus.PENDING) throw new Error("This claim can't be approved");
@@ -205,7 +205,7 @@ export async function approveClaim(
   return {
     phone: claim.phone,
     name: claim.claimantName,
-    signInUrl: `${env.APP_URL}/api/auth/wa/${result.signInToken}`,
+    signInUrl: `${await publicOrigin()}/api/auth/wa/${result.signInToken}`,
   };
 }
 

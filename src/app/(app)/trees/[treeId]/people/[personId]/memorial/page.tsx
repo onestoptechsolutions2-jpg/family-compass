@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { loadTreeContext, canEdit } from "@/lib/rbac";
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, type ProgramItem } from "@/lib/queries/memorial";
@@ -77,7 +77,7 @@ export default async function MemorialEditorPage({
 
   const media = await personMedia(treeId, personId);
   const order = ((memorial.program?.order as ProgramItem[]) ?? []).concat([{ title: "", detail: "" }]);
-  const url = `${env.APP_URL}/m/${memorial.slug}`;
+  const url = `${await publicOrigin()}/m/${memorial.slug}`;
   const pending = memorial.guestbook.filter((g) => g.status === "PENDING");
 
   return (

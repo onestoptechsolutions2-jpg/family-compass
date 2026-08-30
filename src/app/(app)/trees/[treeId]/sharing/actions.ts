@@ -6,7 +6,7 @@ import { Role, ShareMode } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { loadTreeContext, requireTreeManage, canManageWorkspace } from "@/lib/rbac";
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 import { QUEUE, enqueue } from "@/lib/queue";
 import { randomToken } from "@/lib/slug";
 import { hashSharePassword } from "@/lib/share";
@@ -51,7 +51,7 @@ export async function inviteMember(treeId: string, formData: FormData) {
     },
   });
 
-  const link = `${env.APP_URL}/invite/${token}`;
+  const link = `${await publicOrigin()}/invite/${token}`;
   await enqueue(QUEUE.sendEmail, {
     to: normalized,
     subject: `You're invited to the "${ctx.tree.name}" family tree`,

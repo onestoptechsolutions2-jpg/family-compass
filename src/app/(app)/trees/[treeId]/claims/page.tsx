@@ -4,7 +4,7 @@ import { Role } from "@prisma/client";
 
 import { loadTreeContext, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 import { displayName } from "@/lib/person";
 import { displayPhone, waLink } from "@/lib/wa";
 import { CopyButton } from "@/components/CopyButton";
@@ -51,12 +51,13 @@ export default async function ClaimsPage({
     },
   });
 
+  const origin = await publicOrigin();
   const pending = claims.filter((c) => c.status === "PENDING");
   const rest = claims.filter((c) => c.status !== "PENDING");
 
   const Card = ({ c }: { c: (typeof claims)[number] }) => {
     const target = c.person ? displayName(c.person.names) : "wants to join the tree";
-    const signInUrl = c.signInToken ? `${env.APP_URL}/api/auth/wa/${c.signInToken}` : null;
+    const signInUrl = c.signInToken ? `${origin}/api/auth/wa/${c.signInToken}` : null;
     return (
       <div
         className="rounded-xl border p-4 text-sm"

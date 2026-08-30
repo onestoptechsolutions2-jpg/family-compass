@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 
 /** Create a single-use passwordless sign-in URL for a user. */
 export async function mintLoginLink(
@@ -17,7 +17,7 @@ export async function mintLoginLink(
       expiresAt: new Date(Date.now() + (opts.days ?? 7) * 864e5),
     },
   });
-  return `${env.APP_URL.replace(/\/$/, "")}/api/auth/link/${token}`;
+  return `${await publicOrigin()}/api/auth/link/${token}`;
 }
 
 /** Validate + burn a login token. Returns the userId, or null. */

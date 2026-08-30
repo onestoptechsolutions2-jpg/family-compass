@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Role, ShareMode } from "@prisma/client";
 
 import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
-import { env } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { getWorkspaceCollab, listSharedViews } from "@/lib/queries/members";
 import { personOptions } from "@/lib/queries/people";
@@ -33,6 +33,7 @@ export default async function SharingPage({
   const ctx = await loadTreeContext(treeId);
   if (!canManageTree(ctx.role)) notFound();
 
+  const origin = await publicOrigin();
   const [collab, shares, options, treeRow] = await Promise.all([
     getWorkspaceCollab(ctx.workspace.id, ctx.user.id),
     listSharedViews(treeId),
@@ -301,7 +302,7 @@ export default async function SharingPage({
 
         <ul className="mt-4 flex flex-col gap-2">
           {shares.map((s) => {
-            const url = `${env.APP_URL}/s/${s.slug}`;
+            const url = `${origin}/s/${s.slug}`;
             const central = formatName(
               s.centralPerson.names.find((n) => n.preferred) ??
                 s.centralPerson.names.find((n) => n.type === "BIRTH") ??

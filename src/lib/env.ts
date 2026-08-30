@@ -18,6 +18,11 @@ const schema = z.object({
   // Public origin of the app, e.g. https://myroots.example.com — used to build
   // share links and payment references.
   APP_URL: z.string().url(),
+  // Optional override for links a person receives (share pages, memorials,
+  // invites, WhatsApp sign-in). Set this when the browsing origin differs from
+  // the canonical public origin, or when developing locally but sharing real
+  // links. Falls back to the live request host, then APP_URL.
+  SHARE_ORIGIN: z.string().url().optional().default(""),
   AUTH_TRUST_HOST: z
     .string()
     .optional()
