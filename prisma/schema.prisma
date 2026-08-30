@@ -1,0 +1,898 @@
+// Family Compass — data model
+// Mirrors the Gramps core object model (Person / Family / Event / Place /
+// Source / Citation / Repository / Note / Media / Tag) on top of a
+// multi-tenant Workspace / Tree structure, plus sharing and paid chart
+// generation.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================================================
+// Auth.js (v5) — Prisma adapter models
+// ===========================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  isPlatformAdmin Boolean @default(false)
+
+  accounts Account[]
+  sessions Session[]
+
+  memberships     Membership[]
+  invitationsSent Invitation[]     @relation("InvitedBy")
+  uploadedMedia   MediaObject[]    @relation("MediaUploader")
+  generationJobs  GenerationJob[]  @relation("GenerationRequestedBy")
+  payments        Payment[]        @relation("PaymentUser")
+  paymentsVerified Payment[]       @relation("PaymentVerifier")
+  sharedViews     SharedView[]     @relation("SharedViewCreator")
+  auditLogs       AuditLog[]
+  activityEvents  ActivityEvent[]
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.Text
+  access_token             String? @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.Text
+  session_state            String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ===========================================================================
+// Tenancy
+// ===========================================================================
+
+enum Role {
+  OWNER
+  EDITOR
+  CONTRIBUTOR
+  VIEWER
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships    Membership[]
+  invitations    Invitation[]
+  trees          Tree[]
+  payments       Payment[]
+  pricingConfigs PricingConfig[]
+
+  @@index([slug])
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        Role     @default(VIEWER)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  email       String
+  role        Role      @default(VIEWER)
+  token       String    @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@unique([workspaceId, email])
+  @@index([email])
+}
+
+model Tree {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?  @db.Text
+  slug        String
+  homePersonId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  people         Person[]
+  families        Family[]
+  events          Event[]
+  places          Place[]
+  sources         Source[]
+  citations       Citation[]
+  repositories    Repository[]
+  notes           Note[]
+  tags            Tag[]
+  media           MediaObject[]
+  sharedViews     SharedView[]
+  generationJobs  GenerationJob[]
+  activityEvents  ActivityEvent[]
+  importJobs      ImportJob[]
+
+  @@unique([workspaceId, slug])
+}
+
+// ===========================================================================
+// Genealogy core
+// ===========================================================================
+
+enum Gender {
+  MALE
+  FEMALE
+  UNKNOWN
+  OTHER
+}
+
+enum Privacy {
+  INHERIT
+  PUBLIC
+  PRIVATE
+}
+
+enum DateModifier {
+  NONE
+  EXACT
+  BEFORE
+  AFTER
+  ABOUT
+  RANGE
+  SPAN
+}
+
+enum DateQuality {
+  NONE
+  CALCULATED
+  ESTIMATED
+}
+
+model Person {
+  id        String   @id @default(cuid())
+  treeId    String
+  grampsId  String?
+  gender    Gender   @default(UNKNOWN)
+  living    Boolean  @default(false)
+  privacy   Privacy  @default(INHERIT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  names        Name[]
+  eventRefs    EventRef[]
+  attributes   Attribute[]
+  mediaRefs    MediaRef[]
+  citationRefs CitationRef[]
+  noteRefs     NoteRef[]
+
+  familiesAsPartner1 Family[]    @relation("FamilyPartner1")
+  familiesAsPartner2 Family[]    @relation("FamilyPartner2")
+  childRefs          ChildRef[]
+
+  centralOfSharedViews    SharedView[]    @relation("SharedViewCentral")
+  centralOfGenerationJobs GenerationJob[] @relation("GenerationCentral")
+
+  tags Tag[] @relation("PersonTags")
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+}
+
+enum NameType {
+  BIRTH
+  MARRIED
+  AKA
+  NICKNAME
+  IMMIGRANT
+  MAIDEN
+  UNKNOWN
+}
+
+model Name {
+  id            String   @id @default(cuid())
+  personId      String
+  type          NameType @default(BIRTH)
+  preferred     Boolean  @default(false)
+  order         Int      @default(0)
+  title         String?
+  prefix        String?
+  first         String?
+  nick          String?
+  callName      String?
+  surnamePrefix String?
+  surname       String?
+  suffix        String?
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([surname])
+}
+
+enum FamilyType {
+  MARRIED
+  UNMARRIED
+  CIVIL_UNION
+  UNKNOWN
+}
+
+model Family {
+  id          String     @id @default(cuid())
+  treeId      String
+  grampsId    String?
+  partner1Id  String?
+  partner2Id  String?
+  type        FamilyType @default(UNKNOWN)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tree     Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  partner1 Person? @relation("FamilyPartner1", fields: [partner1Id], references: [id], onDelete: SetNull)
+  partner2 Person? @relation("FamilyPartner2", fields: [partner2Id], references: [id], onDelete: SetNull)
+
+  childRefs    ChildRef[]
+  eventRefs    EventRef[]
+  attributes   Attribute[]
+  mediaRefs    MediaRef[]
+  citationRefs CitationRef[]
+  noteRefs     NoteRef[]
+
+  tags Tag[] @relation("FamilyTags")
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+  @@index([partner1Id])
+  @@index([partner2Id])
+}
+
+enum ChildRelation {
+  BIRTH
+  ADOPTED
+  STEPCHILD
+  FOSTER
+  SPONSORED
+  UNKNOWN
+}
+
+model ChildRef {
+  id             String        @id @default(cuid())
+  familyId       String
+  personId       String
+  order          Int           @default(0)
+  partner1Relation ChildRelation @default(BIRTH)
+  partner2Relation ChildRelation @default(BIRTH)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, personId])
+  @@index([personId])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  treeId      String
+  grampsId    String?
+  type        String
+  description String?  @db.Text
+  placeId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Structured Gramps-style date
+  dateModifier DateModifier @default(NONE)
+  dateQuality  DateQuality  @default(NONE)
+  dateYear     Int?
+  dateMonth    Int?
+  dateDay      Int?
+  dateYear2    Int?
+  dateMonth2   Int?
+  dateDay2     Int?
+  dateText     String?
+  dateSortKey  String?
+
+  tree  Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  place Place? @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  eventRefs    EventRef[]
+  mediaRefs    MediaRef[]
+  citationRefs CitationRef[]
+  noteRefs     NoteRef[]
+  attributes   Attribute[]
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+  @@index([placeId])
+  @@index([dateSortKey])
+}
+
+enum EventRole {
+  PRIMARY
+  FAMILY
+  WITNESS
+  CELEBRANT
+  INFORMANT
+  CLERGY
+  AIDE
+  BRIDE
+  GROOM
+  UNKNOWN
+}
+
+model EventRef {
+  id       String    @id @default(cuid())
+  eventId  String
+  personId String?
+  familyId String?
+  role     EventRole @default(PRIMARY)
+  order    Int       @default(0)
+
+  event  Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  person Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([personId])
+  @@index([familyId])
+}
+
+model Place {
+  id          String   @id @default(cuid())
+  treeId      String
+  grampsId    String?
+  title       String
+  type        String?
+  name        String?
+  latitude    Float?
+  longitude   Float?
+  code        String?
+  enclosedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tree       Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  enclosedBy Place?  @relation("PlaceHierarchy", fields: [enclosedById], references: [id], onDelete: SetNull)
+  encloses   Place[] @relation("PlaceHierarchy")
+
+  events    Event[]
+  mediaRefs MediaRef[]
+  noteRefs  NoteRef[]
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+}
+
+model Source {
+  id        String   @id @default(cuid())
+  treeId    String
+  grampsId  String?
+  title     String
+  author    String?
+  pubInfo   String?
+  abbrev    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  citations Citation[]
+  repoRefs  RepoRef[]
+  mediaRefs MediaRef[]
+  noteRefs  NoteRef[]
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+}
+
+model Citation {
+  id         String   @id @default(cuid())
+  treeId     String
+  grampsId   String?
+  sourceId   String
+  page       String?
+  confidence Int      @default(2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  dateModifier DateModifier @default(NONE)
+  dateQuality  DateQuality  @default(NONE)
+  dateYear     Int?
+  dateMonth    Int?
+  dateDay      Int?
+  dateText     String?
+
+  tree   Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  source Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  refs      CitationRef[]
+  mediaRefs MediaRef[]
+  noteRefs  NoteRef[]
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+  @@index([sourceId])
+}
+
+model CitationRef {
+  id         String  @id @default(cuid())
+  citationId String
+  personId   String?
+  familyId   String?
+  eventId    String?
+
+  citation Citation @relation(fields: [citationId], references: [id], onDelete: Cascade)
+  person   Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family   Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event    Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([citationId])
+  @@index([personId])
+  @@index([familyId])
+  @@index([eventId])
+}
+
+model Repository {
+  id        String   @id @default(cuid())
+  treeId    String
+  grampsId  String?
+  name      String
+  type      String?
+  address   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  repoRefs RepoRef[]
+  noteRefs NoteRef[]
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+}
+
+model RepoRef {
+  id           String  @id @default(cuid())
+  repositoryId String
+  sourceId     String
+  callNumber   String?
+  mediaType    String?
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  source     Source     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId])
+  @@index([sourceId])
+}
+
+enum NoteFormat {
+  PLAIN
+  HTML
+}
+
+model Note {
+  id        String     @id @default(cuid())
+  treeId    String
+  grampsId  String?
+  type      String?
+  format    NoteFormat @default(PLAIN)
+  text      String     @db.Text
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  refs NoteRef[]
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+}
+
+model NoteRef {
+  id         String  @id @default(cuid())
+  noteId     String
+  personId   String?
+  familyId   String?
+  eventId    String?
+  placeId    String?
+  sourceId   String?
+  citationId String?
+  mediaId    String?
+  repositoryId String?
+
+  note       Note        @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  person     Person?     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family     Family?     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event      Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  place      Place?      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  source     Source?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  citation   Citation?   @relation(fields: [citationId], references: [id], onDelete: Cascade)
+  media      MediaObject? @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  repository Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model Tag {
+  id     String @id @default(cuid())
+  treeId String
+  name   String
+  color  String @default("#6366f1")
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  people   Person[] @relation("PersonTags")
+  families Family[] @relation("FamilyTags")
+
+  @@unique([treeId, name])
+  @@index([treeId])
+}
+
+model MediaObject {
+  id         String   @id @default(cuid())
+  treeId     String
+  grampsId   String?
+  fileName   String
+  mimeType   String
+  byteSize   Int
+  bytes      Bytes
+  checksum   String?
+  width      Int?
+  height     Int?
+  thumbnail  Bytes?
+  thumbMime  String?
+  title      String?
+  dateText   String?
+  uploadedById String?
+  createdAt  DateTime @default(now())
+
+  tree       Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  refs     MediaRef[]
+  noteRefs NoteRef[]
+
+  previewOfJobs GenerationJob[] @relation("GenerationPreview")
+  outputOfJobs  GenerationJob[] @relation("GenerationOutput")
+
+  @@unique([treeId, grampsId])
+  @@index([treeId])
+}
+
+model MediaRef {
+  id         String  @id @default(cuid())
+  mediaId    String
+  personId   String?
+  familyId   String?
+  eventId    String?
+  placeId    String?
+  sourceId   String?
+  citationId String?
+  order      Int     @default(0)
+  caption    String?
+  rectX      Float?
+  rectY      Float?
+  rectW      Float?
+  rectH      Float?
+
+  media    MediaObject @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  person   Person?     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family   Family?     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event    Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  place    Place?      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  source   Source?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  citation Citation?   @relation(fields: [citationId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId])
+  @@index([personId])
+  @@index([familyId])
+}
+
+model Attribute {
+  id       String  @id @default(cuid())
+  personId String?
+  familyId String?
+  eventId  String?
+  type     String
+  value    String  @db.Text
+  order    Int     @default(0)
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event  Event?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([familyId])
+  @@index([eventId])
+}
+
+// ===========================================================================
+// Sharing
+// ===========================================================================
+
+enum ShareMode {
+  PEDIGREE
+  DESCENDANTS
+  HOURGLASS
+}
+
+model SharedView {
+  id              String    @id @default(cuid())
+  treeId          String
+  createdById     String
+  slug            String    @unique
+  title           String?
+  centralPersonId String
+  mode            ShareMode @default(HOURGLASS)
+  generations     Int       @default(4)
+  includeLiving   Boolean   @default(false)
+  passwordHash    String?
+  expiresAt       DateTime?
+  revoked         Boolean   @default(false)
+  viewCount       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tree          Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  createdBy     User   @relation("SharedViewCreator", fields: [createdById], references: [id])
+  centralPerson Person @relation("SharedViewCentral", fields: [centralPersonId], references: [id], onDelete: Cascade)
+
+  @@index([treeId])
+  @@index([slug])
+}
+
+// ===========================================================================
+// Import jobs
+// ===========================================================================
+
+enum ImportKind {
+  GRAMPS_XML
+  GEDCOM
+}
+
+enum ImportStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model ImportJob {
+  id        String       @id @default(cuid())
+  treeId    String
+  kind      ImportKind
+  status    ImportStatus @default(QUEUED)
+  fileName  String
+  fileBytes Bytes
+  report    Json?
+  error     String?      @db.Text
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@index([treeId])
+  @@index([status])
+}
+
+// ===========================================================================
+// Monetisation — paid chart / export generation
+// ===========================================================================
+
+enum GenerationKind {
+  PEDIGREE_PDF
+  FAN_CHART
+  DESCENDANT_CHART
+  FAMILY_BOOK
+  GEDCOM_EXPORT
+  GRAMPS_EXPORT
+}
+
+enum GenerationStatus {
+  QUEUED
+  RENDERING_PREVIEW
+  PREVIEW_READY
+  AWAITING_PAYMENT
+  PAID
+  RENDERING_OUTPUT
+  OUTPUT_READY
+  FAILED
+}
+
+model GenerationJob {
+  id              String           @id @default(cuid())
+  treeId          String
+  requestedById   String
+  kind            GenerationKind
+  status          GenerationStatus @default(QUEUED)
+  params          Json
+  centralPersonId String?
+  priceKes        Int
+  previewMediaId  String?
+  outputMediaId   String?
+  error           String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tree          Tree         @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  requestedBy   User         @relation("GenerationRequestedBy", fields: [requestedById], references: [id])
+  centralPerson Person?      @relation("GenerationCentral", fields: [centralPersonId], references: [id], onDelete: SetNull)
+  previewMedia  MediaObject? @relation("GenerationPreview", fields: [previewMediaId], references: [id], onDelete: SetNull)
+  outputMedia   MediaObject? @relation("GenerationOutput", fields: [outputMediaId], references: [id], onDelete: SetNull)
+
+  payment Payment?
+
+  @@index([treeId])
+  @@index([requestedById])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  AWAITING_VERIFICATION
+  PAID
+  REJECTED
+  REFUNDED
+  CANCELLED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  generationJobId String        @unique
+  workspaceId     String
+  userId          String
+  provider        String        @default("manual_mpesa")
+  amountKes       Int
+  currency        String        @default("KES")
+  reference       String        @unique
+  mpesaCode       String?
+  payerPhone      String?
+  payerNote       String?       @db.Text
+  status          PaymentStatus @default(PENDING)
+  rejectionReason String?       @db.Text
+  verifiedById    String?
+  verifiedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  generationJob GenerationJob @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User          @relation("PaymentUser", fields: [userId], references: [id])
+  verifiedBy    User?         @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([status])
+  @@index([mpesaCode])
+}
+
+model PricingConfig {
+  id          String         @id @default(cuid())
+  workspaceId String?
+  kind        GenerationKind
+  priceKes    Int
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, kind])
+}
+
+enum VerificationMode {
+  MANUAL
+  AUTO_CODE
+  WEBHOOK
+}
+
+// Single global row (scope = "global"). Holds the platform owner's M-Pesa
+// Till / Store details and the swappable provider selection.
+model PaymentSettings {
+  id               String           @id @default(cuid())
+  scope            String           @unique @default("global")
+  provider         String           @default("manual_mpesa")
+  currency         String           @default("KES")
+  defaultPriceKes  Int              @default(750)
+  tillNumber       String?
+  storeNumber      String?
+  paybillNumber    String?
+  businessName     String?
+  accountRef       String?
+  instructions     String?          @db.Text
+  verificationMode VerificationMode @default(MANUAL)
+  config           Json?
+  updatedAt        DateTime         @updatedAt
+}
+
+// ===========================================================================
+// Ops
+// ===========================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  treeId      String?
+  actorId     String?
+  action      String
+  targetType  String?
+  targetId    String?
+  meta        Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([treeId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model ActivityEvent {
+  id         String   @id @default(cuid())
+  treeId     String
+  actorId    String?
+  verb       String
+  objectType String
+  objectId   String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  tree  Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([treeId, createdAt])
+}
