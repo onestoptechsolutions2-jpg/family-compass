@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { displayName, presumedLiving } from "@/lib/person";
 import { formatDate } from "@/lib/date";
+import { buildEulogyDraft, type EulogyFacts } from "@/lib/eulogy";
 
 const NAME_SELECT = {
   first: true,
@@ -282,6 +283,94 @@ export async function getMemorialBookData(treeId: string, personId: string) {
         }
       : null,
   };
+}
+
+/** Collect structured facts for the eulogy-draft generator. */
+export async function gatherEulogyFacts(
+  treeId: string,
+  personId: string,
+): Promise<EulogyFacts | null> {
+  const p = await db.person.findFirst({
+    where: { id: personId, treeId },
+    select: {
+      gender: true,
+      subClan: true,
+      clan: { select: { name: true, community: true } },
+      names: { select: NAME_SELECT },
+      eventRefs: {
+        select: {
+          event: {
+            select: {
+              type: true,
+              dateYear: true,
+              dateMonth: true,
+              dateDay: true,
+              dateModifier: true,
+              dateQuality: true,
+              dateText: true,
+              place: { select: { title: true } },
+            },
+          },
+        },
+      },
+      childRefs: {
+        select: { family: { select: { partner1: { select: MINI }, partner2: { select: MINI } } } },
+      },
+      familiesAsPartner1: {
+        select: { partner2: { select: MINI }, childRefs: { select: { person: { select: MINI } } } },
+      },
+      familiesAsPartner2: {
+        select: { partner1: { select: MINI }, childRefs: { select: { person: { select: MINI } } } },
+      },
+    },
+  });
+  if (!p) return null;
+
+  const events = p.eventRefs.map((r) => r.event);
+  const birth = events.find((e) => e.type === "Birth");
+  const death = events.find((e) => e.type === "Death") ?? events.find((e) => e.type === "Burial");
+  const nameOf = (x: { names: unknown[] } | null | undefined) => (x ? displayName(x.names as never) : null);
+
+  const parents = [
+    ...p.childRefs.flatMap((c) => [nameOf(c.family.partner1), nameOf(c.family.partner2)]),
+  ].filter(Boolean) as string[];
+  const spouses = [
+    ...p.familiesAsPartner1.map((f) => nameOf(f.partner2)),
+    ...p.familiesAsPartner2.map((f) => nameOf(f.partner1)),
+  ].filter(Boolean) as string[];
+  const children = [
+    ...p.familiesAsPartner1.flatMap((f) => f.childRefs.map((c) => nameOf(c.person))),
+    ...p.familiesAsPartner2.flatMap((f) => f.childRefs.map((c) => nameOf(c.person))),
+  ].filter(Boolean) as string[];
+
+  const age =
+    birth?.dateYear && death?.dateYear && death.dateYear >= birth.dateYear
+      ? death.dateYear - birth.dateYear
+      : null;
+
+  return {
+    name: displayName(p.names),
+    given: displayName(p.names).split(" ")[0] ?? null,
+    gender: p.gender,
+    bornDate: birth ? formatDate(birth) : null,
+    bornPlace: birth?.place?.title ?? null,
+    diedDate: death ? formatDate(death) : null,
+    diedPlace: death?.place?.title ?? null,
+    ageYears: age,
+    clan: p.clan?.name ?? null,
+    subClan: p.subClan ?? null,
+    community: p.clan?.community ?? null,
+    parents: [...new Set(parents)],
+    spouses: [...new Set(spouses)],
+    children: [...new Set(children)],
+    siblingsCount: null,
+  };
+}
+
+/** Generate an editable first-draft eulogy string from the tree records. */
+export async function draftEulogyText(treeId: string, personId: string): Promise<string | null> {
+  const facts = await gatherEulogyFacts(treeId, personId);
+  return facts ? buildEulogyDraft(facts) : null;
 }
 
 export function isDeceased(events: { type: string }[]): boolean {

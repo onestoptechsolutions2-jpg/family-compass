@@ -9,6 +9,7 @@ import { requireTreeEdit } from "@/lib/rbac";
 import { slugify, randomToken } from "@/lib/slug";
 import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
+import { draftEulogyText } from "@/lib/queries/memorial";
 import { logActivity } from "@/lib/activity";
 import { emitEvent } from "@/lib/webhooks";
 
@@ -65,6 +66,7 @@ export async function createMemorial(treeId: string, personId: string) {
   const name = displayName(person.names);
   const birth = person.eventRefs.find((r) => r.event.type === "Birth")?.event;
   const death = person.eventRefs.find((r) => r.event.type === "Death")?.event;
+  const eulogyDraft = await draftEulogyText(treeId, personId);
 
   await db.memorial.create({
     data: {
@@ -72,6 +74,7 @@ export async function createMemorial(treeId: string, personId: string) {
       treeId,
       slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
       headline: `In loving memory of ${name}`,
+      eulogy: eulogyDraft,
       bornText: birth
         ? [formatDate(birth), birth.place?.title].filter(Boolean).join(" · ")
         : null,
@@ -136,6 +139,25 @@ export async function updateMemorial(treeId: string, memorialId: string, formDat
 
   revalidatePath(`/trees/${treeId}/people/${before.personId}/memorial`);
   revalidatePath(`/trees/${treeId}/people`);
+}
+
+/** Regenerate the eulogy draft from tree records. Overwrites only if asked. */
+export async function draftEulogy(treeId: string, memorialId: string, formData: FormData) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const overwrite = formData.get("overwrite") === "1";
+  const current = await db.memorial.findUniqueOrThrow({
+    where: { id: memorialId },
+    select: { eulogy: true },
+  });
+  const draft = await draftEulogyText(treeId, m.personId);
+  if (!draft) return;
+  const next =
+    overwrite || !current.eulogy?.trim()
+      ? draft
+      : `${current.eulogy.trim()}\n\n— draft from records —\n\n${draft}`;
+  await db.memorial.update({ where: { id: memorialId }, data: { eulogy: next } });
+  revalidatePath(`/trees/${treeId}/people/${m.personId}/memorial`);
 }
 
 export async function setMemorialCover(treeId: string, memorialId: string, formData: FormData) {

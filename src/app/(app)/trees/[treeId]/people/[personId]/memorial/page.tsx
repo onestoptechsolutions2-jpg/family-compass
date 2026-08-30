@@ -15,6 +15,7 @@ import {
   saveProgram,
   moderateGuestbook,
   deleteMemorial,
+  draftEulogy,
 } from "./actions";
 
 export const metadata = { title: "Memorial" };
@@ -125,8 +126,12 @@ export default async function MemorialEditorPage({
         </label>
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Eulogy</span>
-          <textarea name="eulogy" rows={10} defaultValue={memorial.eulogy ?? ""} className={field} style={style} />
+          <textarea name="eulogy" rows={12} defaultValue={memorial.eulogy ?? ""} className={field} style={style} />
         </label>
+        <p className="-mt-1 text-xs" style={{ color: "var(--muted)" }}>
+          Draft generated from tree records. Edit freely, fill the <code>[bracketed]</code> prompts,
+          then Save. Use the buttons below to regenerate.
+        </p>
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Service details (times, directions)</span>
           <textarea name="serviceText" rows={3} defaultValue={memorial.serviceText ?? ""} className={field} style={style} />
@@ -151,6 +156,21 @@ export default async function MemorialEditorPage({
           </button>
         </div>
       </form>
+
+      <div className="-mt-2 flex flex-wrap gap-2 text-sm">
+        <form action={draftEulogy.bind(null, treeId, memorial.id)}>
+          <input type="hidden" name="overwrite" value="0" />
+          <button className="rounded-lg border px-3 py-1.5" style={{ borderColor: "var(--border)" }}>
+            Append draft from records
+          </button>
+        </form>
+        <form action={draftEulogy.bind(null, treeId, memorial.id)}>
+          <input type="hidden" name="overwrite" value="1" />
+          <button className="rounded-lg border px-3 py-1.5 text-red-600" style={{ borderColor: "var(--border)" }}>
+            Replace with fresh draft
+          </button>
+        </form>
+      </div>
 
       {/* ---- Cover photo ---- */}
       {media.length > 0 && (
