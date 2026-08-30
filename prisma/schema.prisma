@@ -488,6 +488,9 @@ enum Gender {
 enum Privacy {
   INHERIT
   PUBLIC
+  /// Shown as a node/name in shared trees, but no dates, no photos and no
+  /// profile page — "limit what can be seen" without hiding the person.
+  REDACTED
   PRIVATE
 }
 

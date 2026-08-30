@@ -78,7 +78,8 @@ export function PersonForm({
           <select name="privacy" defaultValue={values?.privacy ?? Privacy.INHERIT} className={field} style={fieldStyle}>
             <option value={Privacy.INHERIT}>Inherit from tree</option>
             <option value={Privacy.PUBLIC}>Public</option>
-            <option value={Privacy.PRIVATE}>Private</option>
+            <option value={Privacy.REDACTED}>Limited — name only on public</option>
+            <option value={Privacy.PRIVATE}>Private — hidden from public</option>
           </select>
         </label>
       </div>

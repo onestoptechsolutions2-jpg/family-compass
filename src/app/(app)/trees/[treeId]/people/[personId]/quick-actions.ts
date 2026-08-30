@@ -302,6 +302,64 @@ export async function addEvent(treeId: string, personId: string, formData: FormD
   redirect(`/trees/${treeId}/people/${personId}`);
 }
 
+const PRIVACY_VALUES = ["INHERIT", "PUBLIC", "REDACTED", "PRIVATE"] as const;
+
+/** Collect a person + every descendant (through the families they parent). */
+async function descendantIds(treeId: string, rootId: string): Promise<string[]> {
+  const seen = new Set<string>([rootId]);
+  let frontier = [rootId];
+  for (let depth = 0; depth < 40 && frontier.length; depth++) {
+    const fams = await db.family.findMany({
+      where: { treeId, OR: [{ partner1Id: { in: frontier } }, { partner2Id: { in: frontier } }] },
+      select: { childRefs: { select: { personId: true } } },
+    });
+    const next: string[] = [];
+    for (const f of fams) {
+      for (const c of f.childRefs) {
+        if (!seen.has(c.personId)) {
+          seen.add(c.personId);
+          next.push(c.personId);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return [...seen];
+}
+
+/** Set how much of a person is visible on public shared trees. With
+ *  `cascade`, the same setting is applied to every descendant in one go —
+ *  the quick way to "limit what can be seen" for a whole family line. */
+export async function setPersonPrivacy(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const d = z
+    .object({
+      privacy: z.enum(PRIVACY_VALUES),
+      cascade: z.coerce.boolean().optional().default(false),
+    })
+    .parse(Object.fromEntries(formData));
+
+  const person = await db.person.findFirst({ where: { id: personId, treeId }, select: { id: true } });
+  if (!person) throw new Error("Person not found in this tree");
+
+  const ids = d.cascade ? await descendantIds(treeId, personId) : [personId];
+  await db.person.updateMany({ where: { id: { in: ids }, treeId }, data: { privacy: d.privacy } });
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "person",
+    objectId: personId,
+    summary:
+      d.cascade && ids.length > 1
+        ? `set visibility to ${d.privacy.toLowerCase()} for ${ids.length} people`
+        : `set visibility to ${d.privacy.toLowerCase()}`,
+  });
+
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
 /** Editor generates a "claim your profile" link for a specific living,
  *  unclaimed person, to send to that relative (e.g. over WhatsApp). */
 export async function createClaimInvite(treeId: string, personId: string, formData: FormData) {

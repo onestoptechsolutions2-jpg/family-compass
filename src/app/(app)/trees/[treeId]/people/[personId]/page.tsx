@@ -26,6 +26,7 @@ import {
   addFirstChild,
   recordDeath,
   addEvent,
+  setPersonPrivacy,
   createClaimInvite,
   revokeClaimInvite,
 } from "./quick-actions";
@@ -105,6 +106,11 @@ export default async function PersonDetailPage({
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {person.gender.toLowerCase()}
             {deceased ? " · deceased" : person.living ? " · living" : ""}
+            {person.privacy === "PRIVATE"
+              ? " · hidden from public"
+              : person.privacy === "REDACTED"
+                ? " · limited on public"
+                : ""}
             {person.clan ? ` · ${person.clan.name} clan` : ""}
             {person.subClan ? ` (${person.subClan})` : ""}
             {person.phone ? ` · ${person.phone}` : ""}
@@ -189,6 +195,48 @@ export default async function PersonDetailPage({
                   </label>
                   <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                     Add event
+                  </button>
+                </form>
+              </Dialog>
+
+              <Dialog
+                title={`Visibility — ${displayName(person.names)}`}
+                label="🔒 Privacy"
+                buttonClass={actionItemClass}
+              >
+                <form action={setPersonPrivacy.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    Controls what public shared trees and profile links reveal. Family members
+                    signed in to this tree always see everything.
+                  </p>
+                  {(
+                    [
+                      ["INHERIT", "Default", "Follows the tree — living people are shown as “Living …” on public shares."],
+                      ["PUBLIC", "Public", "Name, dates, photos and profile are visible on public shares."],
+                      ["REDACTED", "Limited", "Appears in the tree by name only — no dates, no photos, no profile page."],
+                      ["PRIVATE", "Hidden", "Removed entirely from public shares and the tree graph."],
+                    ] as const
+                  ).map(([value, label, note]) => (
+                    <label key={value} className="flex gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="privacy"
+                        value={value}
+                        defaultChecked={(person.privacy ?? "INHERIT") === value}
+                        className="mt-1"
+                      />
+                      <span>
+                        <span className="font-medium">{label}</span>
+                        <span className="block text-xs" style={{ color: "var(--muted)" }}>{note}</span>
+                      </span>
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="cascade" value="true" />
+                    Also apply to everyone descended from this person
+                  </label>
+                  <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Save visibility
                   </button>
                 </form>
               </Dialog>

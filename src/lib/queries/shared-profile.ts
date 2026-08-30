@@ -74,6 +74,10 @@ export async function getSharedCentralProfile(
   });
   if (!p) return null;
   if (p.privacy === "PRIVATE") return null;
+  if (p.privacy === "REDACTED") {
+    const n = primaryName(p.names);
+    return { redacted: true, name: displayName(p.names) || (n?.surname ? `${n.surname} family` : "Private") };
+  }
 
   const name = displayName(p.names);
   const events = p.eventRefs.map((r) => r.event);

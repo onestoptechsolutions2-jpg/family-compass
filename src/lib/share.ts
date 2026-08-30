@@ -56,14 +56,18 @@ export async function getRedactedGraph(
 
   const persons: Record<string, GraphPerson> = {};
   for (const [id, p] of Object.entries(full.persons)) {
-    if (privacy.get(id) === "PRIVATE") continue;
+    const vis = privacy.get(id);
+    if (vis === "PRIVATE") continue;
     const living = presumedLiving({
       explicitLiving: p.living,
       birthYear: p.birthYear,
       deathYear: p.deathYear,
       hasDeathEvent: p.deathYear != null,
     });
-    if (living && !opts.includeLiving) {
+    if (vis === "REDACTED") {
+      // stays in the tree as a named node, but nothing else is shown
+      persons[id] = { ...p, ...REDACTED };
+    } else if (living && !opts.includeLiving) {
       persons[id] = {
         ...p,
         ...REDACTED,
