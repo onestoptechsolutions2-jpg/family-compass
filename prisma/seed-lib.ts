@@ -68,10 +68,20 @@ export async function bootstrapAdmin(db: PrismaClient): Promise<void> {
     },
   });
 
-  const base = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const fqdn = process.env.COOLIFY_FQDN?.split(",")[0]?.trim();
+  const base = (
+    process.env.APP_URL ||
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.COOLIFY_URL ||
+    (fqdn ? `https://${fqdn}` : "") ||
+    "https://YOUR-DOMAIN"
+  ).replace(/\/$/, "");
+  const path = `/api/auth/link/${token}`;
   console.log("\n============================================================");
   console.log(`SUPER-ADMIN SIGN-IN LINK for ${email}`);
   console.log("(single use, valid 7 days — open it in a browser):");
-  console.log(`  ${base}/api/auth/link/${token}`);
+  console.log(`  ${base}${path}`);
+  console.log(`  (if the host above is wrong, use: https://<your-domain>${path} )`);
   console.log("============================================================\n");
 }
