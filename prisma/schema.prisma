@@ -224,6 +224,9 @@ model FuneralProgram {
   id          String    @id @default(cuid())
   memorialId  String    @unique
   venue       String?
+  venueLat    Float?
+  venueLng    Float?
+  venueMapUrl String?
   serviceDate DateTime?
   committee   String?   @db.Text
   order       Json

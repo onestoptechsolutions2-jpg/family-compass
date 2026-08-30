@@ -11,6 +11,7 @@ import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 import { draftEulogyText, normaliseOrder, type ProgramItem } from "@/lib/queries/memorial";
 import { expandTemplate } from "@/lib/programme-templates";
+import { parseGeo } from "@/lib/geo";
 import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { logActivity } from "@/lib/activity";
 import { emitEvent } from "@/lib/webhooks";
@@ -213,7 +214,14 @@ async function commitOrder(
   actorId: string,
   order: ProgramItem[],
   note: string,
-  extra: { venue?: string | null; committee?: string | null; serviceDate?: Date | null } = {},
+  extra: {
+    venue?: string | null;
+    committee?: string | null;
+    serviceDate?: Date | null;
+    venueLat?: number | null;
+    venueLng?: number | null;
+    venueMapUrl?: string | null;
+  } = {},
 ) {
   const program = await db.funeralProgram.upsert({
     where: { memorialId },
@@ -242,11 +250,15 @@ export async function saveProgram(treeId: string, memorialId: string, formData: 
   const serviceDateRaw = String(formData.get("serviceDate") ?? "").trim();
   const serviceDate = /^\d{4}-\d{2}-\d{2}/.test(serviceDateRaw) ? new Date(serviceDateRaw) : null;
   const note = String(formData.get("note") ?? "").trim() || "details";
+  const g = parseGeo(String(formData.get("venueLocation") ?? ""));
 
   await commitOrder(memorialId, ctx.user.id, await currentOrder(memorialId), note, {
     venue,
     committee,
     serviceDate,
+    venueLat: g.lat ?? null,
+    venueLng: g.lng ?? null,
+    venueMapUrl: g.url ?? null,
   });
   await logActivity({
     treeId,
@@ -341,9 +353,18 @@ export async function addProgramItem(treeId: string, memorialId: string, formDat
   const detail = String(formData.get("detail") ?? "").trim().slice(0, 400) || undefined;
   const day = String(formData.get("day") ?? "").trim().slice(0, 80) || undefined;
   if (!title) throw new Error("Add a title for the item");
+  const g = parseGeo(String(formData.get("location") ?? ""));
 
   const order = await currentOrder(memorialId);
-  order.push({ id: `it_${randomToken(8)}`, day, title, detail });
+  order.push({
+    id: `it_${randomToken(8)}`,
+    day,
+    title,
+    detail,
+    lat: g.lat ?? undefined,
+    lng: g.lng ?? undefined,
+    mapUrl: g.url ?? undefined,
+  });
   await commitOrder(memorialId, ctx.user.id, order, `added "${title}"`);
   revalidate(treeId, m.personId);
 }
@@ -361,9 +382,23 @@ export async function updateProgramItem(
   const detail = String(formData.get("detail") ?? "").trim().slice(0, 400) || undefined;
   const day = String(formData.get("day") ?? "").trim().slice(0, 80) || undefined;
   if (!title) throw new Error("Add a title for the item");
+  const raw = String(formData.get("location") ?? "");
+  const g = raw.trim() ? parseGeo(raw) : null;
 
   const order = await currentOrder(memorialId).then((o) =>
-    o.map((it) => (it.id === itemId ? { ...it, title, detail, day } : it)),
+    o.map((it) =>
+      it.id === itemId
+        ? {
+            ...it,
+            title,
+            detail,
+            day,
+            ...(g
+              ? { lat: g.lat ?? undefined, lng: g.lng ?? undefined, mapUrl: g.url ?? undefined }
+              : {}),
+          }
+        : it,
+    ),
   );
   await commitOrder(memorialId, ctx.user.id, order, `edited "${title}"`);
   revalidate(treeId, m.personId);

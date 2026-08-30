@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 
 import { db } from "@/lib/db";
 import { getPublicMemorial, groupByDay } from "@/lib/queries/memorial";
+import { mapsHref } from "@/lib/geo";
+import { RecentMemorials } from "@/components/RecentMemorials";
 import { publicOrigin } from "@/lib/origin";
 import { templateTheme } from "@/lib/memorial-templates";
 import { MediaThumb } from "@/components/media/MediaThumb";
@@ -60,8 +62,9 @@ export default async function MemorialPage({
         </Link>
       </header>
       <div className="mt-8 flex-1">{children}</div>
-      <footer className="mt-10 border-t pt-4 text-xs" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-        A memorial page on Family Compass.
+      <footer className="mt-10 flex flex-col gap-3 border-t pt-4 text-xs" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+        <RecentMemorials exceptSlug={slug} />
+        <span>A memorial page on Family Compass.</span>
       </footer>
     </main>
   );
@@ -220,7 +223,38 @@ export default async function MemorialPage({
         {(m.program || m.serviceText) && (
           <section className="p-4 text-sm" style={cardStyle}>
             <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Funeral programme</h2>
-            {m.program?.venue && <p className="mt-1">Venue: {m.program.venue}</p>}
+            {m.program?.venue && (
+              <p className="mt-1">
+                Venue: {m.program.venue}
+                {mapsHref({ lat: m.program.venueLat, lng: m.program.venueLng, url: m.program.venueMapUrl }) && (
+                  <>
+                    {" · "}
+                    <a
+                      href={mapsHref({ lat: m.program.venueLat, lng: m.program.venueLng, url: m.program.venueMapUrl })!}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "var(--link)" }}
+                      className="hover:underline"
+                    >
+                      📍 open in maps
+                    </a>
+                  </>
+                )}
+              </p>
+            )}
+            {!m.program?.venue && mapsHref({ lat: m.program?.venueLat, lng: m.program?.venueLng, url: m.program?.venueMapUrl }) && (
+              <p className="mt-1">
+                <a
+                  href={mapsHref({ lat: m.program!.venueLat, lng: m.program!.venueLng, url: m.program!.venueMapUrl })!}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--link)" }}
+                  className="hover:underline"
+                >
+                  📍 Venue location
+                </a>
+              </p>
+            )}
             {m.program?.serviceDate && <p>Date: {m.program.serviceDate.toISOString().slice(0, 10)}</p>}
             {m.serviceText && <p className="mt-1 whitespace-pre-wrap">{m.serviceText}</p>}
             {m.program && m.program.order.length > 0 && (
@@ -237,6 +271,19 @@ export default async function MemorialPage({
                         <li key={it.id}>
                           {it.title}
                           {it.detail ? <span style={{ color: "var(--muted)" }}> — {it.detail}</span> : null}
+                          {mapsHref({ lat: it.lat, lng: it.lng, url: it.mapUrl }) && (
+                            <>
+                              {" "}
+                              <a
+                                href={mapsHref({ lat: it.lat, lng: it.lng, url: it.mapUrl })!}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open location"
+                              >
+                                📍
+                              </a>
+                            </>
+                          )}
                         </li>
                       ))}
                     </ol>

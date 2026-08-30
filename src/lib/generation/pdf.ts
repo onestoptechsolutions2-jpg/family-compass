@@ -84,7 +84,13 @@ export type MemorialBookData = {
   survivors: string[];
   preceded: string[];
   timeline?: { type: string; date: string; place: string | null; note: string | null }[];
-  program: { venue: string | null; serviceDate: Date | null; committee: string | null; order: { id?: string; day?: string; title: string; detail?: string }[] } | null;
+  program: {
+    venue: string | null;
+    venueMapUrl?: string | null;
+    serviceDate: Date | null;
+    committee: string | null;
+    order: { id?: string; day?: string; title: string; detail?: string; lat?: number; lng?: number; mapUrl?: string }[];
+  } | null;
   guestbook?: { name: string; relation: string | null; message: string; date: string }[];
   cover: { bytes: Buffer; mime: string } | null;
   photos?: { bytes: Buffer; mime: string; caption?: string | null }[];
@@ -283,6 +289,7 @@ export async function memorialBookPdf(
   // ---------- order of service (grouped by day) ----------
   if ((d.program || d.serviceText) && section("Order of service", "The farewell")) {
     if (d.program?.venue) kv("Venue", d.program.venue);
+    if (d.program?.venueMapUrl) kv("Venue map", d.program.venueMapUrl);
     if (d.program?.serviceDate) kv("Main service date", d.program.serviceDate.toISOString().slice(0, 10));
     if (d.program && d.program.order.length) {
       const groups: { day: string; items: typeof d.program.order }[] = [];
@@ -297,9 +304,13 @@ export async function memorialBookPdf(
         if (groups.length > 1 || g.day !== "Programme") {
           text(g.day, { size: 10, font: bold, color: th.accent, gap: 3 });
         }
-        g.items.forEach((it, i) =>
-          text(`${i + 1}.  ${it.title}${it.detail ? `  —  ${it.detail}` : ""}`, { size: 10.5, gap: 3 }),
-        );
+        g.items.forEach((it, i) => {
+          text(`${i + 1}.  ${it.title}${it.detail ? `  —  ${it.detail}` : ""}`, { size: 10.5, gap: 1 });
+          const loc =
+            it.mapUrl ??
+            (it.lat != null && it.lng != null ? `maps: ${it.lat},${it.lng}` : null);
+          if (loc) text(`     ${loc}`, { size: 8.5, color: th.muted, gap: 3 });
+        });
       }
     }
     if (d.serviceText) {

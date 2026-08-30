@@ -9,6 +9,7 @@ import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
+import { mapsHref } from "@/lib/geo";
 import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { personMedia } from "@/lib/queries/media";
 import { MediaThumb } from "@/components/media/MediaThumb";
@@ -103,6 +104,11 @@ export default async function MemorialEditorPage({
   const order = normaliseOrder(memorial.program?.order);
   const orderDays = groupByDay(order);
   const bio = (memorial.bioNotes ?? {}) as BioNotes;
+  const venueLoc =
+    memorial.program?.venueMapUrl ??
+    (memorial.program?.venueLat != null && memorial.program?.venueLng != null
+      ? `${memorial.program.venueLat},${memorial.program.venueLng}`
+      : "");
   const origin = await publicOrigin();
   const url = `${origin}/m/${memorial.slug}`;
   const pending = memorial.guestbook.filter((g) => g.status === "PENDING");
@@ -424,6 +430,34 @@ export default async function MemorialEditorPage({
             </label>
           </div>
           <label className="mt-3 block text-sm">
+            <span style={{ color: "var(--muted)" }}>Venue location</span>
+            <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>
+              — paste a Google Maps link, a plus code, or “lat, lng”
+            </span>
+            <input
+              name="venueLocation"
+              defaultValue={venueLoc}
+              placeholder="-1.28640, 36.81724  ·  or  https://maps.app.goo.gl/…"
+              className={field}
+              style={style}
+            />
+          </label>
+          {mapsHref({
+            lat: memorial.program?.venueLat,
+            lng: memorial.program?.venueLng,
+            url: memorial.program?.venueMapUrl,
+          }) && (
+            <a
+              href={mapsHref({ lat: memorial.program?.venueLat, lng: memorial.program?.venueLng, url: memorial.program?.venueMapUrl })!}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-block text-xs hover:underline"
+              style={{ color: "var(--link)" }}
+            >
+              📍 Open current venue location
+            </a>
+          )}
+          <label className="mt-3 block text-sm">
             <span style={{ color: "var(--muted)" }}>Committee / contacts</span>
             <textarea name="committee" rows={2} defaultValue={memorial.program?.committee ?? ""} className={field} style={style} />
           </label>
@@ -495,6 +529,10 @@ export default async function MemorialEditorPage({
                 <span style={{ color: "var(--muted)" }}>Who / note (optional)</span>
                 <input name="detail" className={field} style={style} placeholder="Pastor J. Otieno" />
               </label>
+              <label className="text-sm">
+                <span style={{ color: "var(--muted)" }}>Location (optional)</span>
+                <input name="location" className={field} style={style} placeholder="Map link, plus code, or lat, lng" />
+              </label>
               <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                 Add item
               </button>
@@ -525,6 +563,17 @@ export default async function MemorialEditorPage({
                   <span className="min-w-0 flex-1">
                     {it.title}
                     {it.detail ? <span style={{ color: "var(--muted)" }}> — {it.detail}</span> : null}
+                    {mapsHref({ lat: it.lat, lng: it.lng, url: it.mapUrl }) && (
+                      <a
+                        href={mapsHref({ lat: it.lat, lng: it.lng, url: it.mapUrl })!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-1"
+                        title="Open location"
+                      >
+                        📍
+                      </a>
+                    )}
                   </span>
                   <form action={moveProgramItem.bind(null, treeId, memorial.id, it.id, "up")}>
                     <button className="px-1 text-xs" style={{ color: "var(--muted)" }} title="Move up">↑</button>
@@ -545,6 +594,16 @@ export default async function MemorialEditorPage({
                       <label className="text-sm">
                         <span style={{ color: "var(--muted)" }}>Who / note</span>
                         <input name="detail" defaultValue={it.detail ?? ""} className={field} style={style} />
+                      </label>
+                      <label className="text-sm">
+                        <span style={{ color: "var(--muted)" }}>Location</span>
+                        <input
+                          name="location"
+                          defaultValue={it.mapUrl ?? (it.lat != null && it.lng != null ? `${it.lat},${it.lng}` : "")}
+                          className={field}
+                          style={style}
+                          placeholder="Map link, plus code, or lat, lng"
+                        />
                       </label>
                       <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                         Save item

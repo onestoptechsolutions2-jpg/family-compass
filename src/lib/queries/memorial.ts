@@ -16,18 +16,30 @@ const NAME_SELECT = {
 } as const;
 const MINI = { id: true, living: true, privacy: true, names: { select: NAME_SELECT } } as const;
 
-export type ProgramItem = { id: string; day?: string; title: string; detail?: string };
+export type ProgramItem = {
+  id: string;
+  day?: string;
+  title: string;
+  detail?: string;
+  lat?: number;
+  lng?: number;
+  mapUrl?: string;
+};
 
-/** Normalise stored order JSON (older rows may lack id/day). */
+/** Normalise stored order JSON (older rows may lack id/day/location). */
 export function normaliseOrder(raw: unknown): ProgramItem[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((r, i) => {
     const o = (r ?? {}) as Record<string, unknown>;
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
     return {
       id: typeof o.id === "string" && o.id ? o.id : `it${i}`,
       day: typeof o.day === "string" && o.day.trim() ? o.day.trim() : undefined,
       title: String(o.title ?? "").trim(),
       detail: typeof o.detail === "string" && o.detail.trim() ? o.detail.trim() : undefined,
+      lat: num(o.lat),
+      lng: num(o.lng),
+      mapUrl: typeof o.mapUrl === "string" && o.mapUrl.trim() ? o.mapUrl.trim() : undefined,
     };
   }).filter((x) => x.title);
 }
@@ -100,6 +112,9 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
         select: {
           id: true,
           venue: true,
+          venueLat: true,
+          venueLng: true,
+          venueMapUrl: true,
           serviceDate: true,
           committee: true,
           order: true,
@@ -171,7 +186,7 @@ export async function getPublicMemorial(slug: string) {
           },
         },
       },
-      program: { select: { venue: true, serviceDate: true, committee: true, order: true } },
+      program: { select: { venue: true, venueLat: true, venueLng: true, venueMapUrl: true, serviceDate: true, committee: true, order: true } },
       guestbook: {
         where: { status: "APPROVED" },
         orderBy: { createdAt: "asc" },
@@ -290,7 +305,7 @@ export async function getMemorialBookData(treeId: string, personId: string) {
           },
         },
       },
-      program: { select: { venue: true, serviceDate: true, committee: true, order: true } },
+      program: { select: { venue: true, venueLat: true, venueLng: true, venueMapUrl: true, serviceDate: true, committee: true, order: true } },
       guestbook: {
         where: { status: "APPROVED" },
         orderBy: { createdAt: "asc" },
@@ -407,6 +422,11 @@ export async function getMemorialBookData(treeId: string, personId: string) {
     program: m.program
       ? {
           venue: m.program.venue,
+          venueMapUrl:
+            m.program.venueMapUrl ??
+            (m.program.venueLat != null && m.program.venueLng != null
+              ? `https://www.google.com/maps?q=${m.program.venueLat},${m.program.venueLng}`
+              : null),
           serviceDate: m.program.serviceDate,
           committee: m.program.committee,
           order: normaliseOrder(m.program.order),
@@ -509,6 +529,27 @@ export async function draftEulogyText(treeId: string, personId: string): Promise
 
 export function isDeceased(events: { type: string }[]): boolean {
   return events.some((e) => e.type === "Death" || e.type === "Burial");
+}
+
+/** The most recently updated published memorials — for the small "recent" ribbon. */
+export async function getRecentMemorials(limit = 3, exceptSlug?: string) {
+  const rows = await db.memorial.findMany({
+    where: { published: true, ...(exceptSlug ? { slug: { not: exceptSlug } } : {}) },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: {
+      slug: true,
+      headline: true,
+      coverMediaId: true,
+      person: { select: { names: { select: NAME_SELECT } } },
+    },
+  });
+  return rows.map((r) => ({
+    slug: r.slug,
+    name: displayName(r.person.names),
+    headline: r.headline,
+    coverMediaId: r.coverMediaId,
+  }));
 }
 
 export { presumedLiving };
