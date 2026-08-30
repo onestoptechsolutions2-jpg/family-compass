@@ -90,6 +90,50 @@ export function TreeExplorer({
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [size, setSize] = useState({ w: 800, h: 560 });
 
+  // ----- time dimension (the "4D" scrubber) -----
+  const yearBounds = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const p of Object.values(graph.persons)) {
+      if (p.birthYear) {
+        min = Math.min(min, p.birthYear);
+        max = Math.max(max, p.birthYear);
+      }
+      if (p.deathYear) max = Math.max(max, p.deathYear);
+    }
+    const now = new Date().getFullYear();
+    if (!isFinite(min)) return { min: 1900, max: now };
+    return { min: Math.floor(min / 10) * 10, max: Math.max(max, now) };
+  }, [graph.persons]);
+
+  const [timeOn, setTimeOn] = useState(false);
+  const [year, setYear] = useState(yearBounds.max);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => setYear(yearBounds.max), [yearBounds.max]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const step = Math.max(1, Math.round((yearBounds.max - yearBounds.min) / 120));
+    const id = setInterval(() => {
+      setYear((y) => {
+        if (y >= yearBounds.max) {
+          setPlaying(false);
+          return yearBounds.max;
+        }
+        return Math.min(yearBounds.max, y + step);
+      });
+    }, 90);
+    return () => clearInterval(id);
+  }, [playing, yearBounds.min, yearBounds.max]);
+
+  const phaseOf = (p: { birthYear: number | null; deathYear: number | null }) => {
+    if (!timeOn) return "on" as const;
+    if (p.birthYear && p.birthYear > year) return "unborn" as const;
+    if (p.deathYear && p.deathYear <= year) return "past" as const;
+    return "on" as const;
+  };
+
   // ----- layout -----
   const layout: Layout | null = useMemo(() => {
     if (!centerId || mode === "fan") return null;
@@ -253,6 +297,19 @@ export function TreeExplorer({
           ))}
         </datalist>
 
+        {mode !== "fan" && (
+          <button
+            onClick={() => {
+              setTimeOn((v) => !v);
+              setPlaying(false);
+            }}
+            className="tbtn px-3"
+            style={timeOn ? { background: "var(--color-brand-600)", color: "#fff", borderColor: "var(--color-brand-600)" } : undefined}
+          >
+            ⏱ Timeline
+          </button>
+        )}
+
         <div className="ml-auto flex items-center gap-1">
           <button onClick={() => zoomBy(1.25)} className="tbtn">
             +
@@ -282,6 +339,37 @@ export function TreeExplorer({
           )}
         </div>
       </div>
+
+      {/* Timeline scrubber */}
+      {timeOn && mode !== "fan" && layout && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-full border px-3 py-2 text-sm"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <button onClick={() => setPlaying((v) => !v)} className="tbtn px-3">
+            {playing ? "⏸ Pause" : "▶ Play"}
+          </button>
+          <span className="tabular-nums font-semibold" style={{ minWidth: 44 }}>{year}</span>
+          <input
+            type="range"
+            min={yearBounds.min}
+            max={yearBounds.max}
+            value={year}
+            onChange={(e) => {
+              setPlaying(false);
+              setYear(Number(e.target.value));
+            }}
+            className="min-w-[160px] flex-1"
+          />
+          <span style={{ color: "var(--muted)" }}>
+            {layout.nodes.filter((n) => {
+              const p = graph.persons[n.personId];
+              return p && phaseOf(p) === "on";
+            }).length}{" "}
+            alive
+          </span>
+        </div>
+      )}
 
       {/* Canvas */}
       <div
@@ -331,6 +419,7 @@ export function TreeExplorer({
                     stroke="var(--border)"
                     strokeWidth={e.kind === "couple" ? 2 : 1.6}
                     strokeDasharray={e.kind === "couple" ? "4 4" : undefined}
+                    opacity={timeOn ? 0.4 : 1}
                     style={{ stroke: e.kind === "couple" ? "var(--color-brand-500)" : undefined }}
                   />
                 ))}
@@ -340,15 +429,27 @@ export function TreeExplorer({
                   const isCenter = n.role === "center";
                   const hovered = hoverId === n.key;
                   const h = isCenter ? CARD_H + 8 : CARD_H;
+                  const phase = phaseOf(p);
+                  const nodeOpacity = phase === "unborn" ? 0.08 : phase === "past" ? 0.5 : 1;
                   return (
                     <g
                       key={n.key}
                       transform={`translate(${n.x - CARD_W / 2},${n.y - h / 2})`}
-                      onClick={() => setCenterId(n.personId)}
+                      onClick={() => phase !== "unborn" && setCenterId(n.personId)}
                       onMouseEnter={() => setHoverId(n.key)}
                       onMouseLeave={() => setHoverId((v) => (v === n.key ? null : v))}
-                      style={{ cursor: "pointer" }}
+                      opacity={nodeOpacity}
+                      style={{
+                        cursor: phase === "unborn" ? "default" : "pointer",
+                        transition: "opacity 120ms linear",
+                        pointerEvents: phase === "unborn" ? "none" : "auto",
+                      }}
                     >
+                      {phase === "past" && (
+                        <text x={CARD_W - 12} y={16} textAnchor="end" fontSize={13} fill="var(--muted)">
+                          †
+                        </text>
+                      )}
                       <rect
                         width={CARD_W}
                         height={h}
