@@ -5,9 +5,30 @@ import { Dialog } from "@/components/Dialog";
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 const fs = { borderColor: "var(--border)", background: "var(--bg)" };
 
-function PersonFields({ surname }: { surname?: string | null }) {
+export type PickOption = { id: string; label: string };
+
+function PersonFields({
+  surname,
+  people = [],
+}: {
+  surname?: string | null;
+  people?: PickOption[];
+}) {
   return (
     <div className="grid grid-cols-2 gap-2">
+      {people.length > 0 && (
+        <label className="col-span-2 text-sm">
+          <span style={{ color: "var(--muted)" }}>Link a person already in the tree</span>
+          <select name="existingId" defaultValue="" className={field} style={fs}>
+            <option value="">— or create a new person below —</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="text-sm">
         <span style={{ color: "var(--muted)" }}>Given name(s)</span>
         <input name="first" className={field} style={fs} autoFocus />
@@ -27,6 +48,9 @@ function PersonFields({ surname }: { surname?: string | null }) {
       <label className="col-span-2 flex items-center gap-2 text-sm">
         <input type="checkbox" name="living" value="true" defaultChecked /> Living
       </label>
+      <label className="col-span-2 flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
+        <input type="checkbox" name="allowDup" value="1" /> Add even if someone with this name already exists
+      </label>
     </div>
   );
 }
@@ -43,16 +67,18 @@ export function AddParentButton({
   role,
   action,
   surname,
+  people,
 }: {
   role: "father" | "mother";
   action: (fd: FormData) => void;
   surname?: string | null;
+  people?: PickOption[];
 }) {
   return (
     <Dialog label={`+ ${role}`} title={`Add a ${role}`}>
       <form action={action}>
         <input type="hidden" name="role" value={role} />
-        <PersonFields surname={surname} />
+        <PersonFields surname={surname} people={people} />
         <Submit>Add {role}</Submit>
       </form>
     </Dialog>
@@ -62,14 +88,16 @@ export function AddParentButton({
 export function AddPartnerButton({
   action,
   buttonClass,
+  people,
 }: {
   action: (fd: FormData) => void;
   buttonClass?: string;
+  people?: PickOption[];
 }) {
   return (
     <Dialog label="+ partner" title="Add a partner" buttonClass={buttonClass}>
       <form action={action}>
-        <PersonFields />
+        <PersonFields people={people} />
         <div className="mt-2 grid grid-cols-2 gap-2">
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Relationship</span>
@@ -107,15 +135,17 @@ export function AddPartnerButton({
 export function AddChildButton({
   action,
   back,
+  people,
 }: {
   action: (fd: FormData) => void;
   back?: string;
+  people?: PickOption[];
 }) {
   return (
     <Dialog label="+ child" title="Add a child">
       <form action={action}>
         {back && <input type="hidden" name="back" value={back} />}
-        <PersonFields />
+        <PersonFields people={people} />
         <Submit>Add child</Submit>
       </form>
     </Dialog>

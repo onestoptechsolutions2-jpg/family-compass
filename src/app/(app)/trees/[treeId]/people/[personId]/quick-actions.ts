@@ -22,11 +22,70 @@ const personBits = {
   birthDate: z.string().trim().max(40).optional().default(""),
   birthPlace: z.string().trim().max(300).optional().default(""),
   living: z.coerce.boolean().optional().default(false),
+  existingId: z.string().trim().max(40).optional().default(""),
+  allowDup: z.string().trim().optional().default(""),
+};
+
+type PersonBits = {
+  first: string;
+  surname: string;
+  birthDate: string;
+  birthPlace: string;
+  living: boolean;
+  existingId: string;
+  allowDup: string;
 };
 
 async function assertFamilyInTree(treeId: string, familyId: string) {
   const f = await db.family.findFirst({ where: { id: familyId, treeId }, select: { id: true } });
   if (!f) throw new Error("Family not found in this tree");
+}
+
+/** Guard against accidentally creating a second person with the same name. */
+async function assertNoDuplicate(treeId: string, first: string, surname: string, allow: boolean) {
+  if (allow || !first.trim() || !surname.trim()) return;
+  const match = await db.person.findFirst({
+    where: {
+      treeId,
+      names: {
+        some: {
+          first: { equals: first.trim(), mode: "insensitive" },
+          surname: { equals: surname.trim(), mode: "insensitive" },
+        },
+      },
+    },
+    select: { id: true },
+  });
+  if (match) {
+    throw new Error(
+      `"${first} ${surname}" is already in this tree — link that person from the list, or tick "Add even if…".`,
+    );
+  }
+}
+
+/** Use the picked existing person, or create a new one (with a Birth event). */
+async function resolveOrCreatePerson(
+  treeId: string,
+  d: PersonBits,
+  opts: { gender?: Gender } = {},
+): Promise<{ id: string; created: boolean }> {
+  if (d.existingId) {
+    const p = await db.person.findFirst({
+      where: { id: d.existingId, treeId },
+      select: { id: true },
+    });
+    if (!p) throw new Error("That person is not in this tree");
+    return { id: p.id, created: false };
+  }
+  await assertNoDuplicate(treeId, d.first, d.surname, d.allowDup === "1");
+  const p = await createBarePerson(treeId, {
+    first: d.first,
+    surname: d.surname,
+    gender: opts.gender,
+    living: d.living,
+  });
+  await setVitalEvent(treeId, p.id, "Birth", d.birthDate, d.birthPlace);
+  return { id: p.id, created: true };
 }
 
 export async function addParent(treeId: string, personId: string, formData: FormData) {
@@ -40,13 +99,10 @@ export async function addParent(treeId: string, personId: string, formData: Form
     select: { familyId: true, family: { select: { partner1Id: true, partner2Id: true } } },
   });
 
-  const parent = await createBarePerson(treeId, {
-    first: d.first,
-    surname: d.surname,
+  const parent = await resolveOrCreatePerson(treeId, d, {
     gender: d.role === "father" ? Gender.MALE : Gender.FEMALE,
-    living: d.living,
   });
-  await setVitalEvent(treeId, parent.id, "Birth", d.birthDate, d.birthPlace);
+  if (parent.id === personId) throw new Error("A person cannot be their own parent");
 
   const slot = d.role === "father" ? "partner1Id" : "partner2Id";
   if (childOf) {
@@ -88,18 +144,25 @@ export async function addPartner(treeId: string, personId: string, formData: For
     })
     .parse(Object.fromEntries(formData));
 
-  const partner = await createBarePerson(treeId, {
-    first: d.first,
-    surname: d.surname,
-    gender: d.gender,
-    living: d.living,
-  });
-  await setVitalEvent(treeId, partner.id, "Birth", d.birthDate, d.birthPlace);
+  const partner = await resolveOrCreatePerson(treeId, d, { gender: d.gender });
+  if (partner.id === personId) throw new Error("A person cannot be their own partner");
 
-  const family = await db.family.create({
-    data: { treeId, type: d.type, partner1Id: personId, partner2Id: partner.id },
+  const existingUnion = await db.family.findFirst({
+    where: {
+      treeId,
+      OR: [
+        { partner1Id: personId, partner2Id: partner.id },
+        { partner1Id: partner.id, partner2Id: personId },
+      ],
+    },
     select: { id: true },
   });
+  const family = existingUnion
+    ? existingUnion
+    : await db.family.create({
+        data: { treeId, type: d.type, partner1Id: personId, partner2Id: partner.id },
+        select: { id: true },
+      });
   await ensureMarriageEvent(treeId, family.id, d.marriageDate, d.marriagePlace);
 
   await logActivity({
@@ -119,12 +182,14 @@ export async function addChildToFamily(treeId: string, familyId: string, formDat
   const back = String(formData.get("back") ?? "").trim();
   const d = z.object(personBits).parse(Object.fromEntries(formData));
 
-  const child = await createBarePerson(treeId, {
-    first: d.first,
-    surname: d.surname,
-    living: d.living,
+  const child = await resolveOrCreatePerson(treeId, d);
+  const fam = await db.family.findUnique({
+    where: { id: familyId },
+    select: { partner1Id: true, partner2Id: true },
   });
-  await setVitalEvent(treeId, child.id, "Birth", d.birthDate, d.birthPlace);
+  if (fam && (fam.partner1Id === child.id || fam.partner2Id === child.id)) {
+    throw new Error("That person is a partner in this family and cannot also be its child");
+  }
   await addChildRef(familyId, child.id);
 
   await logActivity({
@@ -228,16 +293,12 @@ export async function addFirstChild(treeId: string, personId: string, formData: 
   const ctx = await requireTreeEdit(treeId);
   const d = z.object(personBits).parse(Object.fromEntries(formData));
 
+  const child = await resolveOrCreatePerson(treeId, d);
+  if (child.id === personId) throw new Error("A person cannot be their own child");
   const family = await db.family.create({
     data: { treeId, type: FamilyType.UNKNOWN, partner1Id: personId },
     select: { id: true },
   });
-  const child = await createBarePerson(treeId, {
-    first: d.first,
-    surname: d.surname,
-    living: d.living,
-  });
-  await setVitalEvent(treeId, child.id, "Birth", d.birthDate, d.birthPlace);
   await addChildRef(family.id, child.id);
 
   await logActivity({

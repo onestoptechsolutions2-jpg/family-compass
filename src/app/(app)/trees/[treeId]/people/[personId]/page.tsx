@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { loadTreeContext, canEdit } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
-import { getPersonDetail, getPersonRelations } from "@/lib/queries/people";
+import { getPersonDetail, getPersonRelations, personOptions } from "@/lib/queries/people";
 import { personMedia } from "@/lib/queries/media";
 import { displayName, genderSymbol, genderColor } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
@@ -40,6 +40,11 @@ export default async function PersonDetailPage({
   const relations = await getPersonRelations(treeId, personId);
   const media = await personMedia(treeId, personId);
   const editable = canEdit(ctx.role);
+  const pickList = editable
+    ? (await personOptions(treeId))
+        .filter((o) => o.id !== personId)
+        .map((o) => ({ id: o.id, label: o.label }))
+    : [];
 
   const events = [...person.eventRefs]
     .map((r) => r.event)
@@ -274,12 +279,14 @@ export default async function PersonDetailPage({
                   role="father"
                   surname={primaryName(person.names)?.surname}
                   action={addParent.bind(null, treeId, personId)}
+                  people={pickList}
                 />
               )}
               {editable && !relations?.parentFamily?.hasMother && (
                 <AddParentButton
                   role="mother"
                   action={addParent.bind(null, treeId, personId)}
+                  people={pickList}
                 />
               )}
             </div>
@@ -305,6 +312,7 @@ export default async function PersonDetailPage({
                 <AddPartnerButton
                   action={addPartner.bind(null, treeId, personId)}
                   buttonClass="text-xs text-brand-600 hover:underline"
+                  people={pickList}
                 />
               )}
             </div>
@@ -324,6 +332,7 @@ export default async function PersonDetailPage({
                         <AddChildButton
                           action={addChildToFamily.bind(null, treeId, f.id)}
                           back={`/trees/${treeId}/people/${personId}`}
+                          people={pickList}
                         />
                       )}
                     </div>
@@ -342,7 +351,7 @@ export default async function PersonDetailPage({
                     None recorded.
                   </p>
                   {editable && (
-                    <AddChildButton action={addFirstChild.bind(null, treeId, personId)} />
+                    <AddChildButton action={addFirstChild.bind(null, treeId, personId)} people={pickList} />
                   )}
                 </div>
               )}
