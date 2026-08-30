@@ -1,5 +1,36 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import type { PrismaClient } from "@prisma/client";
+
+/** Best-effort public origin. `docker exec` shells (Coolify terminal) don't
+ *  inherit the compose `environment:` block, so also read PID 1's env. */
+function resolveOrigin(): string {
+  const fromEnv = (e: NodeJS.ProcessEnv) =>
+    e.APP_URL ||
+    e.AUTH_URL ||
+    e.NEXTAUTH_URL ||
+    e.COOLIFY_URL ||
+    (e.COOLIFY_FQDN ? `https://${e.COOLIFY_FQDN.split(",")[0]!.trim()}` : "");
+
+  let origin = fromEnv(process.env);
+  if (!origin) {
+    try {
+      const pid1 = Object.fromEntries(
+        readFileSync("/proc/1/environ", "utf8")
+          .split("\0")
+          .filter(Boolean)
+          .map((kv) => {
+            const i = kv.indexOf("=");
+            return [kv.slice(0, i), kv.slice(i + 1)];
+          }),
+      ) as NodeJS.ProcessEnv;
+      origin = fromEnv(pid1);
+    } catch {
+      /* not linux / no /proc */
+    }
+  }
+  return (origin || "https://YOUR-DOMAIN").replace(/\/$/, "");
+}
 
 const NANO = "23456789abcdefghijkmnpqrstuvwxyz";
 const rand = (n: number) => Array.from(randomBytes(n), (b) => NANO[b % NANO.length]).join("");
@@ -68,20 +99,14 @@ export async function bootstrapAdmin(db: PrismaClient): Promise<void> {
     },
   });
 
-  const fqdn = process.env.COOLIFY_FQDN?.split(",")[0]?.trim();
-  const base = (
-    process.env.APP_URL ||
-    process.env.AUTH_URL ||
-    process.env.NEXTAUTH_URL ||
-    process.env.COOLIFY_URL ||
-    (fqdn ? `https://${fqdn}` : "") ||
-    "https://YOUR-DOMAIN"
-  ).replace(/\/$/, "");
+  const base = resolveOrigin();
   const path = `/api/auth/link/${token}`;
   console.log("\n============================================================");
   console.log(`SUPER-ADMIN SIGN-IN LINK for ${email}`);
   console.log("(single use, valid 7 days — open it in a browser):");
   console.log(`  ${base}${path}`);
-  console.log(`  (if the host above is wrong, use: https://<your-domain>${path} )`);
+  if (base === "https://YOUR-DOMAIN") {
+    console.log("  (host unknown — replace YOUR-DOMAIN with your real domain)");
+  }
   console.log("============================================================\n");
 }
