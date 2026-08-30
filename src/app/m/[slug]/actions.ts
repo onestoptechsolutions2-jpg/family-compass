@@ -112,5 +112,5 @@ export async function postGuestbook(slug: string, formData: FormData) {
   const q = new URLSearchParams({ posted: m.guestbookModerated ? "review" : "1" });
   if (matched) q.set("rel", matched.label);
   else q.set("new", "1");
-  redirect(`/m/${slug}?${q.toString()}#guestbook`);
+  redirect(`/m/${slug}?${q.toString()}#tributes`);
 }

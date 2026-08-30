@@ -824,16 +824,22 @@ export default async function MemorialEditorPage({
         </ul>
       </section>
 
-      {/* ---- Guestbook ---- */}
+      {/* ---- Tributes (messages + flowers — the same thing) ---- */}
       <section
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <h2 className="font-medium">Guestbook ({memorial.guestbook.length})</h2>
+        <h2 className="font-medium">
+          Tributes ({memorial.guestbook.length + memorial._count.flowers})
+        </h2>
         {pending.length > 0 && (
-          <p className="mt-1 text-sm text-amber-600">{pending.length} awaiting approval</p>
+          <p className="mt-1 text-sm text-amber-600">{pending.length} message(s) awaiting approval</p>
         )}
-        <ul className="mt-3 flex flex-col gap-2 text-sm">
+
+        <h3 className="mt-3 text-sm font-medium" style={{ color: "var(--muted)" }}>
+          Messages ({memorial.guestbook.length})
+        </h3>
+        <ul className="mt-2 flex flex-col gap-2 text-sm">
           {memorial.guestbook.map((g) => (
             <li key={g.id} className="rounded-lg border p-2" style={{ borderColor: "var(--border)" }}>
               <div className="flex items-center justify-between">
@@ -862,14 +868,10 @@ export default async function MemorialEditorPage({
             <li style={{ color: "var(--muted)" }}>No entries yet.</li>
           )}
         </ul>
-      </section>
 
-      {/* ---- Flowers laid ---- */}
-      <section
-        className="rounded-xl border p-4"
-        style={{ borderColor: "var(--border)", background: "var(--card)" }}
-      >
-        <h2 className="font-medium">Flowers &amp; tributes ({memorial._count.flowers})</h2>
+        <h3 className="mt-4 text-sm font-medium" style={{ color: "var(--muted)" }}>
+          Flowers &amp; reactions ({memorial._count.flowers})
+        </h3>
         {memorial.flowers.length === 0 ? (
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>None laid yet.</p>
         ) : (

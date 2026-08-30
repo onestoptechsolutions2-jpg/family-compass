@@ -102,7 +102,7 @@ export default async function ContributePage({
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
         {m.published && (
-          <Link href={`/m/${slug}`} className="text-sm hover:underline" style={{ color: "var(--link)" }}>
+          <Link href={`/m/${slug}?from=${token}`} className="text-sm hover:underline" style={{ color: "var(--link)" }}>
             View memorial
           </Link>
         )}

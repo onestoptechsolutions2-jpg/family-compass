@@ -42,10 +42,11 @@ export default async function MemorialPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ posted?: string; err?: string; rel?: string; new?: string; flower?: string }>;
+  searchParams: Promise<{ posted?: string; err?: string; rel?: string; new?: string; flower?: string; from?: string }>;
 }) {
   const { slug } = await params;
-  const { posted, err, rel, new: isNew, flower } = await searchParams;
+  const { posted, err, rel, new: isNew, flower, from } = await searchParams;
+  const backToken = from && /^[A-Za-z0-9_-]{6,}$/.test(from) ? from : null;
   const m = await getPublicMemorial(slug);
   if (!m) notFound();
 
@@ -87,7 +88,63 @@ export default async function MemorialPage({
   const eulogyParas = (m.eulogy ?? "").split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
   const survivors = m.includeLiving ? m.survivors : [];
   const cardStyle = theme.card;
+
+  // one combined tribute feed: laid flowers + guestbook messages, newest first
+  type FeedItem =
+    | { kind: "flower"; id: string; at: Date; name: string; emoji: string }
+    | { kind: "message"; id: string; at: Date; name: string; relation: string | null; message: string };
+  const feed: FeedItem[] = [
+    ...m.flowers.map((f) => ({
+      kind: "flower" as const,
+      id: f.id,
+      at: f.createdAt,
+      name: f.name ?? "In loving memory",
+      emoji: flowerEmoji(f.kind),
+    })),
+    ...m.guestbook.map((g) => ({
+      kind: "message" as const,
+      id: g.id,
+      at: g.createdAt,
+      name: g.name,
+      relation: g.relation,
+      message: g.message,
+    })),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+  const tributeCount = m.guestbook.length + m._count.flowers;
+  const flowerCounts: Record<string, number> = {};
+  for (const f of m.flowers) flowerCounts[f.kind] = (flowerCounts[f.kind] ?? 0) + 1;
   const coverSrc = m.coverMediaId ? `/api/media/${m.coverMediaId}?v=thumb&m=${slug}` : null;
+
+  const messageForm = (
+    <form action={postGuestbook.bind(null, slug)} className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>Your name</span>
+          <input name="name" required placeholder="Full name" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+        </label>
+        <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>Relation (optional)</span>
+          <input name="relation" placeholder="e.g. nephew, friend" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+        </label>
+      </div>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Your message</span>
+        <textarea name="message" required rows={4} placeholder="Share a memory or a word of comfort" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Phone (optional, never shown)</span>
+        <input name="phone" placeholder="+2547…" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+      </label>
+      <button className="mt-1 self-start rounded-full px-5 py-2.5 text-sm font-medium text-white" style={{ background: theme.accent }}>
+        Post message
+      </button>
+      {m.guestbookModerated && (
+        <p className="text-xs" style={{ color: "var(--muted)" }}>
+          Messages appear after a family member approves them.
+        </p>
+      )}
+    </form>
+  );
 
   const Hero = () => {
     const sub = (
@@ -184,63 +241,51 @@ export default async function MemorialPage({
   return (
     <Frame>
       <article className="flex flex-col gap-6">
+        {backToken && (
+          <Link
+            href={`/m/${slug}/contribute/${backToken}`}
+            className="self-start text-sm hover:underline"
+            style={{ color: "var(--link)" }}
+          >
+            ← Back to your contribution
+          </Link>
+        )}
+
         <Hero />
 
-        {/* Flowers */}
-        <section id="flowers" className="rounded-2xl border p-4" style={cardStyle}>
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Lay a flower</h2>
-            <span className="text-sm" style={{ color: "var(--muted)" }}>
-              {m._count.flowers} {m._count.flowers === 1 ? "tribute" : "tributes"} laid
-            </span>
-          </div>
-
-          {flower === "1" && (
-            <p className="mt-1 text-sm" style={{ color: "var(--success)" }}>Thank you — your tribute has been laid.</p>
-          )}
-          {flower === "cap" && (
-            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>You&apos;ve laid plenty for now — thank you.</p>
-          )}
-
-          <form action={layFlower.bind(null, slug)} className="mt-3 flex flex-col gap-2">
-            <input
-              name="name"
-              placeholder="Your name (optional)"
-              className="w-full max-w-xs rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-            />
-            <div className="flex flex-wrap gap-2">
-              {FLOWER_KINDS.map((k) => (
+        {/* reactions + guestbook — one-tap tributes, right under the name */}
+        <div className="flex flex-wrap items-center gap-2">
+          <form action={layFlower.bind(null, slug)} className="flex flex-wrap items-center gap-2">
+            {FLOWER_KINDS.map((k) => {
+              const n = flowerCounts[k.id] ?? 0;
+              return (
                 <button
                   key={k.id}
                   name="kind"
                   value={k.id}
-                  className="rounded-full border px-3 py-1.5 text-sm"
+                  title={k.label}
+                  className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm"
                   style={{ borderColor: "var(--border)", background: "var(--surface)" }}
                 >
-                  <span className="mr-1">{k.emoji}</span>
-                  {k.label}
+                  <span className="text-base leading-none">{k.emoji}</span>
+                  {n > 0 && <span style={{ color: "var(--muted)" }}>{n}</span>}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </form>
-
-          {m.flowers.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-2">
-              {m.flowers.map((f) => (
-                <li
-                  key={f.id}
-                  className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
-                  style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}
-                  title={timeAgo(f.createdAt)}
-                >
-                  <span className="text-sm">{flowerEmoji(f.kind)}</span>
-                  <span>{f.name ?? "In loving memory"}</span>
-                </li>
-              ))}
-            </ul>
+          {m.guestbookOpen && (
+            <Dialog
+              title={`Leave a message for ${m.name}`}
+              label={`📖 Guestbook · ${m.guestbook.length}`}
+              buttonClass="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm"
+            >
+              {messageForm}
+            </Dialog>
           )}
-        </section>
+          <Link href="#tributes" className="ml-auto text-xs hover:underline" style={{ color: "var(--link)" }}>
+            all tributes →
+          </Link>
+        </div>
 
         {eulogyParas.length > 0 && (
           <section className="flex flex-col gap-3 text-[15px] leading-relaxed">
@@ -354,14 +399,34 @@ export default async function MemorialPage({
           </section>
         )}
 
-        {/* Tributes */}
-        <section id="guestbook">
+        {/* Tributes — flowers + messages, one feed */}
+        <section id="tributes">
           <div className="flex items-baseline justify-between">
             <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Tributes</h2>
             <span className="text-xs" style={{ color: "var(--muted)" }}>
-              {m.guestbook.length} {m.guestbook.length === 1 ? "message" : "messages"}
+              {tributeCount} {tributeCount === 1 ? "tribute" : "tributes"}
             </span>
           </div>
+
+          {/* quick actions live under the name; this repeats the guestbook opener for readers who scrolled */}
+          {m.guestbookOpen && (
+            <div className="mt-3">
+              <Dialog
+                title={`Leave a message for ${m.name}`}
+                label="✍️ Write a message"
+                buttonClass="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+              >
+                {messageForm}
+              </Dialog>
+            </div>
+          )}
+
+          {flower === "1" && (
+            <p className="mt-2 text-sm" style={{ color: "var(--success)" }}>Thank you — your tribute has been laid.</p>
+          )}
+          {flower === "cap" && (
+            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>You&apos;ve laid plenty for now — thank you.</p>
+          )}
 
           {(posted === "review" || posted === "1") && (
             <div className="mt-2 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}>
@@ -387,83 +452,36 @@ export default async function MemorialPage({
           )}
           {err && <p className="mt-1 text-sm" style={{ color: "var(--danger)" }}>Please add your name and a message.</p>}
 
-          {theme.feed ? (
-            <ul className="mt-3 flex flex-col">
-              {m.guestbook.map((g) => (
-                <li key={g.id} className="flex gap-3 py-3" style={{ borderTop: "1px solid var(--hairline)" }}>
+          <ul className="mt-3 flex flex-col">
+            {feed.map((it) =>
+              it.kind === "flower" ? (
+                <li key={it.id} className="flex items-center gap-3 py-2 text-sm" style={{ borderTop: "1px solid var(--hairline)" }}>
+                  <span className="w-9 text-center text-lg">{it.emoji}</span>
+                  <span>
+                    <span className="font-medium">{it.name}</span>
+                    <span style={{ color: "var(--muted)" }}> laid a tribute · {timeAgo(it.at)}</span>
+                  </span>
+                </li>
+              ) : (
+                <li key={it.id} className="flex gap-3 py-3" style={{ borderTop: "1px solid var(--hairline)" }}>
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: theme.accent }}>
-                    {monogram(g.name)}
+                    {monogram(it.name)}
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm">
-                      <span className="font-semibold">{g.name}</span>
-                      {g.relation ? <span style={{ color: "var(--muted)" }}> · {g.relation}</span> : null}
-                      <span style={{ color: "var(--muted)" }}> · {timeAgo(g.createdAt)}</span>
+                      <span className="font-semibold">{it.name}</span>
+                      {it.relation ? <span style={{ color: "var(--muted)" }}> · {it.relation}</span> : null}
+                      <span style={{ color: "var(--muted)" }}> · {timeAgo(it.at)}</span>
                     </p>
-                    <p className="mt-0.5 whitespace-pre-wrap text-sm">{g.message}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-sm">{it.message}</p>
                   </div>
                 </li>
-              ))}
-              {m.guestbook.length === 0 && (
-                <li className="py-3 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a message.</li>
-              )}
-            </ul>
-          ) : (
-            <ul className="mt-3 flex flex-col gap-3">
-              {m.guestbook.map((g) => (
-                <li key={g.id} className="p-3 text-sm" style={cardStyle}>
-                  <div className="font-medium">
-                    {g.name}
-                    {g.relation ? <span style={{ color: "var(--muted)" }}> · {g.relation}</span> : null}
-                    <span style={{ color: "var(--muted)" }}> · {timeAgo(g.createdAt)}</span>
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap">{g.message}</p>
-                </li>
-              ))}
-              {m.guestbook.length === 0 && (
-                <li className="text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a message.</li>
-              )}
-            </ul>
-          )}
-
-          {m.guestbookOpen && (
-            <div className="mt-4">
-              <Dialog
-                title={`Leave a message for ${m.name}`}
-                label="✍️ Sign the guestbook"
-                buttonClass="rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
-              >
-                <form action={postGuestbook.bind(null, slug)} className="flex flex-col gap-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="text-sm">
-                      <span style={{ color: "var(--muted)" }}>Your name</span>
-                      <input name="name" required placeholder="Full name" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
-                    </label>
-                    <label className="text-sm">
-                      <span style={{ color: "var(--muted)" }}>Relation (optional)</span>
-                      <input name="relation" placeholder="e.g. nephew, friend" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
-                    </label>
-                  </div>
-                  <label className="text-sm">
-                    <span style={{ color: "var(--muted)" }}>Your message</span>
-                    <textarea name="message" required rows={4} placeholder="Share a memory or a word of comfort" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
-                  </label>
-                  <label className="text-sm">
-                    <span style={{ color: "var(--muted)" }}>Phone (optional, never shown)</span>
-                    <input name="phone" placeholder="+2547…" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
-                  </label>
-                  <button className="mt-1 self-start rounded-full px-5 py-2.5 text-sm font-medium text-white" style={{ background: theme.accent }}>
-                    Post message
-                  </button>
-                  {m.guestbookModerated && (
-                    <p className="text-xs" style={{ color: "var(--muted)" }}>
-                      Messages appear after a family member approves them.
-                    </p>
-                  )}
-                </form>
-              </Dialog>
-            </div>
-          )}
+              ),
+            )}
+            {feed.length === 0 && (
+              <li className="py-3 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a tribute.</li>
+            )}
+          </ul>
         </section>
 
         <div className="mt-4 border-t pt-6" style={{ borderColor: "var(--hairline)" }}>
