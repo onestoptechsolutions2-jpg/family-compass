@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { parseISODateInput, dateSortKey } from "@/lib/date";
 import { logActivity } from "@/lib/activity";
+import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 
 const label = (first?: string, surname?: string) =>
   `${first ?? ""} ${surname ?? ""}`.trim() || "a person";
@@ -81,7 +82,7 @@ async function syncVitalEvent(
   type: "Birth" | "Death",
   rawDate: string,
   rawPlace: string,
-) {
+): Promise<"created" | "updated" | "deleted" | "noop"> {
   const existing = await db.eventRef.findFirst({
     where: { personId, role: "PRIMARY", event: { type } },
     select: { id: true, eventId: true },
@@ -92,8 +93,9 @@ async function syncVitalEvent(
   if (!dd && !placeId) {
     if (existing) {
       await db.event.delete({ where: { id: existing.eventId } });
+      return "deleted";
     }
-    return;
+    return "noop";
   }
 
   const eventData = {
@@ -110,15 +112,16 @@ async function syncVitalEvent(
 
   if (existing) {
     await db.event.update({ where: { id: existing.eventId }, data: eventData });
-  } else {
-    await db.event.create({
-      data: {
-        treeId,
-        ...eventData,
-        eventRefs: { create: { personId, role: "PRIMARY" } },
-      },
-    });
+    return "updated";
   }
+  await db.event.create({
+    data: {
+      treeId,
+      ...eventData,
+      eventRefs: { create: { personId, role: "PRIMARY" } },
+    },
+  });
+  return "created";
 }
 
 export async function createPerson(treeId: string, formData: FormData) {
@@ -147,7 +150,7 @@ export async function createPerson(treeId: string, formData: FormData) {
   });
 
   await syncVitalEvent(treeId, person.id, "Birth", d.birthDate, d.birthPlace);
-  await syncVitalEvent(treeId, person.id, "Death", d.deathDate, d.deathPlace);
+  const deathSync = await syncVitalEvent(treeId, person.id, "Death", d.deathDate, d.deathPlace);
 
   await logActivity({
     treeId,
@@ -157,6 +160,17 @@ export async function createPerson(treeId: string, formData: FormData) {
     objectId: person.id,
     summary: `added ${label(d.first, d.surname)}`,
   });
+
+  if (deathSync === "created") {
+    await notifyRelativesOfEvent({
+      treeId,
+      personId: person.id,
+      eventType: "Death",
+      dateText: d.deathDate || null,
+      placeText: d.deathPlace || null,
+      actorUserId: ctx.user.id,
+    });
+  }
 
   revalidatePath(`/trees/${treeId}/people`);
   redirect(`/trees/${treeId}/people/${person.id}`);
@@ -198,7 +212,7 @@ export async function updatePerson(treeId: string, personId: string, formData: F
   });
 
   await syncVitalEvent(treeId, personId, "Birth", d.birthDate, d.birthPlace);
-  await syncVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);
+  const deathSync = await syncVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);
 
   await logActivity({
     treeId,
@@ -208,6 +222,17 @@ export async function updatePerson(treeId: string, personId: string, formData: F
     objectId: personId,
     summary: `edited ${label(d.first, d.surname)}`,
   });
+
+  if (deathSync === "created") {
+    await notifyRelativesOfEvent({
+      treeId,
+      personId,
+      eventType: "Death",
+      dateText: d.deathDate || null,
+      placeText: d.deathPlace || null,
+      actorUserId: ctx.user.id,
+    });
+  }
 
   revalidatePath(`/trees/${treeId}/people/${personId}`);
   redirect(`/trees/${treeId}/people/${personId}`);

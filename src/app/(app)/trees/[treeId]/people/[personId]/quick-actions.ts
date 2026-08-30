@@ -8,6 +8,7 @@ import { Gender, FamilyType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
+import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { randomToken } from "@/lib/slug";
 import {
   createBarePerson,
@@ -218,9 +219,10 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
 
   const person = await db.person.findFirst({
     where: { id: personId, treeId },
-    select: { id: true },
+    select: { id: true, eventRefs: { where: { event: { type: "Death" } }, select: { id: true } } },
   });
   if (!person) throw new Error("Person not found in this tree");
+  const hadDeath = person.eventRefs.length > 0;
 
   await setVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);
   await db.person.update({ where: { id: personId }, data: { living: false } });
@@ -233,6 +235,18 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
     objectId: personId,
     summary: "recorded a death",
   });
+
+  if (!hadDeath) {
+    await notifyRelativesOfEvent({
+      treeId,
+      personId,
+      eventType: "Death",
+      dateText: d.deathDate || null,
+      placeText: d.deathPlace || null,
+      actorUserId: ctx.user.id,
+    });
+  }
+
   redirect(`/trees/${treeId}/people/${personId}`);
 }
 

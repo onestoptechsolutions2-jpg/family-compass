@@ -64,6 +64,8 @@ function dateFields(raw: string) {
   return null;
 }
 
+export type VitalEventResult = "created" | "updated" | "deleted" | "noop";
+
 /** Create/update a person's primary Birth/Death event (delete if both blank). */
 export async function setVitalEvent(
   treeId: string,
@@ -71,7 +73,7 @@ export async function setVitalEvent(
   type: "Birth" | "Death",
   rawDate: string,
   rawPlace: string,
-): Promise<void> {
+): Promise<VitalEventResult> {
   const existing = await db.eventRef.findFirst({
     where: { personId, role: "PRIMARY", event: { type } },
     select: { id: true, eventId: true },
@@ -80,8 +82,11 @@ export async function setVitalEvent(
   const placeId = await upsertPlaceByTitle(treeId, rawPlace);
 
   if (!d && !placeId) {
-    if (existing) await db.event.delete({ where: { id: existing.eventId } });
-    return;
+    if (existing) {
+      await db.event.delete({ where: { id: existing.eventId } });
+      return "deleted";
+    }
+    return "noop";
   }
   const data = {
     type,
@@ -94,11 +99,14 @@ export async function setVitalEvent(
     dateText: d?.dateText ?? null,
     dateSortKey: d?.dateSortKey ?? null,
   };
-  if (existing) await db.event.update({ where: { id: existing.eventId }, data });
-  else
-    await db.event.create({
-      data: { treeId, ...data, eventRefs: { create: { personId, role: "PRIMARY" } } },
-    });
+  if (existing) {
+    await db.event.update({ where: { id: existing.eventId }, data });
+    return "updated";
+  }
+  await db.event.create({
+    data: { treeId, ...data, eventRefs: { create: { personId, role: "PRIMARY" } } },
+  });
+  return "created";
 }
 
 export async function ensureMarriageEvent(
