@@ -93,6 +93,11 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    Till / Store number in **/admin/settings** and verify payments at
    **/admin/payments**. Need a fresh link later: `npm run admin:link`.
 
+   **Password login (optional):** set `SUPERADMIN_PASSWORD` (10+ chars) before
+   seeding to also enable **email + password** sign-in for that admin — the
+   "Admin sign-in" box on `/login`. The one-time link stays as a fallback.
+   Any signed-in user can set/change/remove their password in **/account**.
+
 ### Accounts & sign-in
 
 No registration form, no passwords. The primary path is **WhatsApp

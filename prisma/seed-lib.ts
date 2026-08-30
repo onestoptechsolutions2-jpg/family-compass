@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { PrismaClient } from "@prisma/client";
 
+import { hashPassword, passwordProblem } from "../src/lib/password";
+
 /** Best-effort public origin. `docker exec` shells (Coolify terminal) don't
  *  inherit the compose `environment:` block, so also read PID 1's env. */
 function resolveOrigin(): string {
@@ -74,6 +76,20 @@ export async function bootstrapAdmin(db: PrismaClient): Promise<void> {
     update: { isPlatformAdmin: true },
     create: { email, name, isPlatformAdmin: true },
   });
+
+  const pw = process.env.SUPERADMIN_PASSWORD?.trim();
+  if (pw) {
+    const problem = passwordProblem(pw);
+    if (problem) {
+      console.log(`Seed: SUPERADMIN_PASSWORD rejected — ${problem}.`);
+    } else {
+      await db.user.update({
+        where: { id: user.id },
+        data: { passwordHash: await hashPassword(pw) },
+      });
+      console.log(`Seed: password sign-in enabled for ${email}.`);
+    }
+  }
 
   const ownerMembership = await db.membership.findFirst({
     where: { userId: user.id, role: "OWNER" },

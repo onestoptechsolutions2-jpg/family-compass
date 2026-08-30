@@ -22,7 +22,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 Admin
               </Link>
             )}
-            <span style={{ color: "var(--muted)" }}>{user.email}</span>
+            <Link href="/account" className="hover:underline" style={{ color: "var(--muted)" }}>
+              {user.email}
+            </Link>
             <form
               action={async () => {
                 "use server";
