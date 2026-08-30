@@ -1,4 +1,5 @@
 import type { Job } from "pg-boss";
+import { ImportKind } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import type { JobPayloads } from "@/lib/queue";
@@ -9,13 +10,10 @@ type ImportPayload =
   | JobPayloads[typeof QUEUE.importGramps]
   | JobPayloads[typeof QUEUE.importGedcom];
 
-async function processImport(job: Job<ImportPayload>, kind: "GRAMPS_XML" | "GEDCOM") {
+async function processImport(job: Job<ImportPayload>, kind: ImportKind) {
   const { importJobId } = job.data;
   try {
-    await db.importJob.update({
-      where: { id: importJobId },
-      data: { status: "RUNNING" },
-    });
+    await db.importJob.update({ where: { id: importJobId }, data: { status: "RUNNING" } });
     const report = await runImport(importJobId, kind);
     await db.importJob.update({
       where: { id: importJobId },
@@ -33,9 +31,9 @@ async function processImport(job: Job<ImportPayload>, kind: "GRAMPS_XML" | "GEDC
 }
 
 export async function handleImportGramps(jobs: Job<ImportPayload>[]) {
-  for (const job of jobs) await processImport(job, "GRAMPS_XML");
+  for (const job of jobs) await processImport(job, ImportKind.GRAMPS_XML);
 }
 
 export async function handleImportGedcom(jobs: Job<ImportPayload>[]) {
-  for (const job of jobs) await processImport(job, "GEDCOM");
+  for (const job of jobs) await processImport(job, ImportKind.GEDCOM);
 }
