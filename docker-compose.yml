@@ -54,6 +54,9 @@ services:
       EMAIL_SERVER: ${EMAIL_SERVER:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      OPEN_SIGNUP: ${OPEN_SIGNUP:-false}
+      ALLOWED_SIGNUP_EMAILS: ${ALLOWED_SIGNUP_EMAILS:-}
+      ALLOWED_SIGNUP_DOMAINS: ${ALLOWED_SIGNUP_DOMAINS:-}
     expose:
       - "${PORT:-3000}"
     ports:

@@ -6,6 +6,7 @@ import Nodemailer from "next-auth/providers/nodemailer";
 
 import { db } from "@/lib/db";
 import { env, hasGoogleOAuth, hasEmailProvider, isAdminEmail } from "@/lib/env";
+import { canSignIn } from "@/lib/access";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
 
 const providers: NextAuthConfig["providers"] = [];
@@ -40,6 +41,11 @@ export const authConfig: NextAuthConfig = {
   },
   providers,
   callbacks: {
+    // No open registration: only approved / invited addresses may sign in.
+    // Runs before an OAuth account is linked and before a magic link is sent.
+    async signIn({ user }) {
+      return canSignIn(user.email);
+    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;

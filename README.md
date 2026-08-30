@@ -72,6 +72,8 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    | `GOOGLE_CLIENT_ID` / `_SECRET` | — | one sign-in method needed |
    | `EMAIL_SERVER` / `EMAIL_FROM` | — | the other sign-in method (magic link) |
    | `ADMIN_EMAILS` | — | comma-separated; platform-admin on first sign-in |
+   | `OPEN_SIGNUP` | — | `false` (default) = invite-only, no self-service registration; `true` = anyone may sign in |
+   | `ALLOWED_SIGNUP_EMAILS` / `_DOMAINS` | — | extra addresses / whole domains allowed to sign in |
    | `RUN_SEED_ON_MIGRATE` | — | `true` on the very first deploy only |
 
 3. Attach your domain (e.g. `myroots.laitor.co.ke`) to the **`app`** service.
@@ -85,6 +87,22 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    `PaymentSettings` row, then sign in as an `ADMIN_EMAILS` user and set your
    M-Pesa Till / Store number in **/admin/settings**. Verify payments at
    **/admin/payments**.
+
+### Accounts & sign-in
+
+There is **no in-app registration form**. Sign-in doubles as sign-up: the
+first successful sign-in creates the account and a personal workspace.
+
+Who is allowed to sign in (unless `OPEN_SIGNUP=true`):
+
+- addresses in `ADMIN_EMAILS` (also get the platform-admin role)
+- anyone who already has an account
+- anyone with a pending invitation (`/trees/<id>/sharing` → *Invite by email*)
+- addresses / domains in `ALLOWED_SIGNUP_EMAILS` / `ALLOWED_SIGNUP_DOMAINS`
+
+Everyone else is bounced to the login page with an "invite-only" message.
+Method is **Google OAuth and/or an email magic link** (`EMAIL_SERVER` +
+`EMAIL_FROM`) — no passwords.
 
 ### Monetization model (phase 6)
 

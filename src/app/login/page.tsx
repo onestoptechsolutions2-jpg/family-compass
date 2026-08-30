@@ -3,18 +3,19 @@ import { redirect } from "next/navigation";
 
 import { signIn } from "@/lib/auth";
 import { getSessionUser } from "@/lib/rbac";
-import { hasGoogleOAuth, hasEmailProvider } from "@/lib/env";
+import { hasGoogleOAuth, hasEmailProvider, env } from "@/lib/env";
 
 export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
   const user = await getSessionUser();
   if (user) redirect("/app");
-  const { callbackUrl = "/app" } = await searchParams;
+  const { callbackUrl = "/app", error } = await searchParams;
+  const denied = error === "AccessDenied";
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
@@ -23,8 +24,19 @@ export default async function LoginPage({
       </Link>
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-        Building your family tree is free.
+        {env.OPEN_SIGNUP
+          ? "Your first sign-in creates your account."
+          : "Access is invite-only. Sign in with an approved email; the first sign-in sets up your account."}
       </p>
+
+      {denied && (
+        <p
+          className="mt-4 rounded-lg border p-3 text-sm text-red-600"
+          style={{ borderColor: "var(--border)" }}
+        >
+          That address isn&apos;t approved for access. Ask an admin to invite you, then try again.
+        </p>
+      )}
 
       <div className="mt-6 flex flex-col gap-3">
         {hasGoogleOAuth && (

@@ -8,14 +8,21 @@ export default async function AuthErrorPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const denied = error === "AccessDenied";
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 text-center">
-      <h1 className="text-2xl font-semibold">We couldn&apos;t sign you in</h1>
+      <h1 className="text-2xl font-semibold">
+        {denied ? "Access is invite-only" : "We couldn't sign you in"}
+      </h1>
       <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-        {error ? `Reason: ${error}` : "The sign-in link may have expired or already been used."}
+        {denied
+          ? "That address isn't approved. Ask an admin to invite you, then sign in again."
+          : error
+            ? `Reason: ${error}`
+            : "The sign-in link may have expired or already been used."}
       </p>
       <Link href="/login" className="mt-6 font-medium text-brand-600 hover:underline">
-        Try again
+        Back to sign in
       </Link>
     </main>
   );

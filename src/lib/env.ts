@@ -33,13 +33,31 @@ const schema = z.object({
     .string()
     .optional()
     .default("")
-    .transform((v) =>
-      v
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean),
-    ),
+    .transform(csvLower),
+
+  // --- who may sign in ---------------------------------------------------
+  // Access is invite-only by default: only admins, people already in the
+  // system, people with a pending invitation, or addresses on the allow
+  // lists below can sign in. There is no in-app self-service registration.
+  // Set OPEN_SIGNUP=true to let anyone sign in (and self-provision).
+  OPEN_SIGNUP: z
+    .string()
+    .optional()
+    .transform((v) => v === "true" || v === "1"),
+  ALLOWED_SIGNUP_EMAILS: z.string().optional().default("").transform(csvLower),
+  ALLOWED_SIGNUP_DOMAINS: z
+    .string()
+    .optional()
+    .default("")
+    .transform((v) => csvLower(v).map((d) => d.replace(/^@/, ""))),
 });
+
+function csvLower(v: string): string[] {
+  return v
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 // During `next build` (no database, no secrets, no real origin) we don't want a
 // hard failure — pages are compiled, not run. Runtime validation is unchanged.
