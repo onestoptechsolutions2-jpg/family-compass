@@ -35,14 +35,29 @@ const schema = z.object({
     ),
 });
 
-const parsed = schema.safeParse(process.env);
+// During `next build` (no database, no secrets) we don't want a hard failure —
+// pages are compiled, not run. Validation still throws at real runtime.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+const BUILD_FALLBACKS = {
+  DATABASE_URL: "postgresql://build:build@localhost:5432/build?schema=public",
+  AUTH_SECRET: "build-time-placeholder-secret",
+} as const;
+
+const source = isBuildPhase
+  ? { ...BUILD_FALLBACKS, ...process.env }
+  : process.env;
+
+const parsed = schema.safeParse(source);
 
 if (!parsed.success) {
   console.error("❌ Invalid environment variables:", z.treeifyError(parsed.error));
-  throw new Error("Invalid environment variables");
+  if (!isBuildPhase) throw new Error("Invalid environment variables");
 }
 
-export const env = parsed.data;
+export const env = (parsed.success ? parsed.data : schema.parse(BUILD_FALLBACKS)) as z.infer<
+  typeof schema
+>;
 
 export const hasGoogleOAuth = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 export const hasEmailProvider = Boolean(env.EMAIL_SERVER);

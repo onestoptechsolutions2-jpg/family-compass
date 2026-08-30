@@ -1,33 +1,39 @@
 # syntax=docker/dockerfile:1
 
 # ---------- base ----------
-FROM node:22-alpine AS base
-# openssl: required by Prisma engines. libc6-compat: required by sharp / resvg musl builds.
-RUN apk add --no-cache libc6-compat openssl
+# Debian (glibc) rather than Alpine — sharp / @resvg/resvg-js / tailwind-oxide /
+# unrs-resolver all ship glibc prebuilds and this avoids musl edge cases.
+FROM node:22-bookworm-slim AS base
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false \
+    CI=true
+# Match the npm that generated package-lock.json.
+RUN npm install -g npm@11
 
 # ---------- deps ----------
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts: skip postinstalls that need network (prisma engines) or
+# trip on the build sandbox (napi-postinstall). Native deps still install their
+# platform binary packages; `prisma generate` fetches its engine in the builder.
+RUN npm ci --ignore-scripts
 
 # ---------- builder ----------
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# `prisma generate` runs inside `npm run build`.
+# `prisma generate` (downloads the engine here) + `next build`.
 RUN npm run build
-# Drop dev dependencies from node_modules; keeps prisma CLI + tsx (runtime deps).
-RUN npm prune --omit=dev
 
 # ---------- runner ----------
 FROM base AS runner
-ENV NODE_ENV=production
-ENV PORT=3000
-
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
+ENV NODE_ENV=production \
+    PORT=3000
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
@@ -41,8 +47,8 @@ COPY --from=builder /app/worker ./worker
 COPY --from=builder /app/seed ./seed
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN chmod +x ./docker-entrypoint.sh && chown -R nextjs:nodejs /app
-USER nextjs
+RUN chmod +x ./docker-entrypoint.sh && chown -R node:node /app
+USER node
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
