@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, type ProgramItem } from "@/lib/queries/memorial";
 import { sectionLabel } from "@/lib/memorial-sections";
+import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { personMedia } from "@/lib/queries/media";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { CopyButton } from "@/components/CopyButton";
@@ -23,6 +24,7 @@ import {
   removeContributor,
   reviewContribution,
   setMemorialStatus,
+  setMemorialTemplate,
 } from "./actions";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -202,6 +204,39 @@ export default async function MemorialEditorPage({
           tree manager unlocks it.
         </p>
       )}
+
+      {/* ---- Template ---- */}
+      <form
+        action={setMemorialTemplate.bind(null, treeId, memorial.id)}
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">Page style</h2>
+        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+          How the public memorial looks. Change any time — even after locking.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {MEMORIAL_TEMPLATES.map((t) => (
+            <label
+              key={t.id}
+              className="flex cursor-pointer gap-2 rounded-lg border p-3 text-sm"
+              style={{
+                borderColor: memorial.template === t.id ? "var(--color-brand-600)" : "var(--border)",
+                background: "var(--surface-2)",
+              }}
+            >
+              <input type="radio" name="template" value={t.id} defaultChecked={memorial.template === t.id} className="mt-0.5" />
+              <span>
+                <span className="font-medium">{t.label}</span>
+                <span className="block text-xs" style={{ color: "var(--muted)" }}>{t.blurb}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <button className="mt-3 rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+          Apply style
+        </button>
+      </form>
 
       <fieldset disabled={locked} className="contents">
 

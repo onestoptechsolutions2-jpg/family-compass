@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { displayName, initials } from "@/lib/person";
+import { displayName, initials, genderSymbol, genderColor } from "@/lib/person";
 import type { Name } from "@prisma/client";
 
 type PersonMini = {
@@ -28,11 +28,16 @@ export function PersonChip({
       style={{ borderColor: "var(--border)", background: "var(--card)" }}
     >
       <span
-        className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-semibold"
-        style={{ background: "var(--color-brand-100)", color: "var(--color-brand-700)" }}
+        className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-semibold text-white"
+        style={{ background: genderColor(person.gender) }}
       >
         {initials(person.names)}
       </span>
+      {genderSymbol(person.gender) && (
+        <span aria-hidden title={person.gender?.toLowerCase()} style={{ color: genderColor(person.gender) }}>
+          {genderSymbol(person.gender)}
+        </span>
+      )}
       {person.living === false && (
         <span aria-label="deceased" title="Deceased" style={{ color: "var(--muted)" }}>
           †

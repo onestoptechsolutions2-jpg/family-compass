@@ -14,7 +14,11 @@ import { logActivity } from "@/lib/activity";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyTreeManagers } from "@/lib/notify";
 import { MERGE_TARGET } from "@/lib/memorial-sections";
+import { isTemplateId } from "@/lib/memorial-templates";
 import { MemorialStatus, ContributionStatus } from "@prisma/client";
+
+const revalidate = (treeId: string, personId: string) =>
+  revalidatePath(`/trees/${treeId}/people/${personId}/memorial`);
 
 async function ownMemorial(treeId: string, memorialId: string) {
   const m = await db.memorial.findFirst({
@@ -170,6 +174,16 @@ export async function draftEulogy(treeId: string, memorialId: string, formData: 
   revalidatePath(`/trees/${treeId}/people/${m.personId}/memorial`);
 }
 
+/** Presentation only — allowed even when the copy is locked. */
+export async function setMemorialTemplate(treeId: string, memorialId: string, formData: FormData) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const raw = String(formData.get("template") ?? "classic");
+  const template = isTemplateId(raw) ? raw : "classic";
+  await db.memorial.update({ where: { id: memorialId }, data: { template } });
+  revalidate(treeId, m.personId);
+}
+
 export async function setMemorialCover(treeId: string, memorialId: string, formData: FormData) {
   await requireTreeEdit(treeId);
   const m = await ownMemorial(treeId, memorialId);
@@ -253,9 +267,6 @@ export async function deleteMemorial(treeId: string, memorialId: string) {
 }
 
 // ---------------- collaboration workflow ----------------
-
-const revalidate = (treeId: string, personId: string) =>
-  revalidatePath(`/trees/${treeId}/people/${personId}/memorial`);
 
 export async function inviteContributor(treeId: string, memorialId: string, formData: FormData) {
   const ctx = await requireTreeEdit(treeId);

@@ -35,6 +35,7 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
       guestbookOpen: true,
       guestbookModerated: true,
       includeLiving: true,
+      template: true,
       viewCount: true,
       status: true,
       lockedAt: true,
@@ -111,6 +112,7 @@ export async function getPublicMemorial(slug: string) {
       guestbookOpen: true,
       guestbookModerated: true,
       includeLiving: true,
+      template: true,
       treeId: true,
       tree: { select: { name: true } },
       person: {
@@ -228,6 +230,7 @@ export async function getMemorialBookData(treeId: string, personId: string) {
       serviceText: true,
       coverMediaId: true,
       includeLiving: true,
+      template: true,
       person: {
         select: {
           id: true,

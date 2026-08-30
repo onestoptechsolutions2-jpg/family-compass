@@ -3,6 +3,7 @@ import Link from "next/link";
 import { loadTreeContext } from "@/lib/rbac";
 import { canEdit } from "@/lib/rbac";
 import { listPeople } from "@/lib/queries/people";
+import { genderSymbol, genderColor, genderLabel } from "@/lib/person";
 
 export const metadata = { title: "People" };
 
@@ -51,6 +52,7 @@ export default async function PeoplePage({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left" style={{ color: "var(--muted)" }}>
+              <th className="px-3 py-2 font-medium" aria-label="Sex" />
               <th className="px-3 py-2 font-medium">Name</th>
               <th className="px-3 py-2 font-medium">Born</th>
               <th className="px-3 py-2 font-medium">Died</th>
@@ -60,9 +62,21 @@ export default async function PeoplePage({
             {people.map((p) => (
               <tr key={p.id} className="border-t" style={{ borderColor: "var(--border)" }}>
                 <td className="px-3 py-2">
+                  <span
+                    className="grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold text-white"
+                    title={genderLabel(p.gender)}
+                    style={{ background: genderColor(p.gender) }}
+                  >
+                    {genderSymbol(p.gender) || "·"}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
                   <Link href={`/trees/${treeId}/people/${p.id}`} className="font-medium hover:underline">
                     {p.name}
                   </Link>
+                  {p.living === false && (
+                    <span className="ml-2" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
+                  )}
                   {p.living && (
                     <span className="ml-2 text-xs" style={{ color: "var(--muted)" }}>
                       living
@@ -79,7 +93,7 @@ export default async function PeoplePage({
             ))}
             {people.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-3 py-6 text-center" style={{ color: "var(--muted)" }}>
+                <td colSpan={4} className="px-3 py-6 text-center" style={{ color: "var(--muted)" }}>
                   No people {q ? "match your search" : "yet"}.
                 </td>
               </tr>

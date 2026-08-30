@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { loadTreeContext, canEdit } from "@/lib/rbac";
 import { getPersonDetail, getPersonRelations } from "@/lib/queries/people";
 import { personMedia } from "@/lib/queries/media";
-import { displayName } from "@/lib/person";
+import { displayName, genderSymbol, genderColor } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
 import { MediaThumb } from "@/components/media/MediaThumb";
@@ -49,6 +49,11 @@ export default async function PersonDetailPage({
             ← People
           </Link>
           <h2 className="mt-1 text-2xl font-semibold">
+            {genderSymbol(person.gender) && (
+              <span className="mr-1.5 align-middle text-xl" title={person.gender.toLowerCase()} style={{ color: genderColor(person.gender) }}>
+                {genderSymbol(person.gender)}
+              </span>
+            )}
             {displayName(person.names)}
             {deceased && (
               <span className="ml-2 align-middle" title="Deceased" style={{ color: "var(--muted)" }}>
