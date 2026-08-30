@@ -25,6 +25,7 @@ export const GENERATION_LABELS: Record<GenerationKind, string> = {
   FAN_CHART: "Fan chart (PDF + PNG)",
   DESCENDANT_CHART: "Descendant chart (PDF)",
   FAMILY_BOOK: "Family book (multi-page PDF)",
+  MEMORIAL_BOOK: "Memorial / eulogy book (PDF)",
   GEDCOM_EXPORT: "GEDCOM data export (.ged)",
   GRAMPS_EXPORT: "Gramps data export (.gramps)",
 };
@@ -34,6 +35,7 @@ export const GENERATION_NEEDS_CENTRAL: Record<GenerationKind, boolean> = {
   FAN_CHART: true,
   DESCENDANT_CHART: true,
   FAMILY_BOOK: false,
+  MEMORIAL_BOOK: true,
   GEDCOM_EXPORT: false,
   GRAMPS_EXPORT: false,
 };

@@ -49,6 +49,20 @@ async function shareAllowsMedia(mediaId: string, treeId: string, slug: string): 
   return "thumb"; // shares only ever serve downscaled previews
 }
 
+async function memorialAllowsMedia(mediaId: string, slug: string): Promise<boolean> {
+  const m = await db.memorial.findUnique({
+    where: { slug },
+    select: { published: true, coverMediaId: true, personId: true },
+  });
+  if (!m || !m.published) return false;
+  if (m.coverMediaId === mediaId) return true;
+  const ref = await db.mediaRef.findFirst({
+    where: { mediaId, personId: m.personId },
+    select: { id: true },
+  });
+  return Boolean(ref);
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -57,6 +71,7 @@ export async function GET(
   const url = new URL(req.url);
   const wantThumb = url.searchParams.get("v") === "thumb";
   const shareSlug = url.searchParams.get("s");
+  const memorialSlug = url.searchParams.get("m");
 
   const media = await getMediaForServe(id);
   if (!media) return new NextResponse("Not found", { status: 404 });
@@ -69,10 +84,11 @@ export async function GET(
     if (memberIds.has(user.id) || user.isPlatformAdmin) allowFull = true;
   }
   if (!allowFull) {
-    if (!shareSlug) return new NextResponse("Forbidden", { status: 403 });
-    const grant = await shareAllowsMedia(id, media.treeId, shareSlug);
-    if (!grant) return new NextResponse("Forbidden", { status: 403 });
-    // share grants thumbnail only
+    let granted = false;
+    if (shareSlug && (await shareAllowsMedia(id, media.treeId, shareSlug))) granted = true;
+    if (!granted && memorialSlug && (await memorialAllowsMedia(id, memorialSlug))) granted = true;
+    if (!granted) return new NextResponse("Forbidden", { status: 403 });
+    // public grants serve the downscaled thumbnail only
   }
 
   const serveThumb = wantThumb || !allowFull;

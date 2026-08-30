@@ -1,0 +1,165 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { Gender, FamilyType } from "@prisma/client";
+
+import { db } from "@/lib/db";
+import { requireTreeEdit } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity";
+import {
+  createBarePerson,
+  setVitalEvent,
+  ensureMarriageEvent,
+  addChildRef,
+} from "@/lib/person-write";
+
+const personBits = {
+  first: z.string().trim().max(200).optional().default(""),
+  surname: z.string().trim().max(200).optional().default(""),
+  birthDate: z.string().trim().max(40).optional().default(""),
+  birthPlace: z.string().trim().max(300).optional().default(""),
+  living: z.coerce.boolean().optional().default(false),
+};
+
+async function assertFamilyInTree(treeId: string, familyId: string) {
+  const f = await db.family.findFirst({ where: { id: familyId, treeId }, select: { id: true } });
+  if (!f) throw new Error("Family not found in this tree");
+}
+
+export async function addParent(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const d = z
+    .object({ role: z.enum(["father", "mother"]), ...personBits })
+    .parse(Object.fromEntries(formData));
+
+  const childOf = await db.childRef.findFirst({
+    where: { personId, family: { treeId } },
+    select: { familyId: true, family: { select: { partner1Id: true, partner2Id: true } } },
+  });
+
+  const parent = await createBarePerson(treeId, {
+    first: d.first,
+    surname: d.surname,
+    gender: d.role === "father" ? Gender.MALE : Gender.FEMALE,
+    living: d.living,
+  });
+  await setVitalEvent(treeId, parent.id, "Birth", d.birthDate, d.birthPlace);
+
+  const slot = d.role === "father" ? "partner1Id" : "partner2Id";
+  if (childOf) {
+    const current =
+      d.role === "father" ? childOf.family.partner1Id : childOf.family.partner2Id;
+    if (current) throw new Error(`This person already has a ${d.role} recorded`);
+    await db.family.update({ where: { id: childOf.familyId }, data: { [slot]: parent.id } });
+  } else {
+    await db.family.create({
+      data: {
+        treeId,
+        type: FamilyType.UNKNOWN,
+        [slot]: parent.id,
+        childRefs: { create: { personId, order: 0 } },
+      },
+    });
+  }
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "added",
+    objectType: "person",
+    objectId: parent.id,
+    summary: `added a ${d.role}`,
+  });
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+export async function addPartner(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const d = z
+    .object({
+      gender: z.enum(Gender).default(Gender.UNKNOWN),
+      type: z.enum(FamilyType).default(FamilyType.MARRIED),
+      marriageDate: z.string().trim().max(40).optional().default(""),
+      marriagePlace: z.string().trim().max(300).optional().default(""),
+      ...personBits,
+    })
+    .parse(Object.fromEntries(formData));
+
+  const partner = await createBarePerson(treeId, {
+    first: d.first,
+    surname: d.surname,
+    gender: d.gender,
+    living: d.living,
+  });
+  await setVitalEvent(treeId, partner.id, "Birth", d.birthDate, d.birthPlace);
+
+  const family = await db.family.create({
+    data: { treeId, type: d.type, partner1Id: personId, partner2Id: partner.id },
+    select: { id: true },
+  });
+  await ensureMarriageEvent(treeId, family.id, d.marriageDate, d.marriagePlace);
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "added",
+    objectType: "family",
+    objectId: family.id,
+    summary: "added a partner",
+  });
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+export async function addChildToFamily(treeId: string, familyId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  await assertFamilyInTree(treeId, familyId);
+  const back = String(formData.get("back") ?? "").trim();
+  const d = z.object(personBits).parse(Object.fromEntries(formData));
+
+  const child = await createBarePerson(treeId, {
+    first: d.first,
+    surname: d.surname,
+    living: d.living,
+  });
+  await setVitalEvent(treeId, child.id, "Birth", d.birthDate, d.birthPlace);
+  await addChildRef(familyId, child.id);
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "added",
+    objectType: "person",
+    objectId: child.id,
+    summary: "added a child",
+  });
+  redirect(back.startsWith("/") ? back : `/trees/${treeId}/people/${child.id}`);
+}
+
+/** Add a first child to a person who has no family yet. */
+export async function addFirstChild(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const d = z.object(personBits).parse(Object.fromEntries(formData));
+
+  const family = await db.family.create({
+    data: { treeId, type: FamilyType.UNKNOWN, partner1Id: personId },
+    select: { id: true },
+  });
+  const child = await createBarePerson(treeId, {
+    first: d.first,
+    surname: d.surname,
+    living: d.living,
+  });
+  await setVitalEvent(treeId, child.id, "Birth", d.birthDate, d.birthPlace);
+  await addChildRef(family.id, child.id);
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "added",
+    objectType: "person",
+    objectId: child.id,
+    summary: "added a child",
+  });
+  redirect(`/trees/${treeId}/people/${personId}`);
+}

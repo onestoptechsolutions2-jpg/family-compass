@@ -46,6 +46,43 @@ export default function ResearchPolicyPage() {
         legal or medical advice.
       </P>
 
+      <H>Updating a deceased person&apos;s record &amp; memorialised profiles</H>
+      <UL>
+        <li>
+          A record does not close when a person dies. Their profile stays editable by tree
+          editors so families can keep correcting facts, adding photos, sources, and stories,
+          and completing relationships.
+        </li>
+        <li>
+          A person with a recorded death or burial can be given a <strong>memorial page</strong>:
+          a public tribute, eulogy, photo gallery, funeral programme, and moderated guestbook.
+          Memorial pages are only offered for deceased people and are opt-in per person — an
+          editor has to open one.
+        </li>
+        <li>
+          <strong>Funeral programmes are auditable.</strong> Every save is versioned: who
+          changed it, when, and an optional note are kept as revision history that editors can
+          review. This is deliberate — a programme is a shared family document during a
+          sensitive time.
+        </li>
+        <li>
+          <strong>Living relatives stay protected.</strong> Names of living kin appear in the
+          &quot;survived by&quot; section and in the printable memorial book only when the
+          memorial&apos;s &quot;include living family&quot; setting is on; anyone marked private
+          is always excluded.
+        </li>
+        <li>
+          <strong>Guestbook entries</strong> are moderated by default. Editors approve or hide
+          each message; hidden and pending messages are never shown publicly. We keep a
+          submission IP for abuse handling only.
+        </li>
+        <li>
+          Close relatives can ask a tree owner (or the project) to correct, unpublish, or
+          remove a memorial. Requests about a recently deceased person from immediate family
+          are given priority.
+        </li>
+      </UL>
+
       <H>Researchers &amp; partners</H>
       <P>
         Commissioned &quot;Research Partner&quot; work is done under a written scope for a

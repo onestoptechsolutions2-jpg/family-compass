@@ -64,6 +64,113 @@ export async function chartPdf(
   return Buffer.from(await doc.save());
 }
 
+export type MemorialBookData = {
+  name: string;
+  headline: string | null;
+  born: string;
+  died: string;
+  restingPlace: string | null;
+  eulogy: string | null;
+  serviceText: string | null;
+  survivors: string[];
+  preceded: string[];
+  program: { venue: string | null; serviceDate: Date | null; committee: string | null; order: { title: string; detail?: string }[] } | null;
+  cover: { bytes: Buffer; mime: string } | null;
+};
+
+export async function memorialBookPdf(
+  d: MemorialBookData,
+  opts: { watermark?: boolean } = {},
+): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  const reg = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const serif = await doc.embedFont(StandardFonts.TimesRomanBold);
+  const margin = 54;
+  const contentW = A4.w - margin * 2;
+
+  let page = doc.addPage([A4.w, A4.h]);
+  let y = A4.h - margin;
+  const ensure = (need: number) => {
+    if (y - need < margin) {
+      if (opts.watermark) stampPreview(page, bold);
+      page = doc.addPage([A4.w, A4.h]);
+      y = A4.h - margin;
+    }
+  };
+  const line = (
+    text: string,
+    o: { size?: number; font?: PDFFont; gap?: number; color?: [number, number, number] } = {},
+  ) => {
+    const size = o.size ?? 11;
+    const f = o.font ?? reg;
+    for (const l of wrap(text, f, size, contentW)) {
+      ensure(size + 5);
+      page.drawText(l, { x: margin, y, size, font: f, color: rgb(...(o.color ?? [0.15, 0.16, 0.2])) });
+      y -= size + 4;
+    }
+    y -= o.gap ?? 0;
+  };
+
+  // cover
+  if (d.cover) {
+    try {
+      const img =
+        d.cover.mime.includes("png")
+          ? await doc.embedPng(d.cover.bytes)
+          : await doc.embedJpg(d.cover.bytes);
+      const w = Math.min(contentW, 320);
+      const scaled = img.scale(w / img.width);
+      ensure(scaled.height + 20);
+      page.drawImage(img, { x: (A4.w - w) / 2, y: y - scaled.height, width: w, height: scaled.height });
+      y -= scaled.height + 24;
+    } catch {
+      /* skip bad image */
+    }
+  }
+  line(d.headline ?? `In loving memory of ${d.name}`, { size: 24, font: serif, gap: 8 });
+  line(d.name, { size: 13, color: [0.4, 0.42, 0.48] });
+  if (d.born) line(`Born: ${d.born}`, { size: 11, color: [0.35, 0.37, 0.42] });
+  if (d.died) line(`Died: ${d.died}`, { size: 11, color: [0.35, 0.37, 0.42] });
+  if (d.restingPlace) line(`Resting place: ${d.restingPlace}`, { size: 11, color: [0.35, 0.37, 0.42] });
+  y -= 12;
+
+  if (d.eulogy) {
+    line("Eulogy", { size: 15, font: bold, gap: 4 });
+    for (const para of d.eulogy.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean)) {
+      line(para, { gap: 8 });
+    }
+  }
+
+  if (d.survivors.length || d.preceded.length) {
+    y -= 6;
+    line("Family", { size: 15, font: bold, gap: 4 });
+    if (d.survivors.length) line(`Survived by: ${d.survivors.join(", ")}`);
+    if (d.preceded.length) line(`Preceded in death by: ${d.preceded.join(", ")}`);
+  }
+
+  if (d.program) {
+    y -= 10;
+    line("Order of service", { size: 15, font: bold, gap: 4 });
+    if (d.program.venue) line(`Venue: ${d.program.venue}`);
+    if (d.program.serviceDate) line(`Date: ${d.program.serviceDate.toISOString().slice(0, 10)}`);
+    d.program.order.forEach((it, i) =>
+      line(`${i + 1}. ${it.title}${it.detail ? ` — ${it.detail}` : ""}`),
+    );
+    if (d.program.committee) {
+      y -= 4;
+      line(d.program.committee, { size: 10, color: [0.4, 0.42, 0.48] });
+    }
+  }
+  if (d.serviceText) {
+    y -= 6;
+    line(d.serviceText, { size: 10, color: [0.4, 0.42, 0.48] });
+  }
+
+  if (opts.watermark) stampPreview(page, bold);
+  return Buffer.from(await doc.save());
+}
+
 /** Multi-page narrative family book. */
 export async function familyBookPdf(
   data: ExportData,

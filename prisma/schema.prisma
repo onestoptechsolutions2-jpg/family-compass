@@ -59,6 +59,9 @@ model User {
   engagementsRequested ResearchEngagement[] @relation("EngagementRequester")
   engagementsAssigned  ResearchEngagement[] @relation("EngagementAssignee")
   consentEvents        ConsentEvent[]
+  memorialsCreated     Memorial[]         @relation("MemorialCreator")
+  programEdits         FuneralProgram[]   @relation("ProgramEditor")
+  programRevisions     ProgramRevision[]  @relation("ProgramReviser")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -75,6 +78,96 @@ model ConsentEvent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// ===========================================================================
+// Memorials (deceased-person tribute pages)
+// ===========================================================================
+
+enum GuestbookStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+/// A tribute page for a deceased person: eulogy, funeral program, guestbook,
+/// and a shareable public link. Edits after publishing are audited.
+model Memorial {
+  id                 String   @id @default(cuid())
+  personId           String   @unique
+  treeId             String
+  slug               String   @unique
+  headline           String?
+  eulogy             String?  @db.Text
+  bornText           String?
+  diedText           String?
+  restingPlace       String?
+  serviceText        String?  @db.Text
+  coverMediaId       String?
+  published          Boolean  @default(false)
+  guestbookOpen      Boolean  @default(true)
+  guestbookModerated Boolean  @default(true)
+  includeLiving      Boolean  @default(true)
+  createdById        String?
+  viewCount          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  person    Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  tree      Tree         @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  cover     MediaObject? @relation("MemorialCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  createdBy User?        @relation("MemorialCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  guestbook GuestbookEntry[]
+  program   FuneralProgram?
+
+  @@index([treeId])
+}
+
+model GuestbookEntry {
+  id         String          @id @default(cuid())
+  memorialId String
+  name       String
+  relation   String?
+  message    String          @db.Text
+  phone      String?
+  status     GuestbookStatus @default(PENDING)
+  ip         String?
+  createdAt  DateTime        @default(now())
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+
+  @@index([memorialId, status])
+}
+
+/// Order of service for the funeral. Every save snapshots a ProgramRevision.
+model FuneralProgram {
+  id          String    @id @default(cuid())
+  memorialId  String    @unique
+  venue       String?
+  serviceDate DateTime?
+  committee   String?   @db.Text
+  order       Json
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  memorial  Memorial          @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  updatedBy User?             @relation("ProgramEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  revisions ProgramRevision[]
+}
+
+model ProgramRevision {
+  id         String   @id @default(cuid())
+  programId  String
+  editedById String?
+  snapshot   Json
+  note       String?
+  createdAt  DateTime @default(now())
+
+  program  FuneralProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  editedBy User?          @relation("ProgramReviser", fields: [editedById], references: [id], onDelete: SetNull)
+
+  @@index([programId, createdAt])
 }
 
 /// Curated reference list of communities and clans (global). Tree-level `Clan`
@@ -245,6 +338,7 @@ model Tree {
   personClaims    PersonClaim[]
   payments        Payment[]      @relation("TreePayments")
   clans           Clan[]
+  memorials       Memorial[]
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -337,6 +431,7 @@ model Person {
   centralOfSharedViews    SharedView[]    @relation("SharedViewCentral")
   centralOfGenerationJobs GenerationJob[] @relation("GenerationCentral")
   claims                  PersonClaim[]
+  memorial                Memorial?
 
   tags Tag[] @relation("PersonTags")
 
@@ -755,6 +850,7 @@ model MediaObject {
   refs     MediaRef[]
   noteRefs NoteRef[]
 
+  memorialCoverOf Memorial[]   @relation("MemorialCover")
   previewOfJobs GenerationJob[] @relation("GenerationPreview")
   outputOfJobs  GenerationJob[] @relation("GenerationOutput")
 
@@ -888,6 +984,7 @@ enum GenerationKind {
   FAN_CHART
   DESCENDANT_CHART
   FAMILY_BOOK
+  MEMORIAL_BOOK
   GEDCOM_EXPORT
   GRAMPS_EXPORT
 }

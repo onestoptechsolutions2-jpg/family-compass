@@ -154,6 +154,8 @@ export async function getPersonRelations(treeId: string, personId: string) {
           family: {
             select: {
               id: true,
+              partner1Id: true,
+              partner2Id: true,
               partner1: { select: PERSON_MINI },
               partner2: { select: PERSON_MINI },
               childRefs: {
@@ -198,6 +200,13 @@ export async function getPersonRelations(treeId: string, personId: string) {
   return {
     parents,
     siblings,
+    parentFamily: parentFamily
+      ? {
+          id: parentFamily.id,
+          hasFather: !!parentFamily.partner1Id,
+          hasMother: !!parentFamily.partner2Id,
+        }
+      : null,
     families: spouseFamilies.map((f) => {
       const spouse = f.partner1?.id === personId ? f.partner2 : f.partner1;
       return { id: f.id, type: f.type, spouse, children: f.childRefs.map((c) => c.person) };

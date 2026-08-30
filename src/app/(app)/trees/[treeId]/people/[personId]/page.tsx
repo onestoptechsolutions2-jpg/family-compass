@@ -9,8 +9,11 @@ import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
+import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
+import { primaryName } from "@/lib/person";
 import { deletePerson } from "../actions";
 import { uploadPersonPhoto, detachPersonMedia } from "../../media/actions";
+import { addParent, addPartner, addChildToFamily, addFirstChild } from "./quick-actions";
 
 export default async function PersonDetailPage({
   params,
@@ -61,7 +64,16 @@ export default async function PersonDetailPage({
           </p>
         </div>
         {editable && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {events.some((e) => e.type === "Death" || e.type === "Burial") && (
+              <Link
+                href={`/trees/${treeId}/people/${personId}/memorial`}
+                className="rounded-lg border px-3 py-1.5 text-sm"
+                style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
+              >
+                Memorial
+              </Link>
+            )}
             <Link
               href={`/trees/${treeId}/people/${personId}/edit`}
               className="rounded-lg border px-3 py-1.5 text-sm"
@@ -111,10 +123,23 @@ export default async function PersonDetailPage({
             style={{ borderColor: "var(--border)", background: "var(--card)" }}
           >
             <h3 className="font-medium">Parents</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               {relations?.parents.length
                 ? relations.parents.map((p) => <PersonChip key={p.id} person={p} treeId={treeId} />)
                 : <span className="text-sm" style={{ color: "var(--muted)" }}>Not recorded</span>}
+              {editable && !relations?.parentFamily?.hasFather && (
+                <AddParentButton
+                  role="father"
+                  surname={primaryName(person.names)?.surname}
+                  action={addParent.bind(null, treeId, personId)}
+                />
+              )}
+              {editable && !relations?.parentFamily?.hasMother && (
+                <AddParentButton
+                  role="mother"
+                  action={addParent.bind(null, treeId, personId)}
+                />
+              )}
             </div>
             {relations?.siblings.length ? (
               <>
@@ -135,18 +160,16 @@ export default async function PersonDetailPage({
             <div className="flex items-center justify-between">
               <h3 className="font-medium">Partners &amp; children</h3>
               {editable && (
-                <Link
-                  href={`/trees/${treeId}/families/new?partner=${personId}`}
-                  className="text-xs text-brand-600 hover:underline"
-                >
-                  + family
-                </Link>
+                <AddPartnerButton
+                  action={addPartner.bind(null, treeId, personId)}
+                  buttonClass="text-xs text-brand-600 hover:underline"
+                />
               )}
             </div>
             {relations?.families.length
               ? relations.families.map((f) => (
                   <div key={f.id} className="mt-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <PersonChip person={f.spouse} treeId={treeId} />
                       <Link
                         href={`/trees/${treeId}/families/${f.id}`}
@@ -155,6 +178,12 @@ export default async function PersonDetailPage({
                       >
                         open family
                       </Link>
+                      {editable && (
+                        <AddChildButton
+                          action={addChildToFamily.bind(null, treeId, f.id)}
+                          back={`/trees/${treeId}/people/${personId}`}
+                        />
+                      )}
                     </div>
                     {f.children.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2 pl-4">
@@ -166,9 +195,14 @@ export default async function PersonDetailPage({
                   </div>
                 ))
               : (
-                <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-                  None recorded.
-                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    None recorded.
+                  </p>
+                  {editable && (
+                    <AddChildButton action={addFirstChild.bind(null, treeId, personId)} />
+                  )}
+                </div>
               )}
           </div>
         </div>

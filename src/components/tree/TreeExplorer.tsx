@@ -456,17 +456,88 @@ export function TreeExplorer({
             const node = layout?.nodes.find((n) => n.key === hoverId);
             const pid = node?.personId ?? fan?.segments.find((s) => s.key === hoverId)?.personId;
             const p = pid ? graph.persons[pid] : null;
-            if (!p) return null;
+            if (!p || !pid) return null;
             const claimable =
               readOnly && allowClaims && shareSlug && pid && !p.name.startsWith("Living ");
+
+            const nameOf = (id: string) => graph.persons[id]?.name ?? null;
+            const parents = (graph.up[pid] ?? []).map(nameOf).filter(Boolean) as string[];
+            const spouses = (graph.spouses[pid] ?? []).map(nameOf).filter(Boolean) as string[];
+            const childIds = graph.down[pid] ?? [];
+            const siblingCount = new Set(
+              (graph.up[pid] ?? []).flatMap((par) => graph.down[par] ?? []).filter((id) => id !== pid),
+            ).size;
+            const lifespan =
+              p.birthYear && p.deathYear ? `${p.deathYear - p.birthYear} yrs` : null;
+            const yrs = [p.birthYear, p.deathYear].some(Boolean)
+              ? `${p.birthYear ?? "?"} – ${p.deathYear ?? (p.living ? "present" : "?")}`
+              : p.living
+                ? "living"
+                : null;
+
             return (
               <div
                 className="pointer-events-none absolute left-3 top-3 rounded-xl border px-3 py-2 text-sm shadow-lg"
-                style={{ borderColor: "var(--border)", background: "var(--card)", maxWidth: 260 }}
+                style={{ borderColor: "var(--border)", background: "var(--card)", maxWidth: 300 }}
               >
-                <div className="font-semibold">{p.name}</div>
-                {p.birth && <div style={{ color: "var(--muted)" }}>b. {p.birth}</div>}
-                {p.death && <div style={{ color: "var(--muted)" }}>d. {p.death}</div>}
+                <div className="flex items-center gap-2">
+                  <span
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
+                    style={{
+                      background:
+                        p.gender === "MALE" ? "#4338ca" : p.gender === "FEMALE" ? "#db2777" : "#475569",
+                    }}
+                  >
+                    {((p.given[0] ?? "") + (p.surname[0] ?? "")).toUpperCase() || "?"}
+                  </span>
+                  <div>
+                    <div className="font-semibold leading-tight">{p.name}</div>
+                    {yrs && (
+                      <div className="text-xs" style={{ color: "var(--muted)" }}>
+                        {yrs}
+                        {lifespan ? ` · ${lifespan}` : ""}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
+                  {p.birth && (
+                    <>
+                      <dt style={{ color: "var(--muted)" }}>Born</dt>
+                      <dd>{p.birth}</dd>
+                    </>
+                  )}
+                  {p.death && (
+                    <>
+                      <dt style={{ color: "var(--muted)" }}>Died</dt>
+                      <dd>{p.death}</dd>
+                    </>
+                  )}
+                  {parents.length > 0 && (
+                    <>
+                      <dt style={{ color: "var(--muted)" }}>Parents</dt>
+                      <dd>{parents.join(" & ")}</dd>
+                    </>
+                  )}
+                  {spouses.length > 0 && (
+                    <>
+                      <dt style={{ color: "var(--muted)" }}>
+                        {spouses.length > 1 ? "Partners" : "Partner"}
+                      </dt>
+                      <dd>{spouses.join(", ")}</dd>
+                    </>
+                  )}
+                  {(childIds.length > 0 || siblingCount > 0) && (
+                    <>
+                      <dt style={{ color: "var(--muted)" }}>Family</dt>
+                      <dd>
+                        {childIds.length > 0 ? `${childIds.length} child${childIds.length === 1 ? "" : "ren"}` : ""}
+                        {childIds.length > 0 && siblingCount > 0 ? " · " : ""}
+                        {siblingCount > 0 ? `${siblingCount} sibling${siblingCount === 1 ? "" : "s"}` : ""}
+                      </dd>
+                    </>
+                  )}
+                </dl>
                 {claimable ? (
                   <a
                     href={`/s/${shareSlug}/claim/${pid}`}
