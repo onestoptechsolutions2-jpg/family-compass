@@ -98,6 +98,9 @@ export async function getPersonDetail(treeId: string, personId: string) {
       gender: true,
       living: true,
       privacy: true,
+      phone: true,
+      claimedByUserId: true,
+      claimedBy: { select: { name: true } },
       names: { select: NAME_SELECT, orderBy: { order: "asc" } },
       attributes: { select: { id: true, type: true, value: true }, orderBy: { order: "asc" } },
       eventRefs: {

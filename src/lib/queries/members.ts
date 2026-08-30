@@ -58,6 +58,7 @@ export async function listSharedViews(treeId: string) {
       mode: true,
       generations: true,
       includeLiving: true,
+      allowClaims: true,
       revoked: true,
       expiresAt: true,
       viewCount: true,

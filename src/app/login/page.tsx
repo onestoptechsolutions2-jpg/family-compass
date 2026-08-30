@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { signIn } from "@/lib/auth";
 import { getSessionUser } from "@/lib/rbac";
-import { hasGoogleOAuth, hasEmailProvider, env } from "@/lib/env";
+import { hasGoogleOAuth, env } from "@/lib/env";
 
 export const metadata = { title: "Sign in" };
 
@@ -16,6 +16,7 @@ export default async function LoginPage({
   if (user) redirect("/app");
   const { callbackUrl = "/app", error } = await searchParams;
   const denied = error === "AccessDenied";
+  const badLink = error === "BadLink";
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
@@ -26,15 +27,17 @@ export default async function LoginPage({
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
         {env.OPEN_SIGNUP
           ? "Your first sign-in creates your account."
-          : "Access is invite-only. Sign in with an approved email; the first sign-in sets up your account."}
+          : "Access is invite-only. Open the sign-in link your family admin sends you on WhatsApp."}
       </p>
 
       {denied && (
-        <p
-          className="mt-4 rounded-lg border p-3 text-sm text-red-600"
-          style={{ borderColor: "var(--border)" }}
-        >
-          That address isn&apos;t approved for access. Ask an admin to invite you, then try again.
+        <p className="mt-4 rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>
+          That address isn&apos;t approved. Ask an admin to invite you, then try again.
+        </p>
+      )}
+      {badLink && (
+        <p className="mt-4 rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>
+          That sign-in link is invalid or has expired. Ask the family admin to send a new one.
         </p>
       )}
 
@@ -55,37 +58,18 @@ export default async function LoginPage({
           </form>
         )}
 
-        {hasEmailProvider && (
-          <form
-            action={async (formData: FormData) => {
-              "use server";
-              await signIn("nodemailer", {
-                email: String(formData.get("email") ?? ""),
-                redirectTo: callbackUrl,
-              });
-            }}
-            className="flex flex-col gap-2"
-          >
-            <input
-              type="email"
-              name="email"
-              required
-              placeholder="you@example.com"
-              className="w-full rounded-lg border px-4 py-2.5"
-              style={{ borderColor: "var(--border)", background: "var(--card)" }}
-            />
-            <button className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white hover:bg-brand-700">
-              Email me a sign-in link
-            </button>
-          </form>
-        )}
-
-        {!hasGoogleOAuth && !hasEmailProvider && (
-          <p className="rounded-lg border p-4 text-sm" style={{ borderColor: "var(--border)" }}>
-            No sign-in method is configured. Set <code>GOOGLE_CLIENT_ID</code> /
-            <code>GOOGLE_CLIENT_SECRET</code> or <code>EMAIL_SERVER</code> in the environment.
+        <div
+          className="rounded-lg border p-4 text-sm"
+          style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+        >
+          <p className="font-medium" style={{ color: "var(--fg)" }}>
+            Are you already in a family tree?
           </p>
-        )}
+          <p className="mt-1">
+            Open the tree&apos;s share link, find yourself, tap <strong>“This is me”</strong>, and
+            confirm on WhatsApp. The tree admin then sends you a one-tap sign-in link.
+          </p>
+        </div>
       </div>
     </main>
   );

@@ -3,9 +3,11 @@ import { Role, ShareMode } from "@prisma/client";
 
 import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
 import { env } from "@/lib/env";
+import { db } from "@/lib/db";
 import { getWorkspaceCollab, listSharedViews } from "@/lib/queries/members";
 import { personOptions } from "@/lib/queries/people";
 import { formatName } from "@/lib/person";
+import { displayPhone } from "@/lib/wa";
 import { CopyButton } from "@/components/CopyButton";
 import { PersonSelect } from "@/components/PersonSelect";
 import {
@@ -16,6 +18,8 @@ import {
   createSharedView,
   revokeSharedView,
   deleteSharedView,
+  toggleSharedViewClaims,
+  updateClaimSettings,
 } from "./actions";
 
 export const metadata = { title: "Sharing" };
@@ -29,10 +33,14 @@ export default async function SharingPage({
   const ctx = await loadTreeContext(treeId);
   if (!canManageTree(ctx.role)) notFound();
 
-  const [collab, shares, options] = await Promise.all([
+  const [collab, shares, options, treeRow] = await Promise.all([
     getWorkspaceCollab(ctx.workspace.id, ctx.user.id),
     listSharedViews(treeId),
     personOptions(treeId),
+    db.tree.findUniqueOrThrow({
+      where: { id: treeId },
+      select: { contactWhatsapp: true, claimPinHash: true },
+    }),
   ]);
   const isOwner = canManageWorkspace(ctx.role);
   const roleValues = Object.values(Role);
@@ -151,6 +159,53 @@ export default async function SharingPage({
         )}
       </section>
 
+      {/* ---------------- Self-service claims ---------------- */}
+      <section>
+        <h2 className="text-lg font-semibold">Self-service onboarding (WhatsApp)</h2>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>
+          When a shared view has <em>claims</em> on, a visitor can find their own node, tap
+          “This is me”, and confirm to your WhatsApp below. You approve in{" "}
+          <span className="font-medium">Claims</span> — their sign-in links to the existing
+          record, so nobody gets duplicated. Set a family word if the link may spread beyond
+          relatives.
+        </p>
+        <form
+          action={updateClaimSettings.bind(null, treeId)}
+          className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border p-4"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Your WhatsApp number</span>
+            <input
+              name="contactWhatsapp"
+              defaultValue={treeRow.contactWhatsapp ? displayPhone(treeRow.contactWhatsapp) : ""}
+              placeholder="07XX XXX XXX"
+              className="mt-1 block rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>
+              Family word {treeRow.claimPinHash ? "(set — leave blank to keep)" : "(optional)"}
+            </span>
+            <input
+              name="familyWord"
+              placeholder={treeRow.claimPinHash ? "••••••" : "e.g. mukhwa"}
+              className="mt-1 block rounded-lg border px-3 py-2"
+              style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            />
+          </label>
+          {treeRow.claimPinHash && (
+            <label className="flex items-center gap-1 text-xs" style={{ color: "var(--muted)" }}>
+              <input type="checkbox" name="clearFamilyWord" value="true" /> remove word
+            </label>
+          )}
+          <button className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
+            Save
+          </button>
+        </form>
+      </section>
+
       {/* ---------------- Shared links ---------------- */}
       <section>
         <h2 className="text-lg font-semibold">Public shared views</h2>
@@ -222,6 +277,10 @@ export default async function SharingPage({
             <input type="checkbox" name="includeLiving" value="true" />
             Show living people in full
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="allowClaims" value="true" />
+            Let visitors claim their own profile
+          </label>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Expires in days (0 = never)</span>
             <input
@@ -260,6 +319,7 @@ export default async function SharingPage({
                     · {s.mode.toLowerCase()} · {s.generations} gens · {s.viewCount} views
                     {s.passwordHash ? " · 🔒" : ""}
                     {s.includeLiving ? " · living shown" : ""}
+                    {s.allowClaims ? " · claims on" : ""}
                     {s.revoked ? " · revoked" : ""}
                     {s.expiresAt && s.expiresAt.getTime() < Date.now() ? " · expired" : ""}
                   </span>
@@ -270,6 +330,14 @@ export default async function SharingPage({
                   <a href={url} target="_blank" rel="noreferrer" className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)" }}>
                     open
                   </a>
+                  <form
+                    action={toggleSharedViewClaims.bind(null, treeId, s.id)}
+                  >
+                    <input type="hidden" name="on" value={s.allowClaims ? "0" : "1"} />
+                    <button className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)" }}>
+                      {s.allowClaims ? "turn claims off" : "turn claims on"}
+                    </button>
+                  </form>
                   {!s.revoked && (
                     <form action={revokeSharedView.bind(null, treeId, s.id)}>
                       <button className="rounded-md border px-2 py-1 text-xs text-amber-600" style={{ borderColor: "var(--border)" }}>

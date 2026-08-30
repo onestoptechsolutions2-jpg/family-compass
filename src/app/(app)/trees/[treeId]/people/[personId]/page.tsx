@@ -40,10 +40,21 @@ export default async function PersonDetailPage({
           >
             ← People
           </Link>
-          <h2 className="mt-1 text-2xl font-semibold">{displayName(person.names)}</h2>
+          <h2 className="mt-1 text-2xl font-semibold">
+            {displayName(person.names)}
+            {person.claimedByUserId === ctx.user.id && (
+              <span className="ml-2 align-middle rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
+                This is you
+              </span>
+            )}
+          </h2>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {person.gender.toLowerCase()}
             {person.living ? " · living" : ""}
+            {person.phone ? ` · ${person.phone}` : ""}
+            {person.claimedByUserId && person.claimedByUserId !== ctx.user.id
+              ? ` · claimed by ${person.claimedBy?.name ?? "a relative"}`
+              : ""}
             {person.grampsId ? ` · ${person.grampsId}` : ""}
           </p>
         </div>

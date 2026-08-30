@@ -52,6 +52,7 @@ export function TreeExplorer({
   setHomeAction,
   readOnly = false,
   shareSlug,
+  allowClaims = false,
   initialMode,
   initialGens,
 }: {
@@ -63,10 +64,10 @@ export function TreeExplorer({
   setHomeAction?: (personId: string) => Promise<void>;
   readOnly?: boolean;
   shareSlug?: string;
+  allowClaims?: boolean;
   initialMode?: ViewMode;
   initialGens?: number;
 }) {
-  void shareSlug;
   const personList = useMemo(
     () =>
       Object.values(graph.persons)
@@ -456,6 +457,8 @@ export function TreeExplorer({
             const pid = node?.personId ?? fan?.segments.find((s) => s.key === hoverId)?.personId;
             const p = pid ? graph.persons[pid] : null;
             if (!p) return null;
+            const claimable =
+              readOnly && allowClaims && shareSlug && pid && !p.name.startsWith("Living ");
             return (
               <div
                 className="pointer-events-none absolute left-3 top-3 rounded-xl border px-3 py-2 text-sm shadow-lg"
@@ -464,9 +467,19 @@ export function TreeExplorer({
                 <div className="font-semibold">{p.name}</div>
                 {p.birth && <div style={{ color: "var(--muted)" }}>b. {p.birth}</div>}
                 {p.death && <div style={{ color: "var(--muted)" }}>d. {p.death}</div>}
-                <div className="mt-1 text-xs" style={{ color: "var(--color-brand-600)" }}>
-                  click to center · double-click card opens profile
-                </div>
+                {claimable ? (
+                  <a
+                    href={`/s/${shareSlug}/claim/${pid}`}
+                    className="mt-2 inline-block rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white"
+                    style={{ pointerEvents: "auto" }}
+                  >
+                    This is me →
+                  </a>
+                ) : (
+                  <div className="mt-1 text-xs" style={{ color: "var(--color-brand-600)" }}>
+                    {readOnly ? "tap to center" : "click to center · double-click card opens profile"}
+                  </div>
+                )}
               </div>
             );
           })()}

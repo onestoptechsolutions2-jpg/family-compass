@@ -2,13 +2,14 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Google from "next-auth/providers/google";
-import Nodemailer from "next-auth/providers/nodemailer";
 
 import { db } from "@/lib/db";
-import { env, hasGoogleOAuth, hasEmailProvider, isAdminEmail } from "@/lib/env";
+import { env, hasGoogleOAuth, isAdminEmail } from "@/lib/env";
 import { canSignIn } from "@/lib/access";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
 
+// Primary onboarding is the WhatsApp one-time link (see /api/auth/wa/[token]),
+// which mints a database session directly. Google OAuth is an optional extra.
 const providers: NextAuthConfig["providers"] = [];
 
 if (hasGoogleOAuth) {
@@ -17,15 +18,6 @@ if (hasGoogleOAuth) {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
-    }),
-  );
-}
-
-if (hasEmailProvider) {
-  providers.push(
-    Nodemailer({
-      server: env.EMAIL_SERVER,
-      from: env.EMAIL_FROM,
     }),
   );
 }

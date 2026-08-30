@@ -10,6 +10,7 @@ import { env } from "@/lib/env";
 import { QUEUE, enqueue } from "@/lib/queue";
 import { randomToken } from "@/lib/slug";
 import { hashSharePassword } from "@/lib/share";
+import { normalizePhone } from "@/lib/wa";
 import { logActivity } from "@/lib/activity";
 
 // ---------------- members & invitations ----------------
@@ -119,6 +120,7 @@ const shareSchema = z.object({
   mode: z.enum(ShareMode).default(ShareMode.HOURGLASS),
   generations: z.coerce.number().int().min(2).max(6).default(4),
   includeLiving: z.coerce.boolean().default(false),
+  allowClaims: z.coerce.boolean().default(false),
   password: z.string().trim().max(100).optional(),
   expiresInDays: z.coerce.number().int().min(0).max(3650).default(0),
 });
@@ -143,6 +145,7 @@ export async function createSharedView(treeId: string, formData: FormData) {
       mode: d.mode,
       generations: d.generations,
       includeLiving: d.includeLiving,
+      allowClaims: d.allowClaims,
       passwordHash: d.password ? hashSharePassword(d.password) : null,
       expiresAt: d.expiresInDays ? new Date(Date.now() + d.expiresInDays * 864e5) : null,
     },
@@ -174,5 +177,37 @@ export async function deleteSharedView(treeId: string, id: string) {
   const view = await db.sharedView.findFirst({ where: { id, treeId }, select: { id: true } });
   if (!view) throw new Error("Shared view not found");
   await db.sharedView.delete({ where: { id } });
+  revalidatePath(`/trees/${treeId}/sharing`);
+}
+
+export async function toggleSharedViewClaims(treeId: string, id: string, formData: FormData) {
+  await requireTreeManage(treeId);
+  const on = String(formData.get("on") ?? "") === "1";
+  const view = await db.sharedView.findFirst({ where: { id, treeId }, select: { id: true } });
+  if (!view) throw new Error("Shared view not found");
+  await db.sharedView.update({ where: { id }, data: { allowClaims: on } });
+  revalidatePath(`/trees/${treeId}/sharing`);
+}
+
+// ---------------- claim settings (per tree) ----------------
+
+const claimSettingsSchema = z.object({
+  contactWhatsapp: z.string().trim().max(30).optional(),
+  familyWord: z.string().trim().max(60).optional(),
+  clearFamilyWord: z.coerce.boolean().default(false),
+});
+
+export async function updateClaimSettings(treeId: string, formData: FormData) {
+  await requireTreeManage(treeId);
+  const d = claimSettingsSchema.parse(Object.fromEntries(formData));
+  const contactWhatsapp = d.contactWhatsapp ? normalizePhone(d.contactWhatsapp) : null;
+
+  const data: { contactWhatsapp: string | null; claimPinHash?: string | null } = {
+    contactWhatsapp,
+  };
+  if (d.clearFamilyWord) data.claimPinHash = null;
+  else if (d.familyWord) data.claimPinHash = hashSharePassword(d.familyWord);
+
+  await db.tree.update({ where: { id: treeId }, data });
   revalidatePath(`/trees/${treeId}/sharing`);
 }

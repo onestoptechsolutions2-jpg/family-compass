@@ -24,6 +24,7 @@ async function loadShare(slug: string) {
       mode: true,
       generations: true,
       includeLiving: true,
+      allowClaims: true,
       revoked: true,
       expiresAt: true,
       passwordHash: true,
@@ -153,6 +154,17 @@ export default async function SharedViewPage({
           Centered on {centerName}
           {share.createdBy.name ? ` · shared by ${share.createdBy.name}` : ""}
         </p>
+        {share.allowClaims && (
+          <p
+            className="mt-2 rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+          >
+            <strong>Find yourself</strong> — tap your name, then “This is me”.{" "}
+            <Link href={`/s/${slug}/join`} className="text-brand-600 hover:underline">
+              Not listed? Ask to join
+            </Link>
+          </p>
+        )}
       </div>
       <TreeExplorer
         treeId={share.treeId}
@@ -162,6 +174,7 @@ export default async function SharedViewPage({
         canManage={false}
         readOnly
         shareSlug={slug}
+        allowClaims={share.allowClaims}
         initialMode={MODE_MAP[share.mode]}
         initialGens={share.generations}
       />

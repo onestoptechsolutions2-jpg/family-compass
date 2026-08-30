@@ -23,6 +23,7 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime?
+  phone         String?   @unique
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -42,6 +43,9 @@ model User {
   auditLogs       AuditLog[]
   activityEvents  ActivityEvent[]
   creditLedger    CreditLedger[]   @relation("CreditActor")
+  claimedPerson   Person?          @relation("PersonClaimedBy")
+  claimsDecided   PersonClaim[]    @relation("ClaimDecidedBy")
+  claimsCreatedFor PersonClaim[]   @relation("ClaimCreatedUser")
 }
 
 model Account {
@@ -150,6 +154,8 @@ model Tree {
   slug        String
   homePersonId String?
   freeExportUsedAt DateTime?
+  contactWhatsapp String?
+  claimPinHash    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -169,6 +175,7 @@ model Tree {
   generationJobs  GenerationJob[]
   activityEvents  ActivityEvent[]
   importJobs      ImportJob[]
+  personClaims    PersonClaim[]
 
   @@unique([workspaceId, slug])
 }
@@ -207,16 +214,19 @@ enum DateQuality {
 }
 
 model Person {
-  id        String   @id @default(cuid())
-  treeId    String
-  grampsId  String?
-  gender    Gender   @default(UNKNOWN)
-  living    Boolean  @default(false)
-  privacy   Privacy  @default(INHERIT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  treeId          String
+  grampsId        String?
+  gender          Gender   @default(UNKNOWN)
+  living          Boolean  @default(false)
+  privacy         Privacy  @default(INHERIT)
+  phone           String?
+  claimedByUserId String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  tree          Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  claimedBy     User? @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
 
   names        Name[]
   eventRefs    EventRef[]
@@ -231,11 +241,50 @@ model Person {
 
   centralOfSharedViews    SharedView[]    @relation("SharedViewCentral")
   centralOfGenerationJobs GenerationJob[] @relation("GenerationCentral")
+  claims                  PersonClaim[]
 
   tags Tag[] @relation("PersonTags")
 
   @@unique([treeId, grampsId])
   @@index([treeId])
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// A visitor to a public shared view asking to "be" an existing person
+/// (personId set) or to be added to the tree (personId null). Verified out of
+/// band over WhatsApp; approved by a tree editor.
+model PersonClaim {
+  id                   String      @id @default(cuid())
+  treeId               String
+  personId             String?
+  claimantName         String
+  phone                String
+  note                 String?     @db.Text
+  code                 String
+  status               ClaimStatus @default(PENDING)
+  signInToken          String?     @unique
+  signInTokenExpiresAt DateTime?
+  signInTokenUsedAt    DateTime?
+  decidedById          String?
+  decidedAt            DateTime?
+  rejectionReason      String?     @db.Text
+  createdUserId        String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  tree        Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person      Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  decidedBy   User?   @relation("ClaimDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  createdUser User?   @relation("ClaimCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+
+  @@index([treeId, status])
+  @@index([code])
 }
 
 enum NameType {
@@ -685,6 +734,7 @@ model SharedView {
   mode            ShareMode @default(HOURGLASS)
   generations     Int       @default(4)
   includeLiving   Boolean   @default(false)
+  allowClaims     Boolean   @default(false)
   passwordHash    String?
   expiresAt       DateTime?
   revoked         Boolean   @default(false)

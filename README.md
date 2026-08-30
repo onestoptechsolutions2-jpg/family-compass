@@ -19,7 +19,7 @@ data exports costs **KES 750 per download**, paid by M-Pesa.
 | 2 | `.gramps` XML + GEDCOM importers (background jobs) | ✅ done (Gramps verified on seed data; GEDCOM needs a real-file test) |
 | 3 | Interactive pan/zoom tree — ancestors / hourglass / descendants / fan chart, click-to-re-root, keyboard nav, jump-to-person, set home person | ✅ done |
 | 4 | Media upload (Postgres bytea) + `sharp` thumbnails + `/api/media/[id]` with auth, ETag, range · gallery + per-person photos · 10 MB/file, 250 MB/tree quota | ✅ done |
-| 5 | Email invitations + accept flow, role management, `/trees/…/sharing`, public `/s/[slug]` read-only tree with living-person redaction + optional password/expiry, `/updates` activity feed | ✅ done |
+| 5 | Role management + `/trees/…/sharing`, public `/s/[slug]` read-only tree (living-person redaction, optional password/expiry), `/updates` feed. **WhatsApp self-onboarding**: claim an existing node from a shared view → admin approves in `/trees/…/claims` → one-tap `wa.me` sign-in link (`/api/auth/wa/[token]`). No email/passwords required. | ✅ done |
 | 6 | Paid generation — watermarked preview → first-free / credit / M-Pesa Till bundle → admin verify → clean download. Pedigree/fan/descendant PDF, family-book PDF, GEDCOM + `.gramps` exports. Pluggable payment provider + `/admin/payments` + `/admin/settings` | ✅ done |
 | 7 | Marketing pages, rate limiting, audit log, backups, admin console | ⏳ planned |
 
@@ -90,19 +90,25 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
 
 ### Accounts & sign-in
 
-There is **no in-app registration form**. Sign-in doubles as sign-up: the
-first successful sign-in creates the account and a personal workspace.
+No registration form, no passwords. The primary path is **WhatsApp
+self-onboarding**:
 
-Who is allowed to sign in (unless `OPEN_SIGNUP=true`):
+1. A relative opens a public shared view (`/s/<slug>`) that has **claims** enabled.
+2. They tap their own node → **"This is me"** → enter name + WhatsApp number.
+3. They send a one-tap `wa.me` message (with a code) to the tree admin's number.
+4. The admin approves in **`/trees/<id>/claims`** — this links the new account
+   to the **existing** person record (no duplicate) and mints a one-time
+   sign-in link.
+5. The admin taps **"Send sign-in link on WhatsApp"**; the relative opens it and
+   is signed in (`/api/auth/wa/<token>` → database session).
 
-- addresses in `ADMIN_EMAILS` (also get the platform-admin role)
-- anyone who already has an account
-- anyone with a pending invitation (`/trees/<id>/sharing` → *Invite by email*)
-- addresses / domains in `ALLOWED_SIGNUP_EMAILS` / `ALLOWED_SIGNUP_DOMAINS`
+Set the admin's number and an optional "family word" PIN on the Sharing page.
+`ADMIN_EMAILS` still grants the platform-admin role on first sign-in.
 
-Everyone else is bounced to the login page with an "invite-only" message.
-Method is **Google OAuth and/or an email magic link** (`EMAIL_SERVER` +
-`EMAIL_FROM`) — no passwords.
+**Google OAuth** is an optional alternate (`GOOGLE_CLIENT_ID` / `_SECRET`),
+gated by the same allow-list (`OPEN_SIGNUP`, `ALLOWED_SIGNUP_EMAILS`,
+`ALLOWED_SIGNUP_DOMAINS`). `EMAIL_SERVER` / `EMAIL_FROM` are now **fully
+optional** — only used if you also want the older email-invite flow.
 
 ### Monetization model (phase 6)
 
