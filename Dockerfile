@@ -17,11 +17,19 @@ RUN npm install -g npm@11
 
 # ---------- deps ----------
 FROM base AS deps
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 # --ignore-scripts: skip postinstalls that need network (prisma engines) or
 # trip on the build sandbox (napi-postinstall). Native deps still install their
 # platform binary packages; `prisma generate` fetches its engine in the builder.
-RUN npm ci --ignore-scripts
+# Try the reproducible `npm ci`; if it fails, dump the npm log and fall back to
+# `npm install` (repairs lockfile drift), dumping the log again on hard failure.
+RUN set -eux; \
+    ( npm ci --ignore-scripts ) \
+ || ( echo "### npm ci failed — npm log follows ###"; tail -n 250 /root/.npm/_logs/*.log 2>/dev/null || true; \
+      echo "### retrying with npm install ###"; \
+      npm install --ignore-scripts ) \
+ || ( echo "### npm install also failed — npm log follows ###"; tail -n 250 /root/.npm/_logs/*.log 2>/dev/null || true; \
+      exit 1 )
 
 # ---------- builder ----------
 FROM base AS builder
