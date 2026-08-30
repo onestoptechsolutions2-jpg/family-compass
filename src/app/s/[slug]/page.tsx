@@ -5,7 +5,12 @@ import { ShareMode } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getRedactedGraph, shareCookieToken } from "@/lib/share";
+import { getSharedCentralProfile } from "@/lib/queries/shared-profile";
 import { TreeExplorer } from "@/components/tree/TreeExplorer";
+import { ProfileHero } from "@/components/profile/ProfileHero";
+import { Section } from "@/components/profile/Section";
+import { ConnectionGrid, type Connection } from "@/components/profile/ConnectionGrid";
+import { MediaThumb } from "@/components/media/MediaThumb";
 import { submitSharePassword } from "./actions";
 
 const MODE_MAP: Record<ShareMode, "ancestors" | "hourglass" | "descendants"> = {
@@ -52,7 +57,7 @@ export async function generateMetadata({
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6">
+    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col px-4 py-6">
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
         <Link
@@ -64,21 +69,26 @@ function Frame({ children }: { children: React.ReactNode }) {
       </header>
       <div className="mt-6 flex-1">{children}</div>
       <footer className="mt-8 border-t pt-4 text-xs" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-        A read-only family tree shared via Family Compass. Living people are redacted.
+        A read-only family profile shared via Family Compass. Living people are redacted.
       </footer>
     </main>
   );
 }
+
+const yearsOf = (p?: { birthYear: number | null; deathYear: number | null; living: boolean }) =>
+  p && (p.birthYear || p.deathYear)
+    ? `${p.birthYear ?? "?"}–${p.deathYear ?? (p.living ? "" : "?")}`
+    : null;
 
 export default async function SharedViewPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ bad?: string }>;
+  searchParams: Promise<{ bad?: string; p?: string }>;
 }) {
   const { slug } = await params;
-  const { bad } = await searchParams;
+  const { bad, p: pParam } = await searchParams;
   const share = await loadShare(slug);
 
   if (!share || share.revoked) {
@@ -109,7 +119,7 @@ export default async function SharedViewPage({
         <Frame>
           <div
             className="mx-auto max-w-sm rounded-2xl border p-6"
-            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+            style={{ borderColor: "var(--border)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}
           >
             <h1 className="text-lg font-semibold">This tree is password-protected</h1>
             <form action={submitSharePassword.bind(null, slug)} className="mt-3 flex flex-col gap-2">
@@ -120,12 +130,12 @@ export default async function SharedViewPage({
                 autoFocus
                 placeholder="Password"
                 className="rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+                style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
               />
               <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                View tree
+                View profile
               </button>
-              {bad && <p className="text-sm text-red-600">Incorrect password.</p>}
+              {bad && <p className="text-sm" style={{ color: "var(--danger)" }}>Incorrect password.</p>}
             </form>
           </div>
         </Frame>
@@ -133,7 +143,6 @@ export default async function SharedViewPage({
     }
   }
 
-  // count the view (best-effort)
   db.sharedView
     .update({ where: { id: share.id }, data: { viewCount: { increment: 1 } } })
     .catch(() => {});
@@ -144,40 +153,223 @@ export default async function SharedViewPage({
     includeLiving: share.includeLiving,
   });
 
-  const centerName = graph.persons[share.centralPersonId]?.name ?? "this family";
+  // Which person is the profile subject? The share's central person by default;
+  // a ?p= override is honoured only if that person is visible in this share.
+  const subjectId =
+    pParam && graph.persons[pParam] ? pParam : share.centralPersonId;
+
+  const profile = await getSharedCentralProfile(share.treeId, subjectId, {
+    includeLiving: share.includeLiving,
+  });
+
+  const gp = graph.persons[subjectId];
+  const linkTo = (id: string) => `/s/${slug}?p=${id}`;
+
+  const build = (ids: string[] | undefined, relation: string): Connection[] =>
+    [...new Set(ids ?? [])]
+      .map((id) => graph.persons[id])
+      .filter(Boolean)
+      .map((rp) => ({
+        id: rp!.id,
+        name: rp!.name,
+        gender: rp!.gender,
+        relation,
+        detail: yearsOf(rp!),
+        href: linkTo(rp!.id),
+        redacted: rp!.name.startsWith("Living "),
+      }));
+
+  const parentIds = graph.up[subjectId] ?? [];
+  const childIds = graph.down[subjectId] ?? [];
+  const spouseIds = graph.spouses[subjectId] ?? [];
+  const siblingIds = [...new Set(parentIds.flatMap((par) => graph.down[par] ?? []))].filter(
+    (id) => id !== subjectId,
+  );
+
+  const connections: Connection[] = [
+    ...build(parentIds, "Parent"),
+    ...build(spouseIds, "Spouse"),
+    ...build(childIds, "Child"),
+    ...build(siblingIds, "Sibling"),
+  ];
+
+  const displayName = profile && !profile.redacted ? profile.name : gp?.name ?? "This person";
+  const isSubjectCentral = subjectId === share.centralPersonId;
 
   return (
     <Frame>
-      <div className="mb-4">
-        <h1 className="font-serif text-2xl">{share.title ?? share.tree.name}</h1>
-        <p className="text-sm" style={{ color: "var(--muted)" }}>
-          Centered on {centerName}
-          {share.createdBy.name ? ` · shared by ${share.createdBy.name}` : ""}
-        </p>
+      {!isSubjectCentral && (
+        <Link
+          href={`/s/${slug}`}
+          className="mb-3 inline-block text-sm hover:underline"
+          style={{ color: "var(--link)" }}
+        >
+          ← Back to {graph.persons[share.centralPersonId]?.name ?? "the shared profile"}
+        </Link>
+      )}
+
+      <div className="flex flex-col gap-4">
+        <ProfileHero
+          name={displayName}
+          gender={gp?.gender}
+          headline={profile && !profile.redacted ? profile.headline || null : null}
+          photoId={profile && !profile.redacted ? profile.photos[0]?.id ?? null : null}
+          photoMime={profile && !profile.redacted ? profile.photos[0]?.mimeType ?? null : null}
+          share={slug}
+          primaryLine={
+            profile && !profile.redacted
+              ? [profile.bornLine && `Born ${profile.bornLine}`, profile.diedLine && `Died ${profile.diedLine}`]
+                  .filter(Boolean)
+                  .join("   ·   ") || null
+              : "Details hidden to protect a living relative."
+          }
+          secondaryLine={
+            profile && !profile.redacted && profile.restingPlace
+              ? `Rests at ${profile.restingPlace}`
+              : null
+          }
+          badges={
+            profile && !profile.redacted
+              ? ([profile.clan && `${profile.clan} clan`, profile.subClan, profile.community].filter(
+                  Boolean,
+                ) as string[])
+              : []
+          }
+          actions={
+            <>
+              {profile && !profile.redacted && profile.memorialSlug && (
+                <Link
+                  href={`/m/${profile.memorialSlug}`}
+                  className="rounded-full border px-4 py-2 text-sm font-medium"
+                  style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+                >
+                  View memorial
+                </Link>
+              )}
+              {share.allowClaims && !displayName.startsWith("Living ") && (
+                <Link
+                  href={`/s/${slug}/claim/${subjectId}`}
+                  className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+                >
+                  This is me
+                </Link>
+              )}
+            </>
+          }
+        />
+
         {share.allowClaims && (
           <p
-            className="mt-2 rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+            className="rounded-xl border px-4 py-3 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           >
-            <strong>Find yourself</strong> — tap your name, then “This is me”.{" "}
-            <Link href={`/s/${slug}/join`} className="text-brand-600 hover:underline">
-              Not listed? Ask to join
+            <strong>Are you in this family?</strong> Open your own profile and tap{" "}
+            <em>“This is me”</em>, or{" "}
+            <Link href={`/s/${slug}/join`} style={{ color: "var(--link)" }} className="hover:underline">
+              ask to be added
             </Link>
+            .
           </p>
         )}
+
+        {profile && !profile.redacted && profile.about && (
+          <Section title="About" eyebrow="Life">
+            <p className="whitespace-pre-line text-[15px] leading-relaxed">{profile.about}</p>
+          </Section>
+        )}
+
+        {profile && !profile.redacted && profile.events.length > 0 && (
+          <Section title="Life events" eyebrow="Timeline">
+            <ol className="flex flex-col gap-3">
+              {profile.events.map((e, i) => (
+                <li key={i} className="flex gap-3">
+                  <span
+                    className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: "var(--accent)" }}
+                  />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {e.type}
+                      {e.date ? (
+                        <span style={{ color: "var(--muted)" }}> · {e.date}</span>
+                      ) : null}
+                    </p>
+                    {(e.place || e.note) && (
+                      <p className="text-sm" style={{ color: "var(--muted)" }}>
+                        {[e.place, e.note].filter(Boolean).join(" — ")}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </Section>
+        )}
+
+        <Section title="Family" eyebrow="Connections">
+          <ConnectionGrid people={connections} />
+        </Section>
+
+        {profile && !profile.redacted && profile.photos.length > 0 && (
+          <Section title="Photos" eyebrow="Featured">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {profile.photos.map((ph) => (
+                <div
+                  key={ph.id}
+                  className="aspect-square overflow-hidden rounded-xl border"
+                  style={{ borderColor: "var(--hairline)" }}
+                >
+                  <MediaThumb mediaId={ph.id} mimeType={ph.mimeType} alt="" share={slug} />
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        <Section
+          title="Family tree"
+          eyebrow="Explore"
+          action={
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
+              {graph.total} people
+            </span>
+          }
+        >
+          <TreeExplorer
+            treeId={share.treeId}
+            graph={graph}
+            initialCenterId={subjectId}
+            homePersonId={share.centralPersonId}
+            canManage={false}
+            readOnly
+            shareSlug={slug}
+            allowClaims={share.allowClaims}
+            initialMode={MODE_MAP[share.mode]}
+            initialGens={share.generations}
+          />
+        </Section>
+
+        <section
+          className="rounded-2xl border p-6 text-center"
+          style={{
+            borderColor: "var(--border)",
+            background:
+              "linear-gradient(120deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 40%, var(--surface)))",
+          }}
+        >
+          <h2 className="font-serif text-lg">Start your own family record</h2>
+          <p className="mx-auto mt-1 max-w-md text-sm" style={{ color: "var(--muted)" }}>
+            Add yourself, then your parents and children. Record your clan and the village you come
+            from. Free to build and share.
+          </p>
+          <Link
+            href="/login"
+            className="mt-3 inline-block rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Get started
+          </Link>
+        </section>
       </div>
-      <TreeExplorer
-        treeId={share.treeId}
-        graph={graph}
-        initialCenterId={share.centralPersonId}
-        homePersonId={share.centralPersonId}
-        canManage={false}
-        readOnly
-        shareSlug={slug}
-        allowClaims={share.allowClaims}
-        initialMode={MODE_MAP[share.mode]}
-        initialGens={share.generations}
-      />
     </Frame>
   );
 }

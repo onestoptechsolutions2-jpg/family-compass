@@ -5,13 +5,35 @@
     sans-serif;
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
+  /* Primary action colour — indigo. Sits complementary to the warm parchment
+     ground, so calls-to-action and links pop without clashing. */
   --color-brand-50: #eef2ff;
   --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
   --color-brand-500: #6366f1;
   --color-brand-600: #4f46e5;
   --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+
+  /* Warm accent — roasted "peanut". Used for identity moments: profile heroes,
+     section eyebrows, tags. Analogous to the parchment neutrals. */
+  --color-accent-100: #f3e6d2;
+  --color-accent-300: #dcb888;
+  --color-accent-500: #c1934f;
+  --color-accent-600: #a9773f;
+  --color-accent-700: #855c30;
+
   --color-ink: #1e2330;
   --color-parchment: #faf7f0;
+
+  /* semantic tokens exposed as Tailwind colours (bg-surface, text-muted-fg…) */
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f1e7;
+  --color-hairline: #e6e1d6;
+  --color-muted-fg: #5b6472;
+  --color-success: #2f7d54;
+  --color-warning: #b7791f;
+  --color-danger: #c53030;
 }
 
 :root {
@@ -19,8 +41,36 @@
   --bg: var(--color-parchment);
   --fg: var(--color-ink);
   --muted: #5b6472;
+
+  /* surfaces (elevation ramp) */
   --card: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f6f1e7;
+  --elevated: #ffffff;
   --border: #e6e1d6;
+  --hairline: #efe9dc;
+
+  /* interactive */
+  --primary: var(--color-brand-600);
+  --primary-fg: #ffffff;
+  --link: var(--color-brand-700);
+  --accent: var(--color-accent-600);
+  --accent-soft: var(--color-accent-100);
+  --ring: color-mix(in srgb, var(--color-brand-600) 45%, transparent);
+
+  /* status */
+  --success: #2f7d54;
+  --warning: #b7791f;
+  --danger: #c53030;
+
+  /* profile hero gradient (peanut) */
+  --hero-from: #f3e6d2;
+  --hero-via: #d9a86c;
+  --hero-to: #855c30;
+
+  --shadow-sm: 0 1px 2px rgb(20 22 28 / 0.06), 0 1px 3px rgb(20 22 28 / 0.08);
+  --shadow-md: 0 4px 12px rgb(20 22 28 / 0.1), 0 2px 4px rgb(20 22 28 / 0.06);
+  --shadow-lg: 0 12px 32px rgb(20 22 28 / 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,8 +78,31 @@
     --bg: #14161c;
     --fg: #e9e6df;
     --muted: #9aa3b2;
+
     --card: #1c1f27;
+    --surface: #1c1f27;
+    --surface-2: #20242e;
+    --elevated: #232732;
     --border: #2b2f3a;
+    --hairline: #262a34;
+
+    --primary: var(--color-brand-500);
+    --primary-fg: #0d1016;
+    --link: #a9b4ff;
+    --accent: var(--color-accent-300);
+    --accent-soft: #2a2318;
+
+    --success: #4caf7d;
+    --warning: #d9a441;
+    --danger: #f0736b;
+
+    --hero-from: #2a2318;
+    --hero-via: #6b4a2a;
+    --hero-to: #16130d;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 6px 18px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
   }
 }
 
@@ -46,4 +119,40 @@ body {
 
 a {
   color: inherit;
+}
+
+/* shared focus ring */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---- overlay dialogs (native <dialog>) ---- */
+dialog {
+  margin: auto;
+  border: 1px solid var(--border);
+  background: var(--elevated);
+  color: var(--fg);
+  border-radius: 18px;
+  padding: 0;
+  max-width: min(92vw, 34rem);
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+dialog::backdrop {
+  background: rgb(15 17 22 / 0.45);
+  backdrop-filter: blur(3px);
+}
+dialog[open] {
+  animation: dialog-in 0.16s ease-out;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+body:has(dialog[open]) {
+  overflow: hidden;
 }

@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getPublicMemorial } from "@/lib/queries/memorial";
 import { MediaThumb } from "@/components/media/MediaThumb";
+import { Dialog } from "@/components/Dialog";
 import { postGuestbook } from "./actions";
 
 export async function generateMetadata({
@@ -170,21 +171,42 @@ export default async function MemorialPage({
           </ul>
 
           {m.guestbookOpen && (
-            <form
-              action={postGuestbook.bind(null, slug)}
-              className="mt-4 flex flex-col gap-2 rounded-xl border p-4"
-              style={{ borderColor: "var(--border)", background: "var(--card)" }}
-            >
-              <div className="grid gap-2 sm:grid-cols-2">
-                <input name="name" required placeholder="Your name" className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--bg)" }} />
-                <input name="relation" placeholder="Relation (optional)" className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--bg)" }} />
-              </div>
-              <textarea name="message" required rows={3} placeholder="Your message" className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--bg)" }} />
-              <input name="phone" placeholder="Phone (optional, not shown)" className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--bg)" }} />
-              <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                Sign the guestbook
-              </button>
-            </form>
+            <div className="mt-4">
+              <Dialog
+                title={`Leave a message for ${m.name}`}
+                label="✍️ Sign the guestbook"
+                buttonClass="rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+              >
+                <form action={postGuestbook.bind(null, slug)} className="flex flex-col gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Your name</span>
+                      <input name="name" required placeholder="Full name" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                    </label>
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Relation (optional)</span>
+                      <input name="relation" placeholder="e.g. nephew, friend" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                    </label>
+                  </div>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Your message</span>
+                    <textarea name="message" required rows={4} placeholder="Share a memory or a word of comfort" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                  </label>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Phone (optional, never shown)</span>
+                    <input name="phone" placeholder="+2547…" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                  </label>
+                  <button className="mt-1 self-start rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
+                    Post message
+                  </button>
+                  {m.guestbookModerated && (
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      Messages appear after a family member approves them.
+                    </p>
+                  )}
+                </form>
+              </Dialog>
+            </div>
           )}
         </section>
       </article>
