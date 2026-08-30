@@ -26,8 +26,8 @@ export default async function PeoplePage({
           <input
             name="q"
             defaultValue={q ?? ""}
-            placeholder="Search name…"
-            className="rounded-lg border px-3 py-1.5 text-sm"
+            placeholder="Search by name, parent or spouse…"
+            className="w-64 rounded-lg border px-3 py-1.5 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--bg)" }}
           />
           <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
@@ -80,6 +80,24 @@ export default async function PeoplePage({
                   </Link>
                   {p.deceased && (
                     <span className="ml-2" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
+                  )}
+                  {(p.parents.length > 0 || p.spouses.length > 0) && (
+                    <div className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                      {p.parents.length > 0 && (
+                        <span>
+                          {p.gender === "F" ? "d/o " : p.gender === "M" ? "s/o " : "child of "}
+                          {p.parents.join(" & ")}
+                        </span>
+                      )}
+                      {p.parents.length > 0 && p.spouses.length > 0 && <span> · </span>}
+                      {p.spouses.length > 0 && <span>m. {p.spouses.join(", ")}</span>}
+                      {p.matchedVia === "parent" && (
+                        <span className="ml-1" style={{ color: "var(--accent)" }}>· matched parent</span>
+                      )}
+                      {p.matchedVia === "spouse" && (
+                        <span className="ml-1" style={{ color: "var(--accent)" }}>· matched spouse</span>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td className="px-3 py-2" style={{ color: "var(--muted)" }}>

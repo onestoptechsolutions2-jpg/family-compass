@@ -26,7 +26,24 @@ export type PersonListRow = {
   deceased: boolean;
   birth: string;
   death: string;
+  /** immediate connecting people — the "key nodes" around this person */
+  parents: string[];
+  spouses: string[];
+  /** why this row matched the search: "name" | "parent" | "spouse" */
+  matchedVia: "name" | "parent" | "spouse" | null;
 };
+
+/** name-contains filter reused for the person and their relatives */
+function nameMatch(q: string) {
+  return {
+    some: {
+      OR: [
+        { first: { contains: q, mode: "insensitive" as const } },
+        { surname: { contains: q, mode: "insensitive" as const } },
+      ],
+    },
+  };
+}
 
 export async function listPeople(treeId: string, q?: string): Promise<PersonListRow[]> {
   const people = await db.person.findMany({
@@ -34,14 +51,25 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
       treeId,
       ...(q
         ? {
-            names: {
-              some: {
-                OR: [
-                  { first: { contains: q, mode: "insensitive" } },
-                  { surname: { contains: q, mode: "insensitive" } },
-                ],
+            OR: [
+              { names: nameMatch(q) },
+              // child of a family where either parent's name matches
+              {
+                childRefs: {
+                  some: {
+                    family: {
+                      OR: [
+                        { partner1: { is: { names: nameMatch(q) } } },
+                        { partner2: { is: { names: nameMatch(q) } } },
+                      ],
+                    },
+                  },
+                },
               },
-            },
+              // partnered with someone whose name matches
+              { familiesAsPartner1: { some: { partner2: { is: { names: nameMatch(q) } } } } },
+              { familiesAsPartner2: { some: { partner1: { is: { names: nameMatch(q) } } } } },
+            ],
           }
         : {}),
     },
@@ -50,6 +78,23 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
       gender: true,
       living: true,
       names: { select: NAME_SELECT },
+      childRefs: {
+        take: 1,
+        select: {
+          family: {
+            select: {
+              partner1: { select: { names: { select: NAME_SELECT } } },
+              partner2: { select: { names: { select: NAME_SELECT } } },
+            },
+          },
+        },
+      },
+      familiesAsPartner1: {
+        select: { partner2: { select: { names: { select: NAME_SELECT } } } },
+      },
+      familiesAsPartner2: {
+        select: { partner1: { select: { names: { select: NAME_SELECT } } } },
+      },
       eventRefs: {
         where: { role: "PRIMARY", event: { type: { in: ["Birth", "Death", "Burial"] } } },
         select: {
@@ -73,19 +118,48 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
     take: 2000,
   });
 
+  const ql = q?.toLowerCase().trim() ?? "";
+  const hit = (n: string) => !!ql && n.toLowerCase().includes(ql);
+
   const rows = people.map((p) => {
     const birth = p.eventRefs.find((r) => r.event.type === "Birth")?.event;
     const death = p.eventRefs.find((r) => r.event.type === "Death")?.event;
     const deceased = p.eventRefs.some((r) => r.event.type === "Death" || r.event.type === "Burial");
+
+    const parentFam = p.childRefs[0]?.family;
+    const parents = [parentFam?.partner1, parentFam?.partner2]
+      .filter((x): x is NonNullable<typeof x> => !!x)
+      .map((x) => displayName(x.names));
+    const spouses = [
+      ...p.familiesAsPartner1.map((f) => f.partner2),
+      ...p.familiesAsPartner2.map((f) => f.partner1),
+    ]
+      .filter((x): x is NonNullable<typeof x> => !!x)
+      .map((x) => displayName(x.names));
+
+    const name = displayName(p.names);
+    const matchedVia: PersonListRow["matchedVia"] = !ql
+      ? null
+      : hit(name)
+        ? "name"
+        : parents.some(hit)
+          ? "parent"
+          : spouses.some(hit)
+            ? "spouse"
+            : null;
+
     return {
       id: p.id,
-      name: displayName(p.names),
+      name,
       sortKey: sortableName(p.names),
       gender: p.gender,
       living: p.living,
       deceased,
       birth: birth ? formatDate(birth) : "",
       death: death ? formatDate(death) : "",
+      parents,
+      spouses,
+      matchedVia,
     };
   });
   rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
