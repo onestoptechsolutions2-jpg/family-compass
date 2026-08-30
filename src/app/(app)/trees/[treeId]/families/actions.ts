@@ -7,6 +7,7 @@ import { FamilyType } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity";
 
 const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
@@ -23,7 +24,7 @@ async function assertPersonInTree(treeId: string, id: string | null) {
 }
 
 export async function createFamily(treeId: string, formData: FormData) {
-  await requireTreeEdit(treeId);
+  const ctx = await requireTreeEdit(treeId);
   const d = familySchema.parse(Object.fromEntries(formData));
   await assertPersonInTree(treeId, d.partner1Id);
   await assertPersonInTree(treeId, d.partner2Id);
@@ -31,6 +32,14 @@ export async function createFamily(treeId: string, formData: FormData) {
   const family = await db.family.create({
     data: { treeId, partner1Id: d.partner1Id, partner2Id: d.partner2Id, type: d.type },
     select: { id: true },
+  });
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "created",
+    objectType: "family",
+    objectId: family.id,
+    summary: "created a family",
   });
   revalidatePath(`/trees/${treeId}/families`);
   redirect(`/trees/${treeId}/families/${family.id}`);

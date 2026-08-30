@@ -18,8 +18,8 @@ data exports costs **KES 750 per download**, paid by M-Pesa.
 | 1 | People / Families CRUD, Events / Places / Sources lists, tree settings | ✅ done |
 | 2 | `.gramps` XML + GEDCOM importers (background jobs) | ✅ done (Gramps verified on seed data; GEDCOM needs a real-file test) |
 | 3 | Interactive pan/zoom tree — ancestors / hourglass / descendants / fan chart, click-to-re-root, keyboard nav, jump-to-person, set home person | ✅ done |
-| 4 | Media upload (Postgres) + thumbnails + attach | ⏳ planned |
-| 5 | Invitations, roles, living-person redaction, public shared views | ⏳ planned |
+| 4 | Media upload (Postgres bytea) + `sharp` thumbnails + `/api/media/[id]` with auth, ETag, range · gallery + per-person photos · 10 MB/file, 250 MB/tree quota | ✅ done |
+| 5 | Email invitations + accept flow, role management, `/trees/…/sharing`, public `/s/[slug]` read-only tree with living-person redaction + optional password/expiry, `/updates` activity feed | ✅ done |
 | 6 | Paid chart/export generation + manual M-Pesa Till payment + admin verification | ⏳ planned |
 | 7 | Marketing pages, rate limiting, audit log, backups, admin console | ⏳ planned |
 

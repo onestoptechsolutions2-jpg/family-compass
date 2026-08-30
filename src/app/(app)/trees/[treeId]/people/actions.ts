@@ -8,6 +8,10 @@ import { Gender, Privacy, DateModifier, DateQuality } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { parseISODateInput, dateSortKey } from "@/lib/date";
+import { logActivity } from "@/lib/activity";
+
+const label = (first?: string, surname?: string) =>
+  `${first ?? ""} ${surname ?? ""}`.trim() || "a person";
 
 const personSchema = z.object({
   first: z.string().trim().max(200).optional().default(""),
@@ -110,7 +114,7 @@ async function syncVitalEvent(
 }
 
 export async function createPerson(treeId: string, formData: FormData) {
-  await requireTreeEdit(treeId);
+  const ctx = await requireTreeEdit(treeId);
   const d = parse(formData);
 
   const person = await db.person.create({
@@ -135,12 +139,21 @@ export async function createPerson(treeId: string, formData: FormData) {
   await syncVitalEvent(treeId, person.id, "Birth", d.birthDate, d.birthPlace);
   await syncVitalEvent(treeId, person.id, "Death", d.deathDate, d.deathPlace);
 
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "created",
+    objectType: "person",
+    objectId: person.id,
+    summary: `added ${label(d.first, d.surname)}`,
+  });
+
   revalidatePath(`/trees/${treeId}/people`);
   redirect(`/trees/${treeId}/people/${person.id}`);
 }
 
 export async function updatePerson(treeId: string, personId: string, formData: FormData) {
-  await requireTreeEdit(treeId);
+  const ctx = await requireTreeEdit(treeId);
   const d = parse(formData);
 
   const person = await db.person.findFirst({
@@ -174,6 +187,15 @@ export async function updatePerson(treeId: string, personId: string, formData: F
 
   await syncVitalEvent(treeId, personId, "Birth", d.birthDate, d.birthPlace);
   await syncVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "person",
+    objectId: personId,
+    summary: `edited ${label(d.first, d.surname)}`,
+  });
 
   revalidatePath(`/trees/${treeId}/people/${personId}`);
   redirect(`/trees/${treeId}/people/${personId}`);

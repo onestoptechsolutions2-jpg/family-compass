@@ -32,6 +32,7 @@ export default async function TreeLayout({
     { href: `${base}/tree`, label: "Tree view" },
     { href: `${base}/charts`, label: "Charts" },
     { href: `${base}/sharing`, label: "Sharing" },
+    { href: `${base}/updates`, label: "Updates" },
     { href: `${base}/import`, label: "Import" },
     { href: `${base}/settings`, label: "Settings" },
   ];

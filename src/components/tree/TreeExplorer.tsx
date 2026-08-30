@@ -50,14 +50,23 @@ export function TreeExplorer({
   homePersonId,
   canManage,
   setHomeAction,
+  readOnly = false,
+  shareSlug,
+  initialMode,
+  initialGens,
 }: {
   treeId: string;
   graph: TreeGraph;
   initialCenterId: string | null;
   homePersonId: string | null;
   canManage: boolean;
-  setHomeAction: (personId: string) => Promise<void>;
+  setHomeAction?: (personId: string) => Promise<void>;
+  readOnly?: boolean;
+  shareSlug?: string;
+  initialMode?: ViewMode;
+  initialGens?: number;
 }) {
+  void shareSlug;
   const personList = useMemo(
     () =>
       Object.values(graph.persons)
@@ -69,8 +78,8 @@ export function TreeExplorer({
   const [centerId, setCenterId] = useState<string | null>(
     initialCenterId && graph.persons[initialCenterId] ? initialCenterId : (personList[0]?.id ?? null),
   );
-  const [mode, setMode] = useState<ViewMode>("hourglass");
-  const [gens, setGens] = useState(4);
+  const [mode, setMode] = useState<ViewMode>(initialMode ?? "hourglass");
+  const [gens, setGens] = useState(initialGens ?? 4);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [isSaving, startSave] = useTransition();
@@ -258,9 +267,12 @@ export function TreeExplorer({
               Home
             </button>
           )}
-          {canManage && centerId !== homePersonId && (
+          {!readOnly && canManage && setHomeAction && centerId !== homePersonId && (
             <button
-              onClick={() => startSave(() => setHomeAction(centerId))}
+              onClick={() => {
+                const action = setHomeAction;
+                startSave(() => action(centerId));
+              }}
               disabled={isSaving}
               className="tbtn px-3"
             >
@@ -468,13 +480,22 @@ export function TreeExplorer({
           {graph.truncated ? " · showing a slice around the focus" : ""}
         </div>
 
-        <a
-          href={`/trees/${treeId}/people/${centerId}`}
-          className="absolute bottom-3 right-3 rounded-lg border px-2.5 py-1 text-xs"
-          style={{ borderColor: "var(--border)", background: "var(--card)" }}
-        >
-          Open {center.given || center.name}&apos;s profile →
-        </a>
+        {readOnly ? (
+          <div
+            className="absolute bottom-3 right-3 rounded-lg border px-2.5 py-1 text-xs"
+            style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--muted)" }}
+          >
+            Centered on {center.given || center.name}
+          </div>
+        ) : (
+          <a
+            href={`/trees/${treeId}/people/${centerId}`}
+            className="absolute bottom-3 right-3 rounded-lg border px-2.5 py-1 text-xs"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+          >
+            Open {center.given || center.name}&apos;s profile →
+          </a>
+        )}
       </div>
 
       <style>{`

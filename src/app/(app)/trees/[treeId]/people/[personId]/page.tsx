@@ -3,10 +3,14 @@ import { notFound } from "next/navigation";
 
 import { loadTreeContext, canEdit } from "@/lib/rbac";
 import { getPersonDetail, getPersonRelations } from "@/lib/queries/people";
+import { personMedia } from "@/lib/queries/media";
 import { displayName } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
+import { MediaThumb } from "@/components/media/MediaThumb";
+import { UploadForm } from "@/components/media/UploadForm";
 import { deletePerson } from "../actions";
+import { uploadPersonPhoto, detachPersonMedia } from "../../media/actions";
 
 export default async function PersonDetailPage({
   params,
@@ -18,6 +22,7 @@ export default async function PersonDetailPage({
   const person = await getPersonDetail(treeId, personId);
   if (!person) notFound();
   const relations = await getPersonRelations(treeId, personId);
+  const media = await personMedia(treeId, personId);
   const editable = canEdit(ctx.role);
 
   const events = [...person.eventRefs]
@@ -154,6 +159,59 @@ export default async function PersonDetailPage({
               )}
           </div>
         </div>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h3 className="font-medium">Photos &amp; documents</h3>
+        {media.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+            {media.map((r) => (
+              <figure
+                key={r.id}
+                className="overflow-hidden rounded-lg border"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <a
+                  href={`/api/media/${r.media.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block aspect-square"
+                >
+                  <MediaThumb
+                    mediaId={r.media.id}
+                    mimeType={r.media.mimeType}
+                    alt={r.caption ?? r.media.fileName}
+                  />
+                </a>
+                {editable && (
+                  <form action={detachPersonMedia.bind(null, treeId, personId, r.id)}>
+                    <button className="w-full py-1 text-[10px] text-red-600 hover:underline">
+                      remove
+                    </button>
+                  </form>
+                )}
+              </figure>
+            ))}
+          </div>
+        )}
+        {editable && (
+          <div className="mt-3">
+            <UploadForm
+              action={uploadPersonPhoto.bind(null, treeId, personId)}
+              name="file"
+              multiple={false}
+              label="Add a photo for this person"
+            />
+          </div>
+        )}
+        {media.length === 0 && !editable && (
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            No photos attached.
+          </p>
+        )}
       </section>
     </div>
   );
