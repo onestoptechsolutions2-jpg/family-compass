@@ -5,6 +5,7 @@ import { QUEUE } from "@/lib/queue";
 import { handleImportGramps, handleImportGedcom } from "./jobs/import";
 import { handleRenderPreview, handleRenderOutput } from "./jobs/generation";
 import { handleSendEmail } from "./jobs/email";
+import { handleWebhookDeliver } from "./jobs/webhook";
 
 async function main() {
   const boss = new PgBoss({
@@ -25,6 +26,7 @@ async function main() {
   await boss.work(QUEUE.renderPreview, handleRenderPreview);
   await boss.work(QUEUE.renderOutput, handleRenderOutput);
   await boss.work(QUEUE.sendEmail, handleSendEmail);
+  await boss.work(QUEUE.webhookDeliver, handleWebhookDeliver);
 
   console.log("[worker] ready — listening on", Object.values(QUEUE).join(", "));
 

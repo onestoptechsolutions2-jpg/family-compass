@@ -9,6 +9,8 @@ import { requirePlatformAdmin } from "@/lib/rbac";
 import { grantCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activity";
 import { KEEPER_PLAN } from "@/lib/pricing";
+import { emitEvent } from "@/lib/webhooks";
+import { notifyWorkspaceOwners } from "@/lib/notify";
 
 export async function approvePayment(paymentId: string) {
   const admin = await requirePlatformAdmin();
@@ -78,6 +80,20 @@ export async function approvePayment(paymentId: string) {
       summary,
     });
   }
+
+  await notifyWorkspaceOwners(payment.workspaceId, {
+    kind: "payment.verified",
+    title: "Payment verified",
+    body: summary,
+    linkPath: treeId ? `/trees/${treeId}` : "/app",
+    treeId,
+  });
+  await emitEvent(
+    payment.workspaceId,
+    "payment.verified",
+    { paymentId: payment.id, kind: payment.kind, creditsGranted: payment.creditsGranted, summary },
+    { treeId },
+  );
 
   revalidatePath("/admin/payments");
 }

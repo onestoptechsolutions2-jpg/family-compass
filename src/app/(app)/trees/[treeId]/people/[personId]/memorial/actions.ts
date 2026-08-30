@@ -10,6 +10,7 @@ import { slugify, randomToken } from "@/lib/slug";
 import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 import { logActivity } from "@/lib/activity";
+import { emitEvent } from "@/lib/webhooks";
 
 async function ownMemorial(treeId: string, memorialId: string) {
   const m = await db.memorial.findFirst({
@@ -106,6 +107,10 @@ export async function updateMemorial(treeId: string, memorialId: string, formDat
   await requireTreeEdit(treeId);
   await ownMemorial(treeId, memorialId);
   const d = memorialSchema.parse(Object.fromEntries(formData));
+  const before = await db.memorial.findUniqueOrThrow({
+    where: { id: memorialId },
+    select: { published: true, slug: true, personId: true, tree: { select: { workspaceId: true } } },
+  });
   await db.memorial.update({
     where: { id: memorialId },
     data: {
@@ -121,7 +126,15 @@ export async function updateMemorial(treeId: string, memorialId: string, formDat
       includeLiving: d.includeLiving,
     },
   });
-  revalidatePath(`/trees/${treeId}/people/${memorialId}`);
+
+  const wsId = before.tree.workspaceId;
+  if (d.published && !before.published) {
+    await emitEvent(wsId, "memorial.published", { memorialSlug: before.slug, personId: before.personId }, { treeId });
+  } else if (d.published && before.published) {
+    await emitEvent(wsId, "memorial.updated", { memorialSlug: before.slug, personId: before.personId }, { treeId });
+  }
+
+  revalidatePath(`/trees/${treeId}/people/${before.personId}/memorial`);
   revalidatePath(`/trees/${treeId}/people`);
 }
 

@@ -9,6 +9,7 @@ export const QUEUE = {
   renderPreview: "generation.preview",
   renderOutput: "generation.output",
   sendEmail: "email.send",
+  webhookDeliver: "webhook.deliver",
 } as const;
 
 export type QueueName = (typeof QUEUE)[keyof typeof QUEUE];
@@ -24,6 +25,7 @@ export type JobPayloads = {
     html: string;
     text?: string;
   };
+  [QUEUE.webhookDeliver]: { deliveryId: string };
 };
 
 const globalForBoss = globalThis as unknown as { boss?: PgBoss; bossStarted?: Promise<PgBoss> };

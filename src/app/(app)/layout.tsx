@@ -4,11 +4,13 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/rbac";
 import { signOut } from "@/lib/auth";
 import { userConsentState } from "@/lib/consent";
+import { unreadNotificationCount } from "@/lib/notify";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const consent = await userConsentState(user.id);
   if (consent.stale) redirect("/consent");
+  const unread = await unreadNotificationCount(user.id);
 
   return (
     <div className="min-h-dvh">
@@ -29,6 +31,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Link>
             <Link href="/research" className="hover:underline">
               Research
+            </Link>
+            <Link href="/developers" className="hover:underline">
+              Developers
+            </Link>
+            <Link href="/notifications" className="relative hover:underline" title="Notifications">
+              🔔
+              {unread > 0 && (
+                <span
+                  className="absolute -right-2 -top-1 rounded-full px-1 text-[10px] font-semibold text-white"
+                  style={{ background: "var(--color-brand-600)" }}
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </Link>
             {user.isPlatformAdmin && (
               <Link href="/admin" className="hover:underline">

@@ -33,35 +33,38 @@ model User {
   consentAt        DateTime?
   researchConsent  Boolean   @default(false)
   marketingConsent Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   isPlatformAdmin Boolean @default(false)
 
   accounts Account[]
   sessions Session[]
 
-  memberships     Membership[]
-  invitationsSent Invitation[]     @relation("InvitedBy")
-  uploadedMedia   MediaObject[]    @relation("MediaUploader")
-  generationJobs  GenerationJob[]  @relation("GenerationRequestedBy")
-  payments        Payment[]        @relation("PaymentUser")
-  paymentsVerified Payment[]       @relation("PaymentVerifier")
-  sharedViews     SharedView[]     @relation("SharedViewCreator")
-  auditLogs       AuditLog[]
-  activityEvents  ActivityEvent[]
-  creditLedger    CreditLedger[]   @relation("CreditActor")
-  claimedPerson   Person?          @relation("PersonClaimedBy")
-  claimsDecided   PersonClaim[]    @relation("ClaimDecidedBy")
-  claimsCreatedFor PersonClaim[]   @relation("ClaimCreatedUser")
-  loginTokens     LoginToken[]
+  memberships          Membership[]
+  invitationsSent      Invitation[]         @relation("InvitedBy")
+  uploadedMedia        MediaObject[]        @relation("MediaUploader")
+  generationJobs       GenerationJob[]      @relation("GenerationRequestedBy")
+  payments             Payment[]            @relation("PaymentUser")
+  paymentsVerified     Payment[]            @relation("PaymentVerifier")
+  sharedViews          SharedView[]         @relation("SharedViewCreator")
+  auditLogs            AuditLog[]
+  activityEvents       ActivityEvent[]
+  creditLedger         CreditLedger[]       @relation("CreditActor")
+  claimedPerson        Person?              @relation("PersonClaimedBy")
+  claimsDecided        PersonClaim[]        @relation("ClaimDecidedBy")
+  claimsCreatedFor     PersonClaim[]        @relation("ClaimCreatedUser")
+  loginTokens          LoginToken[]
   deepSearches         DeepSearch[]         @relation("DeepSearchRequester")
   engagementsRequested ResearchEngagement[] @relation("EngagementRequester")
   engagementsAssigned  ResearchEngagement[] @relation("EngagementAssignee")
   consentEvents        ConsentEvent[]
-  memorialsCreated     Memorial[]         @relation("MemorialCreator")
-  programEdits         FuneralProgram[]   @relation("ProgramEditor")
-  programRevisions     ProgramRevision[]  @relation("ProgramReviser")
+  memorialsCreated     Memorial[]           @relation("MemorialCreator")
+  programEdits         FuneralProgram[]     @relation("ProgramEditor")
+  programRevisions     ProgramRevision[]    @relation("ProgramReviser")
+  notifications        Notification[]
+  apiKeysCreated       ApiKey[]             @relation("ApiKeyCreator")
+  webhooksCreated      WebhookEndpoint[]    @relation("WebhookCreator")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -113,10 +116,10 @@ model Memorial {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  person    Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
-  tree      Tree         @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  cover     MediaObject? @relation("MemorialCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
-  createdBy User?        @relation("MemorialCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  person    Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+  tree      Tree             @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  cover     MediaObject?     @relation("MemorialCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  createdBy User?            @relation("MemorialCreator", fields: [createdById], references: [id], onDelete: SetNull)
   guestbook GuestbookEntry[]
   program   FuneralProgram?
 
@@ -205,19 +208,19 @@ model LoginToken {
 }
 
 model Account {
-  id                       String  @id @default(cuid())
-  userId                   String
-  type                     String
-  provider                 String
-  providerAccountId        String
-  refresh_token            String? @db.Text
-  access_token             String? @db.Text
-  expires_at               Int?
-  token_type               String?
-  scope                    String?
-  id_token                 String? @db.Text
-  session_state            String?
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -228,7 +231,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -266,6 +269,8 @@ model Workspace {
   payments       Payment[]
   pricingConfigs PricingConfig[]
   creditLedger   CreditLedger[]
+  apiKeys        ApiKey[]
+  webhooks       WebhookEndpoint[]
 
   @@index([slug])
 }
@@ -303,42 +308,42 @@ model Invitation {
 }
 
 model Tree {
-  id          String   @id @default(cuid())
-  workspaceId String
-  name        String
-  description String?  @db.Text
-  slug        String
-  homePersonId String?
+  id               String    @id @default(cuid())
+  workspaceId      String
+  name             String
+  description      String?   @db.Text
+  slug             String
+  homePersonId     String?
   freeExportUsedAt DateTime?
-  contactWhatsapp String?
-  claimPinHash    String?
-  keeperUntil     DateTime?
-  discoverable    Boolean  @default(false)
-  community       String?
-  region          String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  contactWhatsapp  String?
+  claimPinHash     String?
+  keeperUntil      DateTime?
+  discoverable     Boolean   @default(false)
+  community        String?
+  region           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   people         Person[]
-  families        Family[]
-  events          Event[]
-  places          Place[]
-  sources         Source[]
-  citations       Citation[]
-  repositories    Repository[]
-  notes           Note[]
-  tags            Tag[]
-  media           MediaObject[]
-  sharedViews     SharedView[]
-  generationJobs  GenerationJob[]
-  activityEvents  ActivityEvent[]
-  importJobs      ImportJob[]
-  personClaims    PersonClaim[]
-  payments        Payment[]      @relation("TreePayments")
-  clans           Clan[]
-  memorials       Memorial[]
+  families       Family[]
+  events         Event[]
+  places         Place[]
+  sources        Source[]
+  citations      Citation[]
+  repositories   Repository[]
+  notes          Note[]
+  tags           Tag[]
+  media          MediaObject[]
+  sharedViews    SharedView[]
+  generationJobs GenerationJob[]
+  activityEvents ActivityEvent[]
+  importJobs     ImportJob[]
+  personClaims   PersonClaim[]
+  payments       Payment[]       @relation("TreePayments")
+  clans          Clan[]
+  memorials      Memorial[]
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -413,9 +418,9 @@ model Person {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tree          Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  claimedBy     User? @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
-  clan          Clan? @relation(fields: [clanId], references: [id], onDelete: SetNull)
+  tree      Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  claimedBy User? @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  clan      Clan? @relation(fields: [clanId], references: [id], onDelete: SetNull)
 
   names        Name[]
   eventRefs    EventRef[]
@@ -424,8 +429,8 @@ model Person {
   citationRefs CitationRef[]
   noteRefs     NoteRef[]
 
-  familiesAsPartner1 Family[]    @relation("FamilyPartner1")
-  familiesAsPartner2 Family[]    @relation("FamilyPartner2")
+  familiesAsPartner1 Family[]   @relation("FamilyPartner1")
+  familiesAsPartner2 Family[]   @relation("FamilyPartner2")
   childRefs          ChildRef[]
 
   centralOfSharedViews    SharedView[]    @relation("SharedViewCentral")
@@ -516,14 +521,14 @@ enum FamilyType {
 }
 
 model Family {
-  id          String     @id @default(cuid())
-  treeId      String
-  grampsId    String?
-  partner1Id  String?
-  partner2Id  String?
-  type        FamilyType @default(UNKNOWN)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id         String     @id @default(cuid())
+  treeId     String
+  grampsId   String?
+  partner1Id String?
+  partner2Id String?
+  type       FamilyType @default(UNKNOWN)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   tree     Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
   partner1 Person? @relation("FamilyPartner1", fields: [partner1Id], references: [id], onDelete: SetNull)
@@ -554,10 +559,10 @@ enum ChildRelation {
 }
 
 model ChildRef {
-  id             String        @id @default(cuid())
-  familyId       String
-  personId       String
-  order          Int           @default(0)
+  id               String        @id @default(cuid())
+  familyId         String
+  personId         String
+  order            Int           @default(0)
   partner1Relation ChildRelation @default(BIRTH)
   partner2Relation ChildRelation @default(BIRTH)
 
@@ -636,18 +641,18 @@ model EventRef {
 }
 
 model Place {
-  id          String   @id @default(cuid())
-  treeId      String
-  grampsId    String?
-  title       String
-  type        String?
-  name        String?
-  latitude    Float?
-  longitude   Float?
-  code        String?
+  id           String   @id @default(cuid())
+  treeId       String
+  grampsId     String?
+  title        String
+  type         String?
+  name         String?
+  latitude     Float?
+  longitude    Float?
+  code         String?
   enclosedById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tree       Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
   enclosedBy Place?  @relation("PlaceHierarchy", fields: [enclosedById], references: [id], onDelete: SetNull)
@@ -787,26 +792,26 @@ model Note {
 }
 
 model NoteRef {
-  id         String  @id @default(cuid())
-  noteId     String
-  personId   String?
-  familyId   String?
-  eventId    String?
-  placeId    String?
-  sourceId   String?
-  citationId String?
-  mediaId    String?
+  id           String  @id @default(cuid())
+  noteId       String
+  personId     String?
+  familyId     String?
+  eventId      String?
+  placeId      String?
+  sourceId     String?
+  citationId   String?
+  mediaId      String?
   repositoryId String?
 
-  note       Note        @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  person     Person?     @relation(fields: [personId], references: [id], onDelete: Cascade)
-  family     Family?     @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  event      Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  place      Place?      @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  source     Source?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  citation   Citation?   @relation(fields: [citationId], references: [id], onDelete: Cascade)
+  note       Note         @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  person     Person?      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family     Family?      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event      Event?       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  place      Place?       @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  source     Source?      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  citation   Citation?    @relation(fields: [citationId], references: [id], onDelete: Cascade)
   media      MediaObject? @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-  repository Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  repository Repository?  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
 }
@@ -827,22 +832,22 @@ model Tag {
 }
 
 model MediaObject {
-  id         String   @id @default(cuid())
-  treeId     String
-  grampsId   String?
-  fileName   String
-  mimeType   String
-  byteSize   Int
-  bytes      Bytes
-  checksum   String?
-  width      Int?
-  height     Int?
-  thumbnail  Bytes?
-  thumbMime  String?
-  title      String?
-  dateText   String?
+  id           String   @id @default(cuid())
+  treeId       String
+  grampsId     String?
+  fileName     String
+  mimeType     String
+  byteSize     Int
+  bytes        Bytes
+  checksum     String?
+  width        Int?
+  height       Int?
+  thumbnail    Bytes?
+  thumbMime    String?
+  title        String?
+  dateText     String?
   uploadedById String?
-  createdAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   tree       Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
   uploadedBy User? @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -850,9 +855,9 @@ model MediaObject {
   refs     MediaRef[]
   noteRefs NoteRef[]
 
-  memorialCoverOf Memorial[]   @relation("MemorialCover")
-  previewOfJobs GenerationJob[] @relation("GenerationPreview")
-  outputOfJobs  GenerationJob[] @relation("GenerationOutput")
+  memorialCoverOf Memorial[]      @relation("MemorialCover")
+  previewOfJobs   GenerationJob[] @relation("GenerationPreview")
+  outputOfJobs    GenerationJob[] @relation("GenerationOutput")
 
   @@unique([treeId, grampsId])
   @@index([treeId])
@@ -1071,11 +1076,11 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  generationJob GenerationJob? @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tree          Tree?          @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
-  user          User           @relation("PaymentUser", fields: [userId], references: [id])
-  verifiedBy    User?          @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  generationJob GenerationJob?      @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tree          Tree?               @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
+  user          User                @relation("PaymentUser", fields: [userId], references: [id])
+  verifiedBy    User?               @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   ledgerEntries CreditLedger[]
   deepSearch    DeepSearch?         @relation("DeepSearchPayment")
   engagement    ResearchEngagement? @relation("EngagementPayment")
@@ -1134,18 +1139,18 @@ enum VerificationMode {
 // Single global row (scope = "global"). Holds the platform owner's M-Pesa
 // Till / Store details and the swappable provider selection.
 model PaymentSettings {
-  id               String           @id @default(cuid())
-  scope            String           @unique @default("global")
-  provider         String           @default("manual_mpesa")
-  currency         String           @default("KES")
-  defaultPriceKes  Int              @default(750)
-  keeperPriceKes   Int              @default(3000)
+  id              String @id @default(cuid())
+  scope           String @unique @default("global")
+  provider        String @default("manual_mpesa")
+  currency        String @default("KES")
+  defaultPriceKes Int    @default(750)
+  keeperPriceKes  Int    @default(3000)
 
   // Size-based print pricing: price = kind base
   //   + max(0, generations - freeGenerations) * perGenerationKes
   //   + max(0, nodeCount     - freeNodes)      * perNodeKes
-  priceFreeGenerations Int @default(4)
-  priceFreeNodes       Int @default(60)
+  priceFreeGenerations  Int @default(4)
+  priceFreeNodes        Int @default(60)
   pricePerGenerationKes Int @default(150)
   pricePerNodeKes       Int @default(8)
 
@@ -1284,4 +1289,88 @@ model ActivityEvent {
   actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([treeId, createdAt])
+}
+
+// ===========================================================================
+// Notifications, API keys & outbound webhooks (integration surface)
+// ===========================================================================
+
+/// Internal per-user notification. Fed by the same domain events that drive
+/// outbound webhooks. Delivery channel is in-app only for now; an email/SMS
+/// fan-out can subscribe later without touching call sites.
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String?
+  treeId      String?
+  kind        String
+  title       String
+  body        String?
+  linkPath    String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+/// A bearer key that grants a third-party integration scoped access to a
+/// workspace through /api/v1. Only the SHA-256 of the key is stored.
+model ApiKey {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  prefix      String
+  hashedKey   String    @unique
+  scopes      String[]
+  lastUsedAt  DateTime?
+  createdById String?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+}
+
+/// A subscriber URL that receives signed POSTs when workspace events fire.
+model WebhookEndpoint {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  url            String
+  secret         String
+  events         String[]
+  active         Boolean   @default(true)
+  description    String?
+  createdById    String?
+  failureCount   Int       @default(0)
+  lastStatus     Int?
+  lastDeliveryAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy  User?             @relation("WebhookCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deliveries WebhookDelivery[]
+
+  @@index([workspaceId])
+}
+
+model WebhookDelivery {
+  id          String    @id @default(cuid())
+  endpointId  String
+  event       String
+  payload     Json
+  status      String    @default("PENDING")
+  statusCode  Int?
+  attempts    Int       @default(0)
+  error       String?
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
 }
