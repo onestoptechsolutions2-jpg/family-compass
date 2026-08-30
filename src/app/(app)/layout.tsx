@@ -45,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
             {/* desktop */}
             <nav className="hidden items-center gap-4 text-sm md:flex">
+              <Link href="/guide" className="hover:underline">Guide</Link>
               <Link href="/communities" className="hover:underline">Communities</Link>
               <Link href="/discover" className="hover:underline">Discover</Link>
               <Link href="/research" className="hover:underline">Research</Link>
@@ -73,6 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
                 <Link href="/app" className="block rounded-md px-2 py-2 hover:bg-black/5">Your trees</Link>
+                <Link href="/guide" className="block rounded-md px-2 py-2 hover:bg-black/5">Guide</Link>
                 <Link href="/communities" className="block rounded-md px-2 py-2 hover:bg-black/5">Communities</Link>
                 <Link href="/discover" className="block rounded-md px-2 py-2 hover:bg-black/5">Discover</Link>
                 <Link href="/research" className="block rounded-md px-2 py-2 hover:bg-black/5">Research</Link>

@@ -15,6 +15,7 @@ const MENU: { icon: string; label: string; href: (t: string | null) => string | 
   { icon: "🏠", label: "All your trees", href: () => "/app" },
   { icon: "🌍", label: "Discover families", href: () => "/discover" },
   { icon: "🔔", label: "Notifications", href: () => "/notifications" },
+  { icon: "📘", label: "How-to guide", href: () => "/guide" },
   { icon: "📖", label: "API & webhook docs", href: () => "/docs" },
   { icon: "📜", label: "Policies", href: () => "/policies" },
 ];

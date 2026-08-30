@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { db } from "@/lib/db";
 import { loadTreeContext } from "@/lib/rbac";
+import { getTreeGuide } from "@/lib/queries/guide";
+import { GuidedSteps } from "@/components/GuidedSteps";
 
 export default async function TreeOverviewPage({
   params,
@@ -39,9 +41,12 @@ export default async function TreeOverviewPage({
   ];
 
   const empty = counts._count.people === 0;
+  const guide = await getTreeGuide(treeId);
 
   return (
     <div className="flex flex-col gap-6">
+      <GuidedSteps treeId={treeId} steps={guide.steps} doneCount={guide.doneCount} total={guide.total} />
+
       {empty && (
         <div
           className="rounded-xl border p-5"
