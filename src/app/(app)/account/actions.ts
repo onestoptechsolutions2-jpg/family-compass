@@ -5,6 +5,13 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { hashPassword, verifyPassword, passwordProblem } from "@/lib/password";
+import { setResearchConsent } from "@/lib/consent";
+
+export async function toggleResearchConsent(formData: FormData) {
+  const me = await requireUser();
+  await setResearchConsent(me.id, formData.get("on") === "1");
+  redirect("/account?ok=research");
+}
 
 export async function setMyPassword(formData: FormData) {
   const me = await requireUser();

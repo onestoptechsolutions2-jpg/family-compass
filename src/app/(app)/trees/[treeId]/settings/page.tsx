@@ -91,7 +91,11 @@ export default async function TreeSettingsPage({
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
           Let others find non-private people from this tree in a deep search (e.g. checking a
           bloodline before marriage). No full tree is exposed — just name, clan, community and
-          approximate year, plus your WhatsApp for a connection request.
+          approximate year, plus your WhatsApp for a connection request. See the{" "}
+          <a href="/policies/research" target="_blank" className="text-brand-600 hover:underline">
+            Research &amp; Ethics policy
+          </a>
+          .
         </p>
         <form action={updateDiscovery.bind(null, treeId)} className="mt-3 flex flex-col gap-3">
           <label className="flex items-center gap-2 text-sm">

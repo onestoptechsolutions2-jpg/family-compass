@@ -1,12 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 
-import { seedPaymentSettings, seedKenyaLocations, bootstrapAdmin } from "./seed-lib";
+import {
+  seedPaymentSettings,
+  seedKenyaLocations,
+  seedReferenceClans,
+  bootstrapAdmin,
+} from "./seed-lib";
 
 const db = new PrismaClient();
 
 async function main() {
   await seedPaymentSettings(db);
   await seedKenyaLocations(db);
+  await seedReferenceClans(db);
   await bootstrapAdmin(db);
 }
 

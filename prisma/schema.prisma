@@ -26,6 +26,13 @@ model User {
   phone         String?   @unique
   passwordHash  String?
   image         String?
+
+  // Data & research consent (see /policies). consentVersion tracks the policy
+  // version the user last accepted; a bump re-prompts on next sign-in.
+  consentVersion   String?
+  consentAt        DateTime?
+  researchConsent  Boolean   @default(false)
+  marketingConsent Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -51,6 +58,41 @@ model User {
   deepSearches         DeepSearch[]         @relation("DeepSearchRequester")
   engagementsRequested ResearchEngagement[] @relation("EngagementRequester")
   engagementsAssigned  ResearchEngagement[] @relation("EngagementAssignee")
+  consentEvents        ConsentEvent[]
+}
+
+/// Immutable audit of consent actions (policy acceptance, research opt in/out).
+model ConsentEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  kind          String
+  policyVersion String
+  detail        String?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// Curated reference list of communities and clans (global). Tree-level `Clan`
+/// records autocomplete from this and can cite a source.
+model ReferenceClan {
+  id         String  @id @default(cuid())
+  community  String
+  name       String
+  normalized String
+  aka        String?
+  totem      String?
+  region     String?
+  notes      String? @db.Text
+  source     String?
+
+  @@unique([community, normalized])
+  @@index([community])
+  @@index([normalized])
 }
 
 /// One-time passwordless sign-in link (super-admin bootstrap, "email me a

@@ -1,10 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/rbac";
 import { signOut } from "@/lib/auth";
+import { userConsentState } from "@/lib/consent";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const consent = await userConsentState(user.id);
+  if (consent.stale) redirect("/consent");
 
   return (
     <div className="min-h-dvh">
@@ -17,6 +21,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             🧭 Family Compass
           </Link>
           <div className="flex items-center gap-4 text-sm">
+            <Link href="/communities" className="hover:underline">
+              Communities
+            </Link>
             <Link href="/discover" className="hover:underline">
               Discover
             </Link>

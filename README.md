@@ -1,8 +1,29 @@
 # Family Compass
 
-A multi-tenant genealogy SaaS built around the Gramps data model.
-Building and sharing a family tree is free; generating print-ready charts and
-data exports costs **KES 750 per download**, paid by M-Pesa.
+A **community genealogy & family-history research project** for Kenyan families,
+starting in Western Kenya. Families record their own history (people, clans,
+places); with explicit opt-in consent, the project studies aggregated,
+de-identified patterns. Built on the Gramps data model.
+
+Building & sharing is free. Print charts, cross-tree deep search, the annual
+Family plan, and commissioned research are paid (M-Pesa).
+
+### Data & consent
+
+- **Policies** live at `/policies` (Terms, Privacy — Kenya DPA 2019 aware,
+  Research & Ethics). `POLICY_VERSION` in `src/lib/policy.ts`; bump it to
+  re-prompt everyone.
+- **Consent gate**: `src/app/(app)/layout.tsx` redirects to `/consent` until
+  `User.consentVersion` matches. `/consent` records acceptance + optional
+  research/marketing opt-ins; `ConsentEvent` is the immutable audit. Toggle
+  research consent later in `/account`.
+- **Cookie banner** (`ConsentBanner`, Consent-Mode-v2 style): essential storage
+  always; analytics only after "Accept all" (`window.__fcConsent`).
+- Sharing, the research directory (`Tree.discoverable`), and showing living
+  people are **off by default**, per tree.
+- Seed loads reference data: ~420 Western/Nyanza admin units (`KenyaLocation`)
+  and ~56 community/clan starter rows (`ReferenceClan`, browsable at
+  `/communities`).
 
 - **Stack:** Next.js 16 (App Router) · Prisma · PostgreSQL · Auth.js v5 · pg-boss
 - **Media** is stored in Postgres (`MediaObject.bytes`).

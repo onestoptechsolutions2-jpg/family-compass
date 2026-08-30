@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ConsentBanner } from "@/components/ConsentBanner";
 
 export const metadata: Metadata = {
   title: {
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s · Family Compass",
   },
   description:
-    "Build your family tree, invite relatives, and share a beautiful chart centered on any person.",
+    "A community genealogy and family-history research project for Kenyan families, starting in Western Kenya.",
   ...(process.env.APP_URL ? { metadataBase: new URL(process.env.APP_URL) } : {}),
 };
 
@@ -16,7 +17,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ConsentBanner />
+      </body>
     </html>
   );
 }

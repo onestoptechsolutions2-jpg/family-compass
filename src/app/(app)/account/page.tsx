@@ -1,6 +1,8 @@
+import Link from "next/link";
+
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { setMyPassword, removeMyPassword } from "./actions";
+import { setMyPassword, removeMyPassword, toggleResearchConsent } from "./actions";
 
 export const metadata = { title: "Account" };
 
@@ -15,7 +17,14 @@ export default async function AccountPage({
   const { ok, error } = await searchParams;
   const user = await db.user.findUniqueOrThrow({
     where: { id: me.id },
-    select: { email: true, name: true, passwordHash: true, isPlatformAdmin: true },
+    select: {
+      email: true,
+      name: true,
+      passwordHash: true,
+      isPlatformAdmin: true,
+      researchConsent: true,
+      consentVersion: true,
+    },
   });
   const hasPassword = Boolean(user.passwordHash);
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
@@ -33,7 +42,7 @@ export default async function AccountPage({
 
       {ok && (
         <p className="rounded-lg border p-3 text-sm text-green-700" style={{ borderColor: "var(--border)" }}>
-          {ok === "removed" ? "Password removed." : "Password saved."}
+          {ok === "removed" ? "Password removed." : ok === "research" ? "Research choice saved." : "Password saved."}
         </p>
       )}
       {error && (
@@ -80,6 +89,27 @@ export default async function AccountPage({
             <button className="text-xs text-red-600 hover:underline">Remove password</button>
           </form>
         )}
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">Research participation</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          Allow your contributions to be used in aggregated, de-identified genealogy research.
+          Living and private records are always excluded. See the{" "}
+          <Link href="/policies/research" className="text-brand-600 hover:underline">
+            Research &amp; Ethics policy
+          </Link>
+          .
+        </p>
+        <form action={toggleResearchConsent} className="mt-3">
+          <input type="hidden" name="on" value={user.researchConsent ? "0" : "1"} />
+          <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+            {user.researchConsent ? "Currently ON — turn off" : "Currently OFF — turn on"}
+          </button>
+        </form>
       </section>
     </div>
   );

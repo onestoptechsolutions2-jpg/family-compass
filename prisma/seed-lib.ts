@@ -4,6 +4,10 @@ import { GenerationKind, type PrismaClient } from "@prisma/client";
 
 import { hashPassword, passwordProblem } from "../src/lib/password";
 import { KENYA_LOCATION_ROWS } from "./data/kenya-western";
+import { REFERENCE_CLAN_ROWS } from "./data/reference-clans";
+
+const normalizeClan = (s: string) =>
+  s.trim().toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").replace(/[^a-z0-9 '-]/g, "");
 
 /** Best-effort public origin. `docker exec` shells (Coolify terminal) don't
  *  inherit the compose `environment:` block, so also read PID 1's env. */
@@ -91,6 +95,28 @@ export async function seedKenyaLocations(db: PrismaClient): Promise<void> {
   const data = rows.filter((r) => (seen.has(r.path) ? false : (seen.add(r.path), true)));
   await db.kenyaLocation.createMany({ data, skipDuplicates: true });
   console.log(`Seed: KenyaLocation loaded ${data.length} Western/Nyanza units.`);
+}
+
+export async function seedReferenceClans(db: PrismaClient): Promise<void> {
+  const existing = await db.referenceClan.count();
+  if (existing > 0) {
+    console.log(`Seed: ReferenceClan already has ${existing} rows.`);
+    return;
+  }
+  await db.referenceClan.createMany({
+    data: REFERENCE_CLAN_ROWS.map((e) => ({
+      community: e.community,
+      name: e.name,
+      normalized: normalizeClan(e.name),
+      aka: e.aka ?? null,
+      totem: e.totem ?? null,
+      region: e.region ?? null,
+      notes: e.notes ?? null,
+      source: "reference-starter",
+    })),
+    skipDuplicates: true,
+  });
+  console.log(`Seed: ReferenceClan loaded ${REFERENCE_CLAN_ROWS.length} entries.`);
 }
 
 /** Bootstrap a platform super-admin and print a one-time sign-in link. */

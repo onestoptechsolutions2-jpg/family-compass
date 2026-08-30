@@ -18,19 +18,26 @@ export default async function ClansPage({
   const editable = canEdit(ctx.role);
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
 
-  const clans = await db.clan.findMany({
-    where: { treeId },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      aka: true,
-      community: true,
-      totem: true,
-      origin: true,
-      _count: { select: { people: true } },
-    },
-  });
+  const [clans, refClans] = await Promise.all([
+    db.clan.findMany({
+      where: { treeId },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        aka: true,
+        community: true,
+        totem: true,
+        origin: true,
+        _count: { select: { people: true } },
+      },
+    }),
+    db.referenceClan.findMany({
+      orderBy: [{ community: "asc" }, { name: "asc" }],
+      select: { name: true, community: true },
+    }),
+  ]);
+  const communities = [...new Set(refClans.map((r) => r.community))];
 
   return (
     <div className="flex flex-col gap-5">
@@ -79,16 +86,34 @@ export default async function ClansPage({
           <h2 className="font-medium sm:col-span-2">Add a clan</h2>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Name</span>
-            <input name="name" required className={field} style={style} />
+            <input name="name" required list="ref-clans" className={field} style={style} />
           </label>
+          <datalist id="ref-clans">
+            {refClans.map((r) => (
+              <option key={`${r.community}-${r.name}`} value={r.name}>
+                {r.community}
+              </option>
+            ))}
+          </datalist>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Also known as</span>
             <input name="aka" className={field} style={style} />
           </label>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Community</span>
-            <input name="community" placeholder="e.g. Luhya, Kikuyu, Luo" className={field} style={style} />
+            <input
+              name="community"
+              list="ref-communities"
+              placeholder="e.g. Luhya, Kikuyu, Luo"
+              className={field}
+              style={style}
+            />
           </label>
+          <datalist id="ref-communities">
+            {communities.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Totem</span>
             <input name="totem" className={field} style={style} />

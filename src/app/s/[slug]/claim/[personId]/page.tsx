@@ -105,7 +105,12 @@ export default async function ClaimPage({
           </button>
           <p className="text-xs" style={{ color: "var(--muted)" }}>
             Next you&apos;ll send a one-tap WhatsApp message so the admin can confirm it&apos;s
-            really you. Nothing is created until they approve.
+            really you. Nothing is created until they approve. Your name and number are used
+            only for this — see the{" "}
+            <a href="/policies/privacy" target="_blank" className="underline">
+              Privacy Policy
+            </a>
+            .
           </p>
         </form>
       )}

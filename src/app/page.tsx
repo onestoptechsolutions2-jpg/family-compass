@@ -4,20 +4,20 @@ import { getSessionUser } from "@/lib/rbac";
 
 const FEATURES = [
   {
-    title: "Build the tree together",
-    body: "Add people, families, events, places, sources and photos. Invite relatives with viewer, contributor or editor roles.",
+    title: "Build the family record together",
+    body: "People, families, events, places, clans and photos — added by the relatives who know. Invite with viewer, contributor or editor roles.",
   },
   {
-    title: "Explore visually",
-    body: "Pan-and-zoom ancestor, descendant and hourglass views. Re-root on anyone with a click. Fan charts too.",
+    title: "Clans & communities",
+    body: "Record clan and sub-clan alongside each person. Browse a community-curated reference for Luhya, Luo, Kikuyu, Kamba and Kalenjin, starting with Western Kenya.",
   },
   {
-    title: "Import what you have",
-    body: "Bring in your existing Gramps (.gramps) database or any GEDCOM file. Nothing to retype.",
+    title: "Are we related?",
+    body: "Check two people for a shared bloodline or clan before a relationship or marriage. Deep search extends the check across other families that opted in.",
   },
   {
-    title: "Share from any person",
-    body: "Publish a read-only tree centered on a chosen relative. Living people are automatically redacted.",
+    title: "Consent-first",
+    body: "You own what you add. Sharing and the research directory are off until you switch them on. Living people are redacted. Export or delete any time.",
   },
 ];
 
@@ -53,15 +53,18 @@ export default async function LandingPage() {
       </header>
 
       <section className="flex flex-1 flex-col justify-center py-16">
-        <h1 className="max-w-2xl font-serif text-4xl leading-tight sm:text-5xl">
-          Your family history, alive and shared.
+        <p className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--color-brand-600)" }}>
+          A community genealogy &amp; research project
+        </p>
+        <h1 className="mt-2 max-w-2xl font-serif text-4xl leading-tight sm:text-5xl">
+          Kenyan family history, recorded by the families themselves.
         </h1>
         <p className="mt-5 max-w-xl text-lg" style={{ color: "var(--muted)" }}>
-          A collaborative home for your family tree. Build it with relatives, explore it
-          visually, and generate print-ready pedigree, fan and descendant charts when you need
-          them.
+          Build your tree with relatives, record clans and communities, check bloodlines before
+          a marriage, and — only if you choose — help build an open picture of how families
+          connect. Starting in Western Kenya.
         </p>
-        <div className="mt-8 flex gap-3">
+        <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href={user ? "/app" : "/login"}
             className="rounded-lg bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700"
@@ -69,11 +72,18 @@ export default async function LandingPage() {
             {user ? "Go to your trees" : "Start free"}
           </Link>
           <Link
+            href="/about"
+            className="rounded-lg border px-5 py-3 font-medium"
+            style={{ borderColor: "var(--border)" }}
+          >
+            About the project
+          </Link>
+          <Link
             href="/pricing"
             className="rounded-lg border px-5 py-3 font-medium"
             style={{ borderColor: "var(--border)" }}
           >
-            See chart pricing
+            Pricing
           </Link>
         </div>
       </section>
@@ -94,7 +104,10 @@ export default async function LandingPage() {
       </section>
 
       <footer className="border-t pt-6 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-        Family Compass — building tools free · print-ready charts KES 750 each.
+        Building &amp; sharing free · print charts, deep search &amp; commissioned research paid ·{" "}
+        <Link href="/policies" className="hover:underline">
+          Policies
+        </Link>
       </footer>
     </main>
   );
