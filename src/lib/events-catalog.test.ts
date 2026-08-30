@@ -16,6 +16,11 @@ describe("events catalogue", () => {
       "memorial.contribution_received",
       "memorial.tribute_left",
       "anniversary.upcoming",
+      "chama.created",
+      "chama.fund_opened",
+      "chama.contribution_pledged",
+      "chama.contribution_confirmed",
+      "chama.fund_closed",
     ] as const) {
       expect(isEventName(name)).toBe(true);
     }

@@ -162,6 +162,30 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
         select: { id: true, kind: true, name: true, hidden: true, createdAt: true },
       },
       _count: { select: { flowers: { where: { hidden: false } } } },
+      chamaFund: {
+        select: {
+          id: true,
+          label: true,
+          publicToken: true,
+          targetKes: true,
+          status: true,
+          contributions: {
+            orderBy: { createdAt: "desc" },
+            take: 100,
+            select: {
+              id: true,
+              contributorName: true,
+              amountKes: true,
+              method: true,
+              status: true,
+              mpesaCode: true,
+              note: true,
+              createdAt: true,
+              confirmedAt: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -225,6 +249,18 @@ export async function getPublicMemorial(slug: string) {
         select: { id: true, kind: true, name: true, createdAt: true },
       },
       _count: { select: { flowers: { where: { hidden: false } } } },
+      chamaFund: {
+        select: {
+          publicToken: true,
+          label: true,
+          targetKes: true,
+          status: true,
+          contributions: {
+            where: { status: "CONFIRMED" },
+            select: { amountKes: true },
+          },
+        },
+      },
     },
   });
   if (!m) return null;
@@ -273,6 +309,17 @@ export async function getPublicMemorial(slug: string) {
   const birth = events.find((e) => e.type === "Birth");
   const death = events.find((e) => e.type === "Death");
 
+  const welfareFund =
+    m.chamaFund && (m.chamaFund.status === "OPEN" || m.chamaFund.contributions.length > 0)
+      ? {
+          token: m.chamaFund.publicToken,
+          label: m.chamaFund.label,
+          targetKes: m.chamaFund.targetKes,
+          open: m.chamaFund.status === "OPEN",
+          raisedKes: m.chamaFund.contributions.reduce((s, c) => s + c.amountKes, 0),
+        }
+      : null;
+
   return {
     ...m,
     name: displayName(m.person.names),
@@ -280,6 +327,7 @@ export async function getPublicMemorial(slug: string) {
     bornPlace: birth?.place?.title ?? "",
     died: m.diedText || (death ? formatDate(death) : ""),
     diedPlace: death?.place?.title ?? "",
+    welfareFund,
     survivors: [...new Set(survivors)],
     preceded: [...new Set(preceded)],
     photos: m.person.mediaRefs

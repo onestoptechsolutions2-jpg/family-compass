@@ -399,6 +399,29 @@ export default async function MemorialPage({
           </section>
         )}
 
+        {m.welfareFund && (
+          <section className="p-4 text-sm" style={cardStyle}>
+            <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Family welfare fund</h2>
+            <p className="mt-1">
+              <strong>KES {m.welfareFund.raisedKes.toLocaleString("en-KE")}</strong>
+              {m.welfareFund.targetKes ? ` raised of KES ${m.welfareFund.targetKes.toLocaleString("en-KE")}` : " raised so far"}
+              {" — "}
+              {m.welfareFund.open
+                ? "the family is collecting toward funeral costs."
+                : "this fund is now closed. Thank you."}
+            </p>
+            {m.welfareFund.open && (
+              <Link
+                href={`/give/${m.welfareFund.token}`}
+                className="mt-2 inline-block rounded-full px-4 py-1.5 text-sm font-medium text-white"
+                style={{ background: theme.accent }}
+              >
+                Contribute to the fund →
+              </Link>
+            )}
+          </section>
+        )}
+
         {/* Tributes — flowers + messages, one feed */}
         <section id="tributes">
           <div className="flex items-baseline justify-between">

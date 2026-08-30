@@ -154,6 +154,19 @@ function verify(rawBody, headerSig, secret) {
         react the moment a life event is entered.
       </p>
 
+      <H id="chama">Chama / welfare funds</H>
+      <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+        A <strong>chama</strong> is a family welfare / savings group. Each tree gets one welfare
+        chama on demand; a memorial can open a <em>fund</em> (a collection drive) that is shared as a
+        public link — <code>{`${await publicOrigin()}/give/{token}`}</code>. Supporters record what
+        they send by M-Pesa (to the workspace Till / Paybill configured in Settings → Payments) and
+        the family treasurer confirms each entry against the statement. No aggregator is involved;
+        collection reuses the same <code>PaymentProvider</code> interface as paid exports (manual
+        M-Pesa now, Daraja STK when <code>MPESA_*</code> is configured). Loans, fines and
+        merry-go-round rotations from the standalone chama platform are not part of this integration.
+        React to activity via the <code>chama.*</code> webhook events above.
+      </p>
+
       <H id="notes">Notes</H>
       <ul className="mt-2 ml-5 list-disc space-y-1 text-sm" style={{ color: "var(--muted)" }}>
         <li>Living-person and private-record redaction applies to API reads exactly as it does in shared views. A person set to <em>Limited</em> visibility appears by name only; <em>Hidden</em> people are omitted entirely.</li>

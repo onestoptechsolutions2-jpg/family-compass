@@ -39,7 +39,13 @@ import {
   reviewContribution,
   setMemorialStatus,
   setMemorialTemplate,
+  openMemorialFund,
+  confirmFundContribution,
+  voidFundContribution,
+  setMemorialFundOpen,
 } from "./actions";
+
+const KES = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
@@ -905,6 +911,126 @@ export default async function MemorialEditorPage({
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      {/* ---- Welfare fund (chama) ---- */}
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">Welfare fund</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          A family <em>chama</em> kitty for funeral costs. Share one link; supporters record what
+          they send by M-Pesa and the treasurer confirms each against the statement.
+        </p>
+
+        {!memorial.chamaFund ? (
+          <form action={openMemorialFund.bind(null, treeId, memorial.id)} className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Target (optional)</span>
+              <input
+                name="targetKes"
+                inputMode="numeric"
+                placeholder="e.g. 200000"
+                className="mt-1 w-40 rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+              />
+            </label>
+            <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+              Open a welfare fund
+            </button>
+          </form>
+        ) : (
+          (() => {
+            const fund = memorial.chamaFund;
+            const url = `${origin}/give/${fund.publicToken}`;
+            const live = fund.contributions.filter((c) => c.status !== "VOID");
+            const confirmed = live.filter((c) => c.status === "CONFIRMED");
+            const pending = live.filter((c) => c.status === "PLEDGED");
+            const raised = confirmed.reduce((s, c) => s + c.amountKes, 0);
+            const pledged = pending.reduce((s, c) => s + c.amountKes, 0);
+            return (
+              <div className="mt-3 flex flex-col gap-3 text-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-lg font-semibold">{KES(raised)}</span>
+                  <span style={{ color: "var(--muted)" }}>
+                    confirmed{fund.targetKes ? ` of ${KES(fund.targetKes)}` : ""} · {pending.length} pending ({KES(pledged)})
+                  </span>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                    style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+                  >
+                    {fund.status === "OPEN" ? "open" : "closed"}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-xs">{url}</code>
+                  <CopyButton value={url} label="Copy link" />
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Please support the family welfare fund: ${url}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+                    style={{ background: "#25D366" }}
+                  >
+                    WhatsApp
+                  </a>
+                  <QrShare value={url} title="Welfare fund QR" label="QR" caption="Scan to contribute" buttonClass="rounded-md border px-2 py-1 text-xs" />
+                  <form action={setMemorialFundOpen.bind(null, treeId, memorial.id, fund.id, fund.status !== "OPEN")}>
+                    <button className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)" }}>
+                      {fund.status === "OPEN" ? "close fund" : "reopen"}
+                    </button>
+                  </form>
+                </div>
+
+                {pending.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+                      Awaiting confirmation
+                    </p>
+                    <ul className="mt-1 flex flex-col gap-1">
+                      {pending.map((c) => (
+                        <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2" style={{ borderColor: "var(--border)" }}>
+                          <span className="font-medium">{c.contributorName}</span>
+                          <span>{KES(c.amountKes)}</span>
+                          {c.mpesaCode && <span style={{ color: "var(--muted)" }}>· {c.mpesaCode}</span>}
+                          {c.note && <span style={{ color: "var(--muted)" }}>· {c.note}</span>}
+                          <form action={confirmFundContribution.bind(null, treeId, memorial.id, c.id)} className="ml-auto flex items-center gap-1">
+                            <input name="mpesaCode" placeholder="M-Pesa code" className="w-28 rounded border px-2 py-1 text-xs" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                            <button className="rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white">confirm</button>
+                          </form>
+                          <form action={voidFundContribution.bind(null, treeId, memorial.id, c.id)}>
+                            <button className="text-xs" style={{ color: "var(--danger)" }}>void</button>
+                          </form>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {confirmed.length > 0 && (
+                  <details>
+                    <summary className="cursor-pointer text-xs" style={{ color: "var(--muted)" }}>
+                      {confirmed.length} confirmed contribution{confirmed.length === 1 ? "" : "s"}
+                    </summary>
+                    <ul className="mt-1 flex flex-col gap-1">
+                      {confirmed.map((c) => (
+                        <li key={c.id} className="flex items-center gap-2">
+                          <span className="font-medium">{c.contributorName}</span>
+                          <span>{KES(c.amountKes)}</span>
+                          <span className="text-xs" style={{ color: "var(--muted)" }}>
+                            {(c.confirmedAt ?? c.createdAt).toISOString().slice(0, 10)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            );
+          })()
         )}
       </section>
 

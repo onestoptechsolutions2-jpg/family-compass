@@ -18,6 +18,13 @@ import { emitEvent } from "@/lib/webhooks";
 import { notifyTreeManagers } from "@/lib/notify";
 import { MERGE_TARGET } from "@/lib/memorial-sections";
 import { isTemplateId } from "@/lib/memorial-templates";
+import {
+  ensureMemorialFund,
+  confirmContribution as confirmChamaContribution,
+  voidContribution as voidChamaContribution,
+  closeFund as closeChamaFund,
+  reopenFund as reopenChamaFund,
+} from "@/lib/chama";
 import { MemorialStatus, ContributionStatus } from "@prisma/client";
 
 const revalidate = (treeId: string, personId: string) => {
@@ -662,5 +669,59 @@ export async function setMemorialStatus(
       { exceptUserId: ctx.user.id },
     );
   }
+  revalidate(treeId, m.personId);
+}
+
+// ---- Welfare fund (chama) ------------------------------------------------
+
+/** Open the funeral welfare fund for this memorial (idempotent). */
+export async function openMemorialFund(treeId: string, memorialId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const full = await db.memorial.findUniqueOrThrow({
+    where: { id: memorialId },
+    select: { headline: true, tree: { select: { workspaceId: true } }, person: { select: { names: true } } },
+  });
+  const target = Number(String(formData.get("targetKes") ?? "").replace(/[^\d]/g, "")) || null;
+  const who = full.headline || displayName(full.person.names);
+  await ensureMemorialFund(treeId, memorialId, {
+    workspaceId: full.tree.workspaceId,
+    label: `Welfare fund — ${who}`,
+    targetKes: target,
+    createdById: ctx.user.id,
+  });
+  revalidate(treeId, m.personId);
+}
+
+export async function confirmFundContribution(
+  treeId: string,
+  memorialId: string,
+  contributionId: string,
+  formData: FormData,
+) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const code = String(formData.get("mpesaCode") ?? "").trim() || null;
+  await confirmChamaContribution(treeId, contributionId, ctx.user.id, code);
+  revalidate(treeId, m.personId);
+}
+
+export async function voidFundContribution(treeId: string, memorialId: string, contributionId: string) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  await voidChamaContribution(treeId, contributionId);
+  revalidate(treeId, m.personId);
+}
+
+export async function setMemorialFundOpen(
+  treeId: string,
+  memorialId: string,
+  fundId: string,
+  open: boolean,
+) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  if (open) await reopenChamaFund(treeId, fundId);
+  else await closeChamaFund(treeId, fundId);
   revalidate(treeId, m.personId);
 }

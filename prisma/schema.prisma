@@ -69,6 +69,8 @@ model User {
   notifications        Notification[]
   apiKeysCreated       ApiKey[]               @relation("ApiKeyCreator")
   webhooksCreated      WebhookEndpoint[]      @relation("WebhookCreator")
+  chamasCreated        Chama[]                @relation("ChamaCreator")
+  chamaConfirmations   ChamaContribution[]    @relation("ChamaContribConfirmer")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -162,6 +164,7 @@ model Memorial {
   program       FuneralProgram?
   contributors  MemorialContributor[]
   contributions MemorialContribution[]
+  chamaFund     ChamaFund?             @relation("MemorialChamaFund")
 
   @@index([treeId])
 }
@@ -379,6 +382,7 @@ model Workspace {
   creditLedger   CreditLedger[]
   apiKeys        ApiKey[]
   webhooks       WebhookEndpoint[]
+  chamas         Chama[]
 
   @@index([slug])
 }
@@ -455,6 +459,7 @@ model Tree {
   clans          Clan[]
   memorials      Memorial[]
   anniversaryReminderLog AnniversaryReminder[]
+  chamas         Chama[]
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -569,6 +574,7 @@ model Person {
   claims                  PersonClaim[]
   claimInvites            ClaimInvite[]
   memorial                Memorial?
+  chamaMemberships        ChamaMember[]   @relation("PersonChamaMemberships")
 
   tags Tag[] @relation("PersonTags")
 
@@ -1209,6 +1215,7 @@ enum PaymentKind {
   KEEPER
   DEEP_SEARCH
   RESEARCH_PARTNER
+  CHAMA_CONTRIBUTION
 }
 
 model Payment {
@@ -1247,6 +1254,7 @@ model Payment {
   ledgerEntries CreditLedger[]
   deepSearch    DeepSearch?         @relation("DeepSearchPayment")
   engagement    ResearchEngagement? @relation("EngagementPayment")
+  chamaContribution ChamaContribution? @relation("PaymentChamaContribution")
 
   @@index([workspaceId])
   @@index([treeId])
@@ -1341,6 +1349,142 @@ model PaymentSettings {
 model GenerationPricing {
   kind    GenerationKind @id
   baseKes Int            @default(750)
+}
+
+// ===========================================================================
+// Chama — family welfare / savings group (integration of the standalone
+// "chama" platform, trimmed to what a family tree needs). Payments reuse the
+// existing PaymentProvider (manual M-Pesa Till + Daraja STK) — no aggregator.
+// ===========================================================================
+
+enum ChamaPurpose {
+  WELFARE
+  SAVINGS
+  MERRY_GO_ROUND
+  TABLE_BANKING
+}
+
+enum ChamaRole {
+  ADMIN
+  TREASURER
+  MEMBER
+}
+
+enum ChamaFundStatus {
+  OPEN
+  CLOSED
+}
+
+enum ChamaContribMethod {
+  MPESA_STK
+  MPESA_MANUAL
+  CASH
+  OTHER
+}
+
+enum ChamaContribStatus {
+  PLEDGED
+  CONFIRMED
+  VOID
+}
+
+/// A family group that collects money — most often a welfare kitty for
+/// funerals, but also rotating savings (merry-go-round) or table banking.
+model Chama {
+  id             String       @id @default(cuid())
+  treeId         String
+  workspaceId    String
+  name           String
+  purpose        ChamaPurpose  @default(WELFARE)
+  defaultAmountKes Int?
+  currency       String       @default("KES")
+  active         Boolean      @default(true)
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tree      Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("ChamaCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  members       ChamaMember[]
+  funds         ChamaFund[]
+  contributions ChamaContribution[]
+
+  @@index([treeId])
+  @@index([workspaceId])
+}
+
+model ChamaMember {
+  id        String    @id @default(cuid())
+  chamaId   String
+  personId  String?
+  name      String
+  phone     String?
+  role      ChamaRole @default(MEMBER)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  chama  Chama   @relation(fields: [chamaId], references: [id], onDelete: Cascade)
+  person Person? @relation("PersonChamaMemberships", fields: [personId], references: [id], onDelete: SetNull)
+
+  contributions ChamaContribution[]
+
+  @@unique([chamaId, personId])
+  @@index([chamaId])
+}
+
+/// One collection drive within a chama (a monthly round, or a specific
+/// funeral). `memorialId` ties a welfare fund to a memorial page.
+model ChamaFund {
+  id          String          @id @default(cuid())
+  chamaId     String
+  label       String
+  purposeNote String?         @db.Text
+  targetKes   Int?
+  memorialId  String?         @unique
+  publicToken String          @unique
+  status      ChamaFundStatus @default(OPEN)
+  opensAt     DateTime        @default(now())
+  closesAt    DateTime?
+  createdById String?
+  createdAt   DateTime        @default(now())
+
+  chama    Chama     @relation(fields: [chamaId], references: [id], onDelete: Cascade)
+  memorial Memorial? @relation("MemorialChamaFund", fields: [memorialId], references: [id], onDelete: SetNull)
+
+  contributions ChamaContribution[]
+
+  @@index([chamaId, status])
+}
+
+model ChamaContribution {
+  id              String             @id @default(cuid())
+  fundId          String
+  chamaId         String
+  memberId        String?
+  contributorName String
+  phone           String?
+  amountKes       Int
+  method          ChamaContribMethod @default(MPESA_MANUAL)
+  status          ChamaContribStatus @default(PLEDGED)
+  paymentId       String?            @unique
+  mpesaCode       String?
+  note            String?            @db.Text
+  ip              String?
+  createdAt       DateTime           @default(now())
+  confirmedAt     DateTime?
+  confirmedById   String?
+
+  fund        ChamaFund    @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  chama       Chama        @relation(fields: [chamaId], references: [id], onDelete: Cascade)
+  member      ChamaMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  payment     Payment?     @relation("PaymentChamaContribution", fields: [paymentId], references: [id], onDelete: SetNull)
+  confirmedBy User?        @relation("ChamaContribConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([fundId, status])
+  @@index([chamaId, createdAt])
+  @@index([mpesaCode])
 }
 
 /// Reference administrative units for place autocomplete. Seeded starting with
