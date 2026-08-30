@@ -11,6 +11,15 @@ export const BUNDLES: Record<
   BUNDLE_15: { credits: 15, priceKes: 6000, label: "15 exports", blurb: "KES 400 each" },
 };
 
+/** Annual per-tree subscription — unlimited downloads while active.
+ *  Price may be overridden by PaymentSettings.keeperPriceKes. */
+export const KEEPER_PLAN = {
+  defaultPriceKes: 3000,
+  months: 12,
+  label: "Family plan",
+  blurb: "Unlimited downloads for one year",
+};
+
 export const GENERATION_LABELS: Record<GenerationKind, string> = {
   PEDIGREE_PDF: "Pedigree / ancestor chart (PDF)",
   FAN_CHART: "Fan chart (PDF + PNG)",

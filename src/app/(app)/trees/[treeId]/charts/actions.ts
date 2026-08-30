@@ -10,7 +10,7 @@ import { spendCredit, grantCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activity";
 import { paymentReference } from "@/lib/slug";
 import { enqueue, QUEUE } from "@/lib/queue";
-import { BUNDLES, GENERATION_NEEDS_CENTRAL } from "@/lib/pricing";
+import { BUNDLES, KEEPER_PLAN, GENERATION_NEEDS_CENTRAL } from "@/lib/pricing";
 import { getPaymentSettings } from "@/lib/payments";
 
 const createSchema = z.object({
@@ -59,7 +59,11 @@ export async function unlockGeneration(treeId: string, jobId: string) {
   const ctx = await requireTreeEdit(treeId);
   const job = await db.generationJob.findFirst({
     where: { id: jobId, treeId },
-    select: { id: true, status: true, tree: { select: { freeExportUsedAt: true } } },
+    select: {
+      id: true,
+      status: true,
+      tree: { select: { freeExportUsedAt: true, keeperUntil: true } },
+    },
   });
   if (!job) throw new Error("Generation not found");
   if (job.status === "OUTPUT_READY" || job.status === "RENDERING_OUTPUT" || job.status === "PAID") {
@@ -67,6 +71,17 @@ export async function unlockGeneration(treeId: string, jobId: string) {
   }
   if (job.status !== "PREVIEW_READY" && job.status !== "AWAITING_PAYMENT") {
     throw new Error("Preview is not ready yet");
+  }
+
+  // 0) active Family plan -> unlimited downloads
+  if (job.tree.keeperUntil && job.tree.keeperUntil.getTime() > Date.now()) {
+    await db.generationJob.update({
+      where: { id: jobId },
+      data: { status: "PAID", unlockedAt: new Date() },
+    });
+    await enqueue(QUEUE.renderOutput, { generationJobId: jobId });
+    revalidatePath(`/trees/${treeId}/charts`);
+    return;
   }
 
   // 1) first export on this tree is free
@@ -118,11 +133,44 @@ export async function startCreditPurchase(treeId: string, formData: FormData) {
   await db.payment.create({
     data: {
       workspaceId: ctx.workspace.id,
+      treeId,
       userId: ctx.user.id,
       provider: settings.provider,
       kind,
       creditsGranted: bundle.credits,
       amountKes,
+      currency: settings.currency,
+      reference: paymentReference(),
+      status: PaymentStatus.PENDING,
+    },
+  });
+  revalidatePath(`/trees/${treeId}/charts`);
+}
+
+/** Start a one-year Family plan purchase for this tree. */
+export async function startKeeperPurchase(treeId: string) {
+  const ctx = await requireTreeManage(treeId);
+  const settings = await getPaymentSettings();
+
+  const open = await db.payment.findFirst({
+    where: {
+      treeId,
+      kind: PaymentKind.KEEPER,
+      status: { in: [PaymentStatus.PENDING, PaymentStatus.AWAITING_VERIFICATION] },
+    },
+    select: { id: true },
+  });
+  if (open) throw new Error("There's already a Family plan payment in progress");
+
+  await db.payment.create({
+    data: {
+      workspaceId: ctx.workspace.id,
+      treeId,
+      userId: ctx.user.id,
+      provider: settings.provider,
+      kind: PaymentKind.KEEPER,
+      creditsGranted: 0,
+      amountKes: settings.keeperPriceKes || KEEPER_PLAN.defaultPriceKes,
       currency: settings.currency,
       reference: paymentReference(),
       status: PaymentStatus.PENDING,

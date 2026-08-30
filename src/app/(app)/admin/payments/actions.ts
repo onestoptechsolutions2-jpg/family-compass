@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { CreditReason, PaymentStatus } from "@prisma/client";
+import { CreditReason, PaymentKind, PaymentStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { grantCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activity";
+import { KEEPER_PLAN } from "@/lib/pricing";
 
 export async function approvePayment(paymentId: string) {
   const admin = await requirePlatformAdmin();
@@ -16,9 +17,10 @@ export async function approvePayment(paymentId: string) {
     select: {
       id: true,
       status: true,
+      kind: true,
       workspaceId: true,
+      treeId: true,
       creditsGranted: true,
-      generationJobId: true,
       generationJob: { select: { treeId: true } },
     },
   });
@@ -32,22 +34,36 @@ export async function approvePayment(paymentId: string) {
     where: { id: paymentId },
     data: { status: PaymentStatus.PAID, verifiedById: admin.id, verifiedAt: new Date() },
   });
-  if (payment.creditsGranted > 0) {
+
+  const treeId = payment.treeId ?? payment.generationJob?.treeId ?? null;
+  let summary = "payment verified";
+
+  if (payment.kind === PaymentKind.KEEPER && treeId) {
+    const tree = await db.tree.findUnique({ where: { id: treeId }, select: { keeperUntil: true } });
+    const from =
+      tree?.keeperUntil && tree.keeperUntil.getTime() > Date.now() ? tree.keeperUntil : new Date();
+    const until = new Date(from);
+    until.setMonth(until.getMonth() + KEEPER_PLAN.months);
+    await db.tree.update({ where: { id: treeId }, data: { keeperUntil: until } });
+    summary = `Family plan verified — active until ${until.toISOString().slice(0, 10)}`;
+  } else if (payment.creditsGranted > 0) {
     await grantCredits(payment.workspaceId, payment.creditsGranted, {
       reason: CreditReason.PURCHASE,
       paymentId: payment.id,
       actorId: admin.id,
       note: "M-Pesa payment verified",
     });
+    summary = `payment verified — ${payment.creditsGranted} credits added`;
   }
-  if (payment.generationJob?.treeId) {
+
+  if (treeId) {
     await logActivity({
-      treeId: payment.generationJob.treeId,
+      treeId,
       actorId: admin.id,
       verb: "verified",
       objectType: "payment",
       objectId: payment.id,
-      summary: `payment verified — ${payment.creditsGranted} credits added`,
+      summary,
     });
   }
 

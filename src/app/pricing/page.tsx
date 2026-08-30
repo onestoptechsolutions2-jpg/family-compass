@@ -45,6 +45,25 @@ export default function PricingPage() {
             </li>
           ))}
         </ul>
+        <p className="mt-5 text-sm" style={{ color: "var(--muted)" }}>
+          Buying more than one? Bundles bring it down to <strong>KES 500</strong> (5) or{" "}
+          <strong>KES 400</strong> (15) per download.
+        </p>
+      </div>
+
+      <div
+        className="mt-4 rounded-2xl border p-6"
+        style={{ borderColor: "var(--color-brand-600)", background: "var(--card)" }}
+      >
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-semibold">KES 3,000</span>
+          <span style={{ color: "var(--muted)" }}>per family, per year</span>
+        </div>
+        <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+          <strong>Family plan</strong> — one payment covers a whole year of{" "}
+          <strong>unlimited</strong> chart and export downloads for that tree. Best if you&apos;ll
+          make more than four in a year (reunions, funerals, milestone birthdays).
+        </p>
       </div>
 
       <Link

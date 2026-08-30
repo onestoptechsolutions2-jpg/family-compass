@@ -173,6 +173,7 @@ model Tree {
   freeExportUsedAt DateTime?
   contactWhatsapp String?
   claimPinHash    String?
+  keeperUntil     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -193,6 +194,7 @@ model Tree {
   activityEvents  ActivityEvent[]
   importJobs      ImportJob[]
   personClaims    PersonClaim[]
+  payments        Payment[]      @relation("TreePayments")
 
   @@unique([workspaceId, slug])
 }
@@ -875,6 +877,7 @@ model Payment {
   id              String        @id @default(cuid())
   generationJobId String?       @unique
   workspaceId     String
+  treeId          String?
   userId          String
   provider        String        @default("manual_mpesa")
   kind            PaymentKind   @default(SINGLE)
@@ -894,11 +897,13 @@ model Payment {
 
   generationJob GenerationJob? @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tree          Tree?          @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
   user          User           @relation("PaymentUser", fields: [userId], references: [id])
   verifiedBy    User?          @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   ledgerEntries CreditLedger[]
 
   @@index([workspaceId])
+  @@index([treeId])
   @@index([userId])
   @@index([status])
   @@index([mpesaCode])
@@ -956,6 +961,7 @@ model PaymentSettings {
   provider         String           @default("manual_mpesa")
   currency         String           @default("KES")
   defaultPriceKes  Int              @default(750)
+  keeperPriceKes   Int              @default(3000)
   tillNumber       String?
   storeNumber      String?
   paybillNumber    String?

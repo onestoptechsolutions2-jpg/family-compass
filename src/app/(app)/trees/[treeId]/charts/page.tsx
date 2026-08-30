@@ -4,7 +4,12 @@ import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { getChartsData } from "@/lib/queries/charts";
 import { personOptions } from "@/lib/queries/people";
 import { formatName } from "@/lib/person";
-import { BUNDLES, GENERATION_LABELS, GENERATION_NEEDS_CENTRAL } from "@/lib/pricing";
+import {
+  BUNDLES,
+  KEEPER_PLAN,
+  GENERATION_LABELS,
+  GENERATION_NEEDS_CENTRAL,
+} from "@/lib/pricing";
 import { getPaymentSettings } from "@/lib/payments";
 import { getProvider } from "@/lib/payments";
 import { PersonSelect } from "@/components/PersonSelect";
@@ -13,6 +18,7 @@ import {
   createGeneration,
   unlockGeneration,
   startCreditPurchase,
+  startKeeperPurchase,
   submitMpesaCode,
   cancelPayment,
 } from "./actions";
@@ -40,11 +46,13 @@ export default async function ChartsPage({
   const editable = canEdit(ctx.role);
   const canBuy = canManageTree(ctx.role);
 
-  const [{ credits, jobs, payments }, options, settings] = await Promise.all([
-    getChartsData(treeId, ctx.workspace.id),
-    personOptions(treeId),
-    getPaymentSettings(),
-  ]);
+  const [{ credits, keeperUntil, keeperActive, jobs, payments }, options, settings] =
+    await Promise.all([
+      getChartsData(treeId, ctx.workspace.id),
+      personOptions(treeId),
+      getPaymentSettings(),
+    ]);
+  const keeperPrice = settings.keeperPriceKes || KEEPER_PLAN.defaultPriceKes;
 
   const pending = payments.find((p) => p.status === "PENDING" || p.status === "AWAITING_VERIFICATION");
   const checkout = pending
@@ -57,22 +65,55 @@ export default async function ChartsPage({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* credits banner */}
+      {/* plan / credits banner */}
       <div
         className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
-        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        style={{
+          borderColor: keeperActive ? "var(--color-brand-600)" : "var(--border)",
+          background: "var(--card)",
+        }}
       >
         <div>
-          <div className="text-sm" style={{ color: "var(--muted)" }}>
-            Export credits
-          </div>
-          <div className="text-2xl font-semibold">{credits}</div>
-          <div className="text-xs" style={{ color: "var(--muted)" }}>
-            Your first export on this tree is free. After that, 1 credit per download.
-          </div>
+          {keeperActive ? (
+            <>
+              <div className="text-sm" style={{ color: "var(--muted)" }}>
+                Family plan
+              </div>
+              <div className="text-lg font-semibold text-brand-700">
+                Active — unlimited downloads
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>
+                Renews / expires {keeperUntil?.toISOString().slice(0, 10)}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-sm" style={{ color: "var(--muted)" }}>
+                Export credits
+              </div>
+              <div className="text-2xl font-semibold">{credits}</div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>
+                First export on this tree is free, then 1 credit per download — or go unlimited
+                with the Family plan.
+              </div>
+            </>
+          )}
         </div>
         {canBuy && (
           <div className="flex flex-wrap gap-2">
+            <form action={startKeeperPurchase.bind(null, treeId)}>
+              <button
+                className="rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--color-brand-600)" }}
+              >
+                <div className="font-medium">
+                  {keeperActive ? "Extend Family plan" : "Family plan"}
+                </div>
+                <div style={{ color: "var(--muted)" }}>
+                  {settings.currency} {keeperPrice.toLocaleString()} / year · unlimited downloads
+                </div>
+              </button>
+            </form>
             {(Object.keys(BUNDLES) as (keyof typeof BUNDLES)[]).map((k) => (
               <form key={k} action={startCreditPurchase.bind(null, treeId)}>
                 <input type="hidden" name="kind" value={k} />
@@ -101,7 +142,9 @@ export default async function ChartsPage({
         >
           <h3 className="font-medium">
             Complete your payment — {settings.currency} {pending.amountKes.toLocaleString()} for{" "}
-            {pending.creditsGranted} credit{pending.creditsGranted === 1 ? "" : "s"}
+            {pending.kind === "KEEPER"
+              ? "the Family plan (1 year)"
+              : `${pending.creditsGranted} credit${pending.creditsGranted === 1 ? "" : "s"}`}
           </h3>
           {checkout.mode === "manual" && (
             <>
@@ -281,7 +324,11 @@ export default async function ChartsPage({
                     {j.status === "PREVIEW_READY" && editable && (
                       <form action={unlockGeneration.bind(null, treeId, j.id)}>
                         <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
-                          {credits > 0 ? "Unlock download (1 credit)" : "Unlock download"}
+                          {keeperActive
+                            ? "Get clean download (Family plan)"
+                            : credits > 0
+                              ? "Unlock download (1 credit)"
+                              : "Unlock download"}
                         </button>
                       </form>
                     )}
@@ -327,7 +374,8 @@ export default async function ChartsPage({
               <li key={p.id} className="flex flex-wrap items-center gap-2">
                 <span className="font-mono">{p.reference}</span>
                 <span style={{ color: "var(--muted)" }}>
-                  · {p.currency} {p.amountKes.toLocaleString()} · {p.creditsGranted} credits ·{" "}
+                  · {p.currency} {p.amountKes.toLocaleString()} ·{" "}
+                  {p.kind === "KEEPER" ? "Family plan" : `${p.creditsGranted} credits`} ·{" "}
                   {p.status.toLowerCase().replace(/_/g, " ")}
                 </span>
                 {p.status === "REJECTED" && p.rejectionReason && (

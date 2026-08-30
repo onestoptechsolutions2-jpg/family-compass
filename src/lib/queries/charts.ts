@@ -1,11 +1,12 @@
 import { db } from "@/lib/db";
 
 export async function getChartsData(treeId: string, workspaceId: string) {
-  const [workspace, jobs, payments] = await Promise.all([
+  const [workspace, tree, jobs, payments] = await Promise.all([
     db.workspace.findUniqueOrThrow({
       where: { id: workspaceId },
       select: { exportCredits: true },
     }),
+    db.tree.findUniqueOrThrow({ where: { id: treeId }, select: { keeperUntil: true } }),
     db.generationJob.findMany({
       where: { treeId },
       orderBy: { createdAt: "desc" },
@@ -58,5 +59,7 @@ export async function getChartsData(treeId: string, workspaceId: string) {
     }),
   ]);
 
-  return { credits: workspace.exportCredits, jobs, payments };
+  const keeperUntil = tree.keeperUntil;
+  const keeperActive = Boolean(keeperUntil && keeperUntil.getTime() > Date.now());
+  return { credits: workspace.exportCredits, keeperUntil, keeperActive, jobs, payments };
 }

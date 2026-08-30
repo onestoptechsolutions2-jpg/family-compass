@@ -4,6 +4,7 @@ export type PaymentSettings = {
   provider: string;
   currency: string;
   defaultPriceKes: number;
+  keeperPriceKes: number;
   tillNumber: string | null;
   storeNumber: string | null;
   paybillNumber: string | null;
@@ -17,6 +18,7 @@ const DEFAULTS: PaymentSettings = {
   provider: "manual_mpesa",
   currency: "KES",
   defaultPriceKes: 750,
+  keeperPriceKes: 3000,
   tillNumber: null,
   storeNumber: null,
   paybillNumber: null,
@@ -34,6 +36,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     provider: row.provider,
     currency: row.currency,
     defaultPriceKes: row.defaultPriceKes,
+    keeperPriceKes: row.keeperPriceKes,
     tillNumber: row.tillNumber,
     storeNumber: row.storeNumber,
     paybillNumber: row.paybillNumber,

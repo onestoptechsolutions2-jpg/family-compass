@@ -69,6 +69,16 @@ export default async function AdminSettingsPage() {
               style={style}
             />
           </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Family plan price / year</span>
+            <input
+              type="number"
+              name="keeperPriceKes"
+              defaultValue={s.keeperPriceKes}
+              className={field}
+              style={style}
+            />
+          </label>
           <label className="text-sm col-span-2">
             <span style={{ color: "var(--muted)" }}>Business name</span>
             <input name="businessName" defaultValue={s.businessName ?? ""} className={field} style={style} />

@@ -117,7 +117,15 @@ optional** — only used if you also want the older email-invite flow.
 
 ### Monetization model (phase 6)
 
-Free to build, invite, and publish shared links. Downloads cost credits:
+Free to build, invite, and publish shared links. Two ways to pay for downloads:
+
+- **Pay-as-you-go credits** — first export per tree free, then 1 credit each
+  (`SINGLE` KES 750 · `BUNDLE_5` KES 2,500 · `BUNDLE_15` KES 6,000).
+- **Family plan** — KES 3,000 / tree / year (`PaymentKind.KEEPER`) for
+  **unlimited** downloads while `Tree.keeperUntil` is in the future. Approving
+  the M-Pesa payment extends it by 12 months. Price editable in `/admin/settings`.
+
+Credits detail:
 first export per tree is **free**, then **1 credit per download**. Credits are
 bought in bundles (`SINGLE` KES 750 · `BUNDLE_5` KES 2,500 · `BUNDLE_15`
 KES 6,000, all editable). Flow: generate a **watermarked preview** free →
