@@ -1,8 +1,26 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { setMyPassword, removeMyPassword, toggleResearchConsent } from "./actions";
+import { sessionCookieName } from "@/lib/session";
+import {
+  setMyPassword,
+  removeMyPassword,
+  toggleResearchConsent,
+  revokeSession,
+  revokeOtherSessions,
+} from "./actions";
+
+function ago(d: Date | null): string {
+  if (!d) return "—";
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  if (s < 2592000) return `${Math.floor(s / 86400)} d ago`;
+  return d.toISOString().slice(0, 10);
+}
 
 export const metadata = { title: "Account" };
 
@@ -29,6 +47,20 @@ export default async function AccountPage({
   const hasPassword = Boolean(user.passwordHash);
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
 
+  const currentToken = (await cookies()).get(sessionCookieName())?.value ?? null;
+  const sessions = await db.session.findMany({
+    where: { userId: me.id, expires: { gt: new Date() } },
+    orderBy: [{ lastSeenAt: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      sessionToken: true,
+      device: true,
+      ip: true,
+      createdAt: true,
+      lastSeenAt: true,
+    },
+  });
+
   return (
     <div className="flex max-w-md flex-col gap-6">
       <div>
@@ -42,7 +74,13 @@ export default async function AccountPage({
 
       {ok && (
         <p className="rounded-lg border p-3 text-sm text-green-700" style={{ borderColor: "var(--border)" }}>
-          {ok === "removed" ? "Password removed." : ok === "research" ? "Research choice saved." : "Password saved."}
+          {ok === "removed"
+          ? "Password removed."
+          : ok === "research"
+            ? "Research choice saved."
+            : ok === "device"
+              ? "Device signed out."
+              : "Password saved."}
         </p>
       )}
       {error && (
@@ -110,6 +148,62 @@ export default async function AccountPage({
             {user.researchConsent ? "Currently ON — turn off" : "Currently OFF — turn on"}
           </button>
         </form>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-medium">Devices &amp; sign-ins</h2>
+          {sessions.length > 1 && (
+            <form action={revokeOtherSessions}>
+              <button className="text-xs text-red-600 hover:underline">Sign out all others</button>
+            </form>
+          )}
+        </div>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          Where your account is currently signed in. If you don&apos;t recognise a device, sign it
+          out and change your password.
+        </p>
+        <ul className="mt-3 flex flex-col gap-2 text-sm">
+          {sessions.map((s) => {
+            const isCurrent = s.sessionToken === currentToken;
+            return (
+              <li
+                key={s.id}
+                className="flex items-center justify-between gap-3 rounded-lg border p-2.5"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <div>
+                  <div className="font-medium">
+                    {s.device ?? "Unknown device"}
+                    {isCurrent && (
+                      <span
+                        className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+                      >
+                        this device
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>
+                    {s.ip ? `${s.ip} · ` : ""}active {ago(s.lastSeenAt)} · since{" "}
+                    {s.createdAt.toISOString().slice(0, 10)}
+                  </div>
+                </div>
+                <form action={revokeSession.bind(null, s.id)}>
+                  <button
+                    className="rounded-md border px-2.5 py-1 text-xs"
+                    style={{ borderColor: "var(--border)", color: "var(--danger)" }}
+                  >
+                    {isCurrent ? "Sign out" : "Revoke"}
+                  </button>
+                </form>
+              </li>
+            );
+          })}
+        </ul>
       </section>
     </div>
   );

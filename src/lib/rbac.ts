@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { touchSession } from "@/lib/session";
 
 const RANK: Record<Role, number> = {
   VIEWER: 0,
@@ -43,6 +44,7 @@ export type SessionUser = {
 export async function getSessionUser(): Promise<SessionUser | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
+  await touchSession();
   return {
     id: session.user.id,
     email: session.user.email ?? "",

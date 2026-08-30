@@ -4,7 +4,13 @@ import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { personOptions } from "@/lib/queries/people";
 import { PersonSelect } from "@/components/PersonSelect";
-import { renameTree, setHomePerson, updateDiscovery, deleteTree } from "./actions";
+import {
+  renameTree,
+  setHomePerson,
+  updateDiscovery,
+  updateAnniversaryReminders,
+  deleteTree,
+} from "./actions";
 
 export const metadata = { title: "Settings" };
 
@@ -26,6 +32,7 @@ export default async function TreeSettingsPage({
       discoverable: true,
       community: true,
       region: true,
+      anniversaryReminders: true,
     },
   });
   const options = await personOptions(treeId);
@@ -128,6 +135,23 @@ export default async function TreeSettingsPage({
               Save
             </button>
           </div>
+        </form>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h3 className="font-medium">Anniversary reminders</h3>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          A week before a birthday, or a death or wedding anniversary with a known day, notify tree
+          editors and every relative who has claimed their profile.
+        </p>
+        <form action={updateAnniversaryReminders.bind(null, treeId)} className="mt-3">
+          <input type="hidden" name="on" value={tree.anniversaryReminders ? "0" : "1"} />
+          <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+            {tree.anniversaryReminders ? "Currently ON — turn off" : "Currently OFF — turn on"}
+          </button>
         </form>
       </section>
 

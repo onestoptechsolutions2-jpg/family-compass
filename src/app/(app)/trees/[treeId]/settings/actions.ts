@@ -48,6 +48,15 @@ export async function updateDiscovery(treeId: string, formData: FormData) {
   revalidatePath(`/trees/${treeId}/settings`);
 }
 
+export async function updateAnniversaryReminders(treeId: string, formData: FormData) {
+  await requireTreeManage(treeId);
+  await db.tree.update({
+    where: { id: treeId },
+    data: { anniversaryReminders: formData.get("on") === "1" },
+  });
+  revalidatePath(`/trees/${treeId}/settings`);
+}
+
 export async function deleteTree(treeId: string) {
   const ctx = await loadTreeContext(treeId);
   if (!canManageWorkspace(ctx.role)) throw new Error("Only the workspace owner can delete a tree");

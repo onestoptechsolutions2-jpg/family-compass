@@ -76,16 +76,17 @@ export default async function PersonDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link
-            href={`/trees/${treeId}/people`}
-            className="text-sm hover:underline"
-            style={{ color: "var(--muted)" }}
-          >
-            ← People
-          </Link>
-          <h2 className="mt-1 text-2xl font-semibold">
+      <div>
+        <Link
+          href={`/trees/${treeId}/people`}
+          className="text-sm hover:underline"
+          style={{ color: "var(--muted)" }}
+        >
+          ← People
+        </Link>
+        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold">
             {genderSymbol(person.gender) && (
               <span className="mr-1.5 align-middle text-xl" title={person.gender.toLowerCase()} style={{ color: genderColor(person.gender) }}>
                 {genderSymbol(person.gender)}
@@ -117,7 +118,6 @@ export default async function PersonDetailPage({
             {person.claimedByUserId && person.claimedByUserId !== ctx.user.id
               ? ` · claimed by ${person.claimedBy?.name ?? "a relative"}`
               : ""}
-            {person.grampsId ? ` · ${person.grampsId}` : ""}
           </p>
         </div>
         {editable && (
@@ -247,6 +247,7 @@ export default async function PersonDetailPage({
             </ActionMenu>
           </div>
         )}
+        </div>
       </div>
 
       {person.claimedByUserId && person.claimedByUserId !== ctx.user.id && (

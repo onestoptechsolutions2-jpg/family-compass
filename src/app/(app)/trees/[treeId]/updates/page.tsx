@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
+import { collectAnniversaries } from "@/lib/queries/anniversaries";
 
 export const metadata = { title: "Updates" };
 
@@ -20,6 +23,8 @@ export default async function UpdatesPage({
   const { treeId } = await params;
   await loadTreeContext(treeId);
 
+  const anniversaries = await collectAnniversaries(treeId, 30);
+
   const events = await db.activityEvent.findMany({
     where: { treeId },
     orderBy: { createdAt: "desc" },
@@ -36,7 +41,43 @@ export default async function UpdatesPage({
   });
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Upcoming anniversaries</h2>
+        {anniversaries.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Nothing in the next 30 days. Birthdays and death &amp; wedding anniversaries with a known
+            day appear here, and the family is reminded a week ahead.
+          </p>
+        ) : (
+          <ul className="flex flex-col">
+            {anniversaries.map((a) => {
+              const href =
+                a.kind === "wedding" && a.familyId
+                  ? `/trees/${treeId}/families/${a.familyId}`
+                  : a.personId
+                    ? `/trees/${treeId}/people/${a.personId}`
+                    : `/trees/${treeId}`;
+              return (
+                <li
+                  key={`${a.eventId}-${a.kind}`}
+                  className="flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-0"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <Link href={href} className="hover:underline">
+                    {a.title}
+                  </Link>
+                  <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>
+                    {a.detail}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Recent activity</h2>
       {events.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -61,6 +102,7 @@ export default async function UpdatesPage({
           ))}
         </ul>
       )}
+      </section>
     </div>
   );
 }

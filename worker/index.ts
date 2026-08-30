@@ -6,6 +6,7 @@ import { handleImportGramps, handleImportGedcom } from "./jobs/import";
 import { handleRenderPreview, handleRenderOutput } from "./jobs/generation";
 import { handleSendEmail } from "./jobs/email";
 import { handleWebhookDeliver } from "./jobs/webhook";
+import { handleAnniversaryScan } from "./jobs/anniversary";
 
 async function main() {
   const boss = new PgBoss({
@@ -27,6 +28,10 @@ async function main() {
   await boss.work(QUEUE.renderOutput, handleRenderOutput);
   await boss.work(QUEUE.sendEmail, handleSendEmail);
   await boss.work(QUEUE.webhookDeliver, handleWebhookDeliver);
+  await boss.work(QUEUE.anniversaryScan, handleAnniversaryScan);
+
+  // daily sweep for upcoming birthdays / death & wedding anniversaries
+  await boss.schedule(QUEUE.anniversaryScan, "0 6 * * *", {}, { tz: "Africa/Nairobi" });
 
   console.log("[worker] ready — listening on", Object.values(QUEUE).join(", "));
 

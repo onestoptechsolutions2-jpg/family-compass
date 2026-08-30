@@ -329,11 +329,17 @@ model Account {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
+  id           String    @id @default(cuid())
+  sessionToken String    @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime?
+  ip           String?
+  userAgent    String?
+  /// short human label, e.g. "Chrome on Windows"
+  device       String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -423,6 +429,7 @@ model Tree {
   discoverable     Boolean   @default(false)
   community        String?
   region           String?
+  anniversaryReminders Boolean @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -447,9 +454,27 @@ model Tree {
   payments       Payment[]       @relation("TreePayments")
   clans          Clan[]
   memorials      Memorial[]
+  anniversaryReminderLog AnniversaryReminder[]
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
+}
+
+/// One row per anniversary notification already sent, so the daily scan
+/// never pings the family twice for the same occasion in the same year.
+model AnniversaryReminder {
+  id      String   @id @default(cuid())
+  treeId  String
+  eventId String
+  /// birthday | death | wedding
+  kind    String
+  forYear Int
+  sentAt  DateTime @default(now())
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, kind, forYear])
+  @@index([treeId, sentAt])
 }
 
 /// African genealogy is clan-centric. A clan groups lineages/families; in most
