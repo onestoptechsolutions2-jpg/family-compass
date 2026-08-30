@@ -78,6 +78,7 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
       includeLiving: true,
       template: true,
       bioNotes: true,
+      groupContribToken: true,
       viewCount: true,
       status: true,
       lockedAt: true,

@@ -41,29 +41,26 @@ export default async function ContributePage({
   const { slug, token } = await params;
   const { sent, err } = await searchParams;
 
+  const MEMORIAL_SELECT = {
+    slug: true,
+    headline: true,
+    status: true,
+    published: true,
+    eulogy: true,
+    bioNotes: true,
+    program: { select: { order: true } },
+    person: {
+      select: { names: { select: NAME_SELECT }, _count: { select: { mediaRefs: true } } },
+    },
+  } as const;
+
   const contributor = await db.memorialContributor.findUnique({
     where: { token },
     select: {
       id: true,
       name: true,
       relation: true,
-      memorial: {
-        select: {
-          slug: true,
-          headline: true,
-          status: true,
-          published: true,
-          eulogy: true,
-          bioNotes: true,
-          program: { select: { order: true } },
-          person: {
-            select: {
-              names: { select: NAME_SELECT },
-              _count: { select: { mediaRefs: true } },
-            },
-          },
-        },
-      },
+      memorial: { select: MEMORIAL_SELECT },
       invitedBy: { select: { name: true } },
       contributions: {
         orderBy: { createdAt: "desc" },
@@ -72,11 +69,20 @@ export default async function ContributePage({
     },
   });
 
-  if (!contributor || contributor.memorial.slug !== slug) notFound();
+  const groupMemorial =
+    contributor && contributor.memorial.slug === slug
+      ? null
+      : await db.memorial.findFirst({ where: { groupContribToken: token, slug }, select: MEMORIAL_SELECT });
 
-  db.memorialContributor.update({ where: { token }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  if (!contributor && !groupMemorial) notFound();
+  if (contributor && contributor.memorial.slug !== slug && !groupMemorial) notFound();
 
-  const m = contributor.memorial;
+  const isGroup = !contributor;
+  const m = contributor?.memorial ?? groupMemorial!;
+
+  if (contributor) {
+    db.memorialContributor.update({ where: { token }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  }
   const name = displayName(m.person.names);
   const status = STATUS_LABEL[m.status] ?? STATUS_LABEL.DRAFT!;
   const isDraft = m.status === "DRAFT";
@@ -108,9 +114,10 @@ export default async function ContributePage({
         </p>
         <h1 className="mt-1 font-serif text-2xl">{m.headline ?? `In memory of ${name}`}</h1>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          {contributor.invitedBy?.name ? `${contributor.invitedBy.name} ` : "The family "}
-          asked you to help with <strong>{name}</strong>&apos;s memorial. Every note is reviewed
-          before it appears.
+          {isGroup
+            ? `This link was shared with your family group — add a memory, tribute or life detail for ${name}. `
+            : `${contributor?.invitedBy?.name ? `${contributor.invitedBy.name} ` : "The family "}asked you to help with ${name}'s memorial. `}
+          Every note is reviewed before it appears.
         </p>
       </div>
 
@@ -158,7 +165,9 @@ export default async function ContributePage({
           <span style={{ color: "var(--muted)" }}>Your name</span>
           <input
             name="authorName"
-            defaultValue={contributor.name}
+            required={isGroup}
+            defaultValue={contributor?.name ?? ""}
+            placeholder={isGroup ? "Your full name" : undefined}
             className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           />
@@ -191,13 +200,14 @@ export default async function ContributePage({
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           />
         </label>
-        {err && <p className="text-sm" style={{ color: "var(--danger)" }}>Please write a little more.</p>}
+        {err === "name" && <p className="text-sm" style={{ color: "var(--danger)" }}>Please add your name.</p>}
+        {err && err !== "name" && <p className="text-sm" style={{ color: "var(--danger)" }}>Please write a little more.</p>}
         <button className="self-start rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
           Send to the family
         </button>
       </form>
 
-      {contributor.contributions.length > 0 && (
+      {contributor && contributor.contributions.length > 0 && (
         <section className="mt-6">
           <h2 className="text-sm font-medium">Your contributions</h2>
           <ul className="mt-2 flex flex-col gap-2">

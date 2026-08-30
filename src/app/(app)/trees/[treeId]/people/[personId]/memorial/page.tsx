@@ -32,6 +32,8 @@ import {
   saveBioNotes,
   inviteContributor,
   removeContributor,
+  createGroupContribLink,
+  revokeGroupContribLink,
   reviewContribution,
   setMemorialStatus,
   setMemorialTemplate,
@@ -647,6 +649,57 @@ export default async function MemorialEditorPage({
           Invite relatives to send memories and tributes. Share the WhatsApp link from your own
           phone. You review every contribution before it appears.
         </p>
+
+        {/* group link */}
+        <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium">Group link</span>
+            {memorial.groupContribToken ? (
+              <form action={revokeGroupContribLink.bind(null, treeId, memorial.id)}>
+                <button className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)", color: "var(--danger)" }}>
+                  revoke
+                </button>
+              </form>
+            ) : (
+              <form action={createGroupContribLink.bind(null, treeId, memorial.id)}>
+                <button className="rounded-md bg-brand-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700">
+                  Create group link
+                </button>
+              </form>
+            )}
+          </div>
+          {memorial.groupContribToken ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-xs">
+                {contributeLink(memorial.groupContribToken)}
+              </code>
+              <CopyButton value={contributeLink(memorial.groupContribToken)} label="Copy link" />
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Please add your memories of ${name} here: ${contributeLink(memorial.groupContribToken)}`,
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+                style={{ background: "#25D366" }}
+              >
+                Share to a group
+              </a>
+              <QrShare
+                value={contributeLink(memorial.groupContribToken)}
+                title="Group contribution QR"
+                label="QR"
+                caption={`Anyone can scan this to add a memory of ${name}.`}
+                buttonClass="rounded-md border px-2 py-1 text-xs"
+              />
+            </div>
+          ) : (
+            <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+              One link anyone can use — post it in a WhatsApp group so the whole family can
+              contribute without an individual invite.
+            </p>
+          )}
+        </div>
 
         {memorial.contributors.length > 0 && (
           <ul className="mt-3 flex flex-col gap-2 text-sm">

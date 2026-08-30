@@ -482,6 +482,32 @@ export async function inviteContributor(treeId: string, memorialId: string, form
   revalidate(treeId, m.personId);
 }
 
+/** One shareable link for a WhatsApp group — anyone with it can contribute. */
+export async function createGroupContribLink(treeId: string, memorialId: string) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  await db.memorial.update({
+    where: { id: memorialId },
+    data: { groupContribToken: `grp_${randomToken(24)}` },
+  });
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "created",
+    objectType: "memorial",
+    objectId: m.personId,
+    summary: "created a group contribution link",
+  });
+  revalidate(treeId, m.personId);
+}
+
+export async function revokeGroupContribLink(treeId: string, memorialId: string) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  await db.memorial.update({ where: { id: memorialId }, data: { groupContribToken: null } });
+  revalidate(treeId, m.personId);
+}
+
 export async function removeContributor(treeId: string, memorialId: string, contributorId: string) {
   await requireTreeEdit(treeId);
   const m = await ownMemorial(treeId, memorialId);
