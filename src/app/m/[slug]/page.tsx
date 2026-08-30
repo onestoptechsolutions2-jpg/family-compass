@@ -321,7 +321,7 @@ export default async function MemorialPage({
               {isNew && (
                 <p className="mt-1" style={{ color: "var(--muted)" }}>
                   Not in this family&apos;s tree?{" "}
-                  <Link href="/login" className="hover:underline" style={{ color: "var(--link)" }}>
+                  <Link href="/start" className="hover:underline" style={{ color: "var(--link)" }}>
                     Build your own on Family Compass →
                   </Link>
                 </p>

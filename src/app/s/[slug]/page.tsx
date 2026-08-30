@@ -363,7 +363,7 @@ export default async function SharedViewPage({
             from. Free to build and share.
           </p>
           <Link
-            href="/login"
+            href="/start"
             className="mt-3 inline-block rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             Get started

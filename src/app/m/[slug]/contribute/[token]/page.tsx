@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
+import { normaliseOrder } from "@/lib/queries/memorial";
 import { CONTRIBUTION_SECTIONS, sectionLabel } from "@/lib/memorial-sections";
 import { submitContribution } from "./actions";
 
@@ -14,6 +15,21 @@ const NAME_SELECT = {
   first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true,
   preferred: true, type: true, order: true,
 } as const;
+
+const STATUS_LABEL: Record<string, { label: string; note: string }> = {
+  DRAFT: {
+    label: "Draft — open for contributions",
+    note: "Add memories, life details and side notes freely — the family is still writing this.",
+  },
+  IN_REVIEW: {
+    label: "In review",
+    note: "The family is finalising the memorial. Corrections and short notes are still welcome.",
+  },
+  FINAL: {
+    label: "Final",
+    note: "This memorial has been finalised. You can still send a note; the family decides whether to reopen it.",
+  },
+};
 
 export default async function ContributePage({
   params,
@@ -37,7 +53,15 @@ export default async function ContributePage({
           headline: true,
           status: true,
           published: true,
-          person: { select: { names: { select: NAME_SELECT } } },
+          eulogy: true,
+          bioNotes: true,
+          program: { select: { order: true } },
+          person: {
+            select: {
+              names: { select: NAME_SELECT },
+              _count: { select: { mediaRefs: true } },
+            },
+          },
         },
       },
       invitedBy: { select: { name: true } },
@@ -50,14 +74,22 @@ export default async function ContributePage({
 
   if (!contributor || contributor.memorial.slug !== slug) notFound();
 
-  // record that the collaborator opened the link
-  db.memorialContributor
-    .update({ where: { token }, data: { lastSeenAt: new Date() } })
-    .catch(() => {});
+  db.memorialContributor.update({ where: { token }, data: { lastSeenAt: new Date() } }).catch(() => {});
 
   const m = contributor.memorial;
   const name = displayName(m.person.names);
-  const isFinal = m.status === "FINAL";
+  const status = STATUS_LABEL[m.status] ?? STATUS_LABEL.DRAFT!;
+  const isDraft = m.status === "DRAFT";
+
+  const bioKeys = m.bioNotes && typeof m.bioNotes === "object" ? Object.keys(m.bioNotes).length : 0;
+  const gaps = [
+    { done: (m.eulogy ?? "").trim().length > 200, title: "A life story / eulogy", pick: "memory" },
+    { done: bioKeys >= 3, title: "Life details — education, work, faith, character", pick: "biography" },
+    { done: m.person._count.mediaRefs > 0, title: "Photographs", pick: "other" },
+    { done: normaliseOrder(m.program?.order).length > 0, title: "The order of service", pick: "programme" },
+  ];
+  const needed = gaps.filter((g) => !g.done);
+  const defaultSection = needed[0]?.pick ?? (isDraft ? "note" : "memory");
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 py-8">
@@ -77,20 +109,43 @@ export default async function ContributePage({
         <h1 className="mt-1 font-serif text-2xl">{m.headline ?? `In memory of ${name}`}</h1>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
           {contributor.invitedBy?.name ? `${contributor.invitedBy.name} ` : "The family "}
-          asked you to add a memory, tribute or correction for <strong>{name}</strong>&apos;s memorial.
-          The family reviews each note before it appears.
+          asked you to help with <strong>{name}</strong>&apos;s memorial. Every note is reviewed
+          before it appears.
         </p>
       </div>
+
+      <div
+        className="mt-4 rounded-lg border px-3 py-2 text-sm"
+        style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+      >
+        <span
+          className="rounded-full px-2 py-0.5 text-xs font-semibold"
+          style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+        >
+          {status.label}
+        </span>
+        <span className="ml-2" style={{ color: "var(--muted)" }}>{status.note}</span>
+      </div>
+
+      {needed.length > 0 && (
+        <div className="mt-3 rounded-xl border p-3 text-sm" style={{ borderColor: "var(--hairline)" }}>
+          <p className="font-medium">What the family still needs</p>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {gaps.map((g) => (
+              <li key={g.title} className="flex items-start gap-2">
+                <span style={{ color: g.done ? "var(--success)" : "var(--muted)" }}>{g.done ? "✓" : "•"}</span>
+                <span style={g.done ? { color: "var(--muted)", textDecoration: "line-through" } : undefined}>
+                  {g.title}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {sent && (
         <p className="mt-4 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--success)" }}>
           Thank you — your contribution was sent to the family.
-        </p>
-      )}
-      {isFinal && (
-        <p className="mt-4 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)", color: "var(--muted)" }}>
-          This memorial has been finalised. You can still send a note; the family will decide whether
-          to reopen it.
         </p>
       )}
 
@@ -112,6 +167,7 @@ export default async function ContributePage({
           <span style={{ color: "var(--muted)" }}>What are you adding?</span>
           <select
             name="section"
+            defaultValue={defaultSection}
             className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           >
@@ -126,7 +182,11 @@ export default async function ContributePage({
             name="body"
             required
             rows={7}
-            placeholder={`Write your memory of ${name}…`}
+            placeholder={
+              isDraft
+                ? `A memory of ${name}, a life detail, or a side note for the family…`
+                : `Write your note for ${name}…`
+            }
             className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           />

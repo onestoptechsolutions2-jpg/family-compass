@@ -61,7 +61,7 @@ export default async function LandingPage() {
             a marriage, and honour those you&apos;ve lost — starting in Western Kenya.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href={user ? "/app" : "/login"} className="rounded-lg bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700">
+            <Link href={user ? "/app" : "/start"} className="rounded-lg bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700">
               {user ? "Go to your trees" : "Start free"}
             </Link>
             <Link href="/about" className="rounded-lg border border-[#00000022] bg-white/70 px-5 py-3 font-medium text-[#3b2a1c] backdrop-blur">

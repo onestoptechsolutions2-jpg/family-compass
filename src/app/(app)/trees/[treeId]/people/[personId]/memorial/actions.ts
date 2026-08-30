@@ -503,20 +503,25 @@ export async function reviewContribution(
   });
   if (!c || c.status !== ContributionStatus.SUBMITTED) throw new Error("Nothing to review");
 
+  let merged = false;
   if (decision === "ACCEPTED") {
-    assertUnlocked(m);
-    const target = MERGE_TARGET[c.section] ?? "eulogy";
-    const mem = await db.memorial.findUniqueOrThrow({
-      where: { id: memorialId },
-      select: { eulogy: true, serviceText: true },
-    });
-    const prev = (target === "eulogy" ? mem.eulogy : mem.serviceText)?.trim() ?? "";
-    const addition = `${c.body.trim()}\n\n— ${c.authorName}`;
-    const next = prev ? `${prev}\n\n${addition}` : addition;
-    await db.memorial.update({
-      where: { id: memorialId },
-      data: target === "eulogy" ? { eulogy: next } : { serviceText: next },
-    });
+    const target = MERGE_TARGET[c.section];
+    if (target) {
+      assertUnlocked(m);
+      const mem = await db.memorial.findUniqueOrThrow({
+        where: { id: memorialId },
+        select: { eulogy: true, serviceText: true },
+      });
+      const prev = (target === "eulogy" ? mem.eulogy : mem.serviceText)?.trim() ?? "";
+      const addition = `${c.body.trim()}\n\n— ${c.authorName}`;
+      const next = prev ? `${prev}\n\n${addition}` : addition;
+      await db.memorial.update({
+        where: { id: memorialId },
+        data: target === "eulogy" ? { eulogy: next } : { serviceText: next },
+      });
+      merged = true;
+    }
+    // sections without a merge target (note / biography) are just acknowledged
   }
 
   await db.memorialContribution.update({
@@ -525,7 +530,7 @@ export async function reviewContribution(
       status: decision === "ACCEPTED" ? ContributionStatus.ACCEPTED : ContributionStatus.DECLINED,
       reviewedById: ctx.user.id,
       reviewedAt: new Date(),
-      mergedAt: decision === "ACCEPTED" ? new Date() : null,
+      mergedAt: merged ? new Date() : null,
     },
   });
   revalidate(treeId, m.personId);

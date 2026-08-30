@@ -65,6 +65,12 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true" || v === "1"),
+  // The public "start your own tree from yourself" funnel at /start.
+  // On by default; set SELF_START=false to hide it.
+  SELF_START: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false" && v !== "0"),
   ALLOWED_SIGNUP_EMAILS: z.string().optional().default("").transform(csvLower),
   ALLOWED_SIGNUP_DOMAINS: z
     .string()
