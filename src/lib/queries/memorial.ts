@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 import { db } from "@/lib/db";
 import { displayName, presumedLiving } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
@@ -14,7 +16,23 @@ const NAME_SELECT = {
   type: true,
   order: true,
 } as const;
-const MINI = { id: true, living: true, privacy: true, names: { select: NAME_SELECT } } as const;
+const MINI = {
+  id: true,
+  living: true,
+  privacy: true,
+  names: { select: NAME_SELECT },
+  // a recorded Death/Burial is the only reliable "deceased" signal —
+  // Person.living defaults to false on import.
+  eventRefs: {
+    where: { event: { is: { type: { in: ["Death", "Burial"] } } } },
+    select: { id: true },
+  },
+} satisfies Prisma.PersonSelect;
+
+/** True only when the person has a recorded Death or Burial event. */
+function kinDeceased(p: { eventRefs?: { id: string }[] } | null | undefined): boolean {
+  return !!p?.eventRefs && p.eventRefs.length > 0;
+}
 
 export type ProgramItem = {
   id: string;
@@ -210,13 +228,14 @@ export async function getPublicMemorial(slug: string) {
     },
   });
 
-  const kin: { id: string; name: string; living: boolean; private: boolean }[] = [];
-  const push = (p?: { id: string; living: boolean; privacy: string; names: unknown[] } | null) => {
+  const kin: { name: string; deceased: boolean; private: boolean }[] = [];
+  const push = (
+    p?: { privacy: string; names: unknown[]; eventRefs?: { id: string }[] } | null,
+  ) => {
     if (!p) return;
     kin.push({
-      id: p.id,
       name: displayName(p.names as never),
-      living: p.living,
+      deceased: kinDeceased(p),
       private: p.privacy === "PRIVATE",
     });
   };
@@ -233,8 +252,8 @@ export async function getPublicMemorial(slug: string) {
     f.childRefs.forEach((c) => push(c.person));
   });
 
-  const survivors = kin.filter((k) => k.living && !k.private).map((k) => k.name);
-  const preceded = kin.filter((k) => !k.living && !k.private).map((k) => k.name);
+  const survivors = kin.filter((k) => !k.deceased && !k.private).map((k) => k.name);
+  const preceded = kin.filter((k) => k.deceased && !k.private).map((k) => k.name);
 
   const events = m.person.eventRefs.map((r) => r.event);
   const birth = events.find((e) => e.type === "Birth");
@@ -327,10 +346,16 @@ export async function getMemorialBookData(treeId: string, personId: string) {
     },
   });
 
-  const kin: { name: string; living: boolean; private: boolean }[] = [];
-  const push = (p?: { living: boolean; privacy: string; names: unknown[] } | null) => {
+  const kin: { name: string; deceased: boolean; private: boolean }[] = [];
+  const push = (
+    p?: { privacy: string; names: unknown[]; eventRefs?: { id: string }[] } | null,
+  ) => {
     if (!p) return;
-    kin.push({ name: displayName(p.names as never), living: p.living, private: p.privacy === "PRIVATE" });
+    kin.push({
+      name: displayName(p.names as never),
+      deceased: kinDeceased(p),
+      private: p.privacy === "PRIVATE",
+    });
   };
   const parents: string[] = [];
   const spouses: string[] = [];
@@ -407,9 +432,9 @@ export async function getMemorialBookData(treeId: string, personId: string) {
     spouses: [...new Set(spouses)],
     children: [...new Set(children)],
     survivors: m.includeLiving
-      ? [...new Set(kin.filter((k) => k.living && !k.private).map((k) => k.name))]
+      ? [...new Set(kin.filter((k) => !k.deceased && !k.private).map((k) => k.name))]
       : [],
-    preceded: [...new Set(kin.filter((k) => !k.living && !k.private).map((k) => k.name))],
+    preceded: [...new Set(kin.filter((k) => k.deceased && !k.private).map((k) => k.name))],
     timeline,
     photos: m.person.mediaRefs
       .filter((r) => r.media.mimeType.startsWith("image/"))

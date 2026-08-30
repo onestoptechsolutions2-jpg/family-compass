@@ -98,6 +98,33 @@ export default async function PersonDetailPage({
                 This is you
               </span>
             )}
+            {editable && !deceased && (
+              <span className="ml-2 inline-block align-middle text-xs font-normal">
+                <Dialog
+                  title={`Record a death — ${displayName(person.names)}`}
+                  label="✝ Record death"
+                  buttonClass="rounded-full border px-2 py-0.5 text-xs"
+                >
+                  <form action={recordDeath.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                    <p className="text-sm" style={{ color: "var(--muted)" }}>
+                      Marks this person as deceased and adds a Death event — this enables the memorial
+                      page and the deceased marker across the tree.
+                    </p>
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Date of death (optional)</span>
+                      <input name="deathDate" placeholder="YYYY-MM-DD or free text" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                    </label>
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Place of death (optional)</span>
+                      <input name="deathPlace" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} list="ke-loc" />
+                    </label>
+                    <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                      Record death
+                    </button>
+                  </form>
+                </Dialog>
+              </span>
+            )}
           </h2>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {person.gender.toLowerCase()}
@@ -113,31 +140,6 @@ export default async function PersonDetailPage({
         </div>
         {editable && (
           <div className="flex flex-wrap gap-2">
-            {!deceased && (
-              <Dialog
-                title={`Record a death — ${displayName(person.names)}`}
-                label="Record a death"
-                buttonClass="rounded-lg border px-3 py-1.5 text-sm"
-              >
-                <form action={recordDeath.bind(null, treeId, personId)} className="flex flex-col gap-3">
-                  <p className="text-sm" style={{ color: "var(--muted)" }}>
-                    Marks this person as deceased and adds a Death event. This enables the memorial
-                    page and applies the deceased marker across the tree.
-                  </p>
-                  <label className="text-sm">
-                    <span style={{ color: "var(--muted)" }}>Date of death (optional)</span>
-                    <input name="deathDate" placeholder="YYYY-MM-DD or free text" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
-                  </label>
-                  <label className="text-sm">
-                    <span style={{ color: "var(--muted)" }}>Place of death (optional)</span>
-                    <input name="deathPlace" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} list="ke-loc" />
-                  </label>
-                  <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                    Record death
-                  </button>
-                </form>
-              </Dialog>
-            )}
             {deceased && (
               <Link
                 href={`/trees/${treeId}/people/${personId}/memorial`}
