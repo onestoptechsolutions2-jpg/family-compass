@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, presumedLiving } from "@/lib/person";
+import { displayName, presumedLiving, genderSymbol } from "@/lib/person";
 
 const NAME_SELECT = {
   first: true,
@@ -154,5 +154,98 @@ export async function getTreeStatistics(treeId: string) {
     largestFamilies,
     oldestLiving: oldestLiving as { name: string; year: number } | null,
     youngestLiving: youngestLiving as { name: string; year: number } | null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Report drill-downs
+// ---------------------------------------------------------------------------
+
+export type DrillPerson = { id: string; name: string; gender: string; symbol: string; years: string };
+export type Drilldown = { title: string; people: DrillPerson[] } | null;
+
+/**
+ * Resolve a drill-down key into a people list.
+ * Keys: born:1980s | died:1980s | surname:<name> | clan:<clanId> |
+ *       living | deceased | nophoto | sex:MALE|FEMALE|UNKNOWN
+ */
+export async function getReportDrilldown(treeId: string, key: string): Promise<Drilldown> {
+  const [kind, ...rest] = key.split(":");
+  const arg = rest.join(":");
+
+  const base = {
+    treeId,
+    ...(kind === "clan" ? { clanId: arg } : {}),
+    ...(kind === "sex" ? { gender: arg as "MALE" | "FEMALE" | "UNKNOWN" | "OTHER" } : {}),
+    ...(kind === "nophoto" ? { mediaRefs: { none: {} } } : {}),
+  };
+
+  const rows = await db.person.findMany({
+    where: base,
+    take: 500,
+    select: {
+      id: true,
+      gender: true,
+      living: true,
+      names: { select: NAME_SELECT },
+      eventRefs: {
+        where: { event: { type: { in: ["Birth", "Death", "Burial"] } } },
+        select: { event: { select: { type: true, dateYear: true, dateMonth: true, dateDay: true, dateText: true, dateModifier: true, dateQuality: true } } },
+      },
+    },
+  });
+
+  const decade = (y: number | null | undefined) => (y && y >= 1500 && y <= 2200 ? `${Math.floor(y / 10) * 10}s` : null);
+
+  const mapped = rows
+    .map((p) => {
+      const birth = p.eventRefs.find((r) => r.event.type === "Birth")?.event ?? null;
+      const death = p.eventRefs.find((r) => r.event.type === "Death")?.event ?? null;
+      const deceased = p.eventRefs.some((r) => r.event.type === "Death" || r.event.type === "Burial");
+      const by = birth?.dateYear ?? null;
+      const dy = death?.dateYear ?? null;
+      const living = presumedLiving({ explicitLiving: p.living, birthYear: by, deathYear: dy, hasDeathEvent: !!death });
+      const preferred = p.names.find((n) => n.preferred) ?? p.names[0];
+      const surname = [preferred?.surnamePrefix, preferred?.surname].filter(Boolean).join(" ").trim();
+      return {
+        id: p.id,
+        name: displayName(p.names),
+        gender: p.gender,
+        symbol: genderSymbol(p.gender),
+        years: by || dy ? `${by ?? "?"} – ${dy ?? (living ? "" : "?")}` : "",
+        _birthDecade: decade(by),
+        _deathDecade: decade(dy),
+        _surname: surname,
+        _living: living,
+        _deceased: deceased,
+      };
+    })
+    .filter((p) => {
+      if (kind === "born") return p._birthDecade === arg;
+      if (kind === "died") return p._deathDecade === arg;
+      if (kind === "surname") return p._surname.toLowerCase() === arg.toLowerCase();
+      if (kind === "living") return p._living;
+      if (kind === "deceased") return p._deceased;
+      return true; // clan / sex / nophoto handled by the where clause
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const titles: Record<string, string> = {
+    born: `Born in the ${arg}`,
+    died: `Died in the ${arg}`,
+    surname: `Surname “${arg}”`,
+    clan: "Clan members",
+    living: "Living people",
+    deceased: "Deceased people",
+    nophoto: "People without a photo",
+    sex: `${arg[0]}${arg.slice(1).toLowerCase()}`,
+  };
+
+  return {
+    title: titles[kind ?? ""] ?? "People",
+    people: mapped.map(({ _birthDecade, _deathDecade, _surname, _living, _deceased, ...r }) => {
+      void _birthDecade; void _deathDecade; void _surname; void _living; void _deceased;
+      return r;
+    }),
   };
 }
