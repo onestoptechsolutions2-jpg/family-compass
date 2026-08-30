@@ -8,8 +8,8 @@ import { toGedcom } from "@/lib/export/gedcom";
 import { toGrampsXml } from "@/lib/export/gramps";
 import { chartSvg } from "@/lib/charts/svg";
 import { svgToPng } from "@/lib/generation/raster";
-import { chartPdf, familyBookPdf, memorialBookPdf } from "@/lib/generation/pdf";
-import { getMemorialBookData } from "@/lib/queries/memorial";
+import { chartPdf, familyBookPdf } from "@/lib/generation/pdf";
+import { buildMemorialBook } from "@/lib/generation/memorial-book";
 import { makeThumbnail } from "@/lib/media";
 import { computeLayout } from "@/components/tree/layout";
 import { computeFan } from "@/components/tree/fan";
@@ -97,34 +97,19 @@ async function buildArtifacts(
 
   if (job.kind === GenerationKind.MEMORIAL_BOOK) {
     if (!job.centralPersonId) throw new Error("A memorial book needs the deceased person selected");
-    const book = await getMemorialBookData(job.tree.id, job.centralPersonId);
-    if (!book) throw new Error("Open a memorial for this person before generating the book");
-    let cover: { bytes: Buffer; mime: string } | null = null;
-    if (book.coverMediaId) {
-      const c = await db.mediaObject.findUnique({
-        where: { id: book.coverMediaId },
-        select: { bytes: true, mimeType: true },
-      });
-      if (c) cover = { bytes: Buffer.from(c.bytes), mime: c.mimeType };
-    }
-    const pdf = await memorialBookPdf(
-      {
-        name: book.name,
-        headline: book.headline,
-        born: book.born,
-        died: book.died,
-        restingPlace: book.restingPlace,
-        eulogy: book.eulogy,
-        serviceText: book.serviceText,
-        survivors: book.survivors,
-        preceded: book.preceded,
-        program: book.program,
-        cover,
-      },
-      { watermark },
-    );
+    const built = await buildMemorialBook(job.tree.id, job.centralPersonId, { watermark });
+    if (!built) throw new Error("Open a memorial for this person before generating the book");
+    const { pdf, book } = built;
     const suffix = phase === "preview" ? "-preview" : "";
-    const nodeCount = 1 + book.survivors.length + book.preceded.length;
+    const nodeCount =
+      1 +
+      (book.parents?.length ?? 0) +
+      (book.spouses?.length ?? 0) +
+      (book.children?.length ?? 0) +
+      book.survivors.length +
+      book.preceded.length +
+      (book.photos?.length ?? 0) +
+      (book.guestbook?.length ?? 0);
     return {
       artifact: { fileName: `${base}-memorial${suffix}.pdf`, mime: "application/pdf", bytes: pdf },
       nodeCount,

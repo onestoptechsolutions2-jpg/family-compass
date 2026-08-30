@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { displayName, presumedLiving } from "@/lib/person";
-import { formatDate } from "@/lib/date";
+import { formatDate, dateSortKey } from "@/lib/date";
 import { buildEulogyDraft, type EulogyFacts } from "@/lib/eulogy";
 
 const NAME_SELECT = {
@@ -234,12 +234,15 @@ export async function getMemorialBookData(treeId: string, personId: string) {
       person: {
         select: {
           id: true,
+          subClan: true,
           names: { select: NAME_SELECT },
+          clan: { select: { name: true, community: true, origin: true } },
           eventRefs: {
             select: {
               event: {
                 select: {
                   type: true,
+                  description: true,
                   dateYear: true,
                   dateModifier: true,
                   dateQuality: true,
@@ -251,9 +254,18 @@ export async function getMemorialBookData(treeId: string, personId: string) {
               },
             },
           },
+          mediaRefs: {
+            take: 12,
+            select: { caption: true, media: { select: { id: true, mimeType: true } } },
+          },
         },
       },
       program: { select: { venue: true, serviceDate: true, committee: true, order: true } },
+      guestbook: {
+        where: { status: "APPROVED" },
+        orderBy: { createdAt: "asc" },
+        select: { name: true, relation: true, message: true, createdAt: true },
+      },
     },
   });
   if (!m) return null;
@@ -274,22 +286,58 @@ export async function getMemorialBookData(treeId: string, personId: string) {
     if (!p) return;
     kin.push({ name: displayName(p.names as never), living: p.living, private: p.privacy === "PRIVATE" });
   };
+  const parents: string[] = [];
+  const spouses: string[] = [];
+  const children: string[] = [];
+  const nameOf = (p?: { names: unknown[] } | null) => (p ? displayName(p.names as never) : null);
+
   rel?.childRefs.forEach((c) => {
     push(c.family.partner1);
     push(c.family.partner2);
+    [c.family.partner1, c.family.partner2].forEach((p) => {
+      const n = nameOf(p);
+      if (n) parents.push(n);
+    });
   });
   rel?.familiesAsPartner1.forEach((f) => {
     push(f.partner2);
-    f.childRefs.forEach((c) => push(c.person));
+    const s = nameOf(f.partner2);
+    if (s) spouses.push(s);
+    f.childRefs.forEach((c) => {
+      push(c.person);
+      const n = nameOf(c.person);
+      if (n) children.push(n);
+    });
   });
   rel?.familiesAsPartner2.forEach((f) => {
     push(f.partner1);
-    f.childRefs.forEach((c) => push(c.person));
+    const s = nameOf(f.partner1);
+    if (s) spouses.push(s);
+    f.childRefs.forEach((c) => {
+      push(c.person);
+      const n = nameOf(c.person);
+      if (n) children.push(n);
+    });
   });
 
   const events = m.person.eventRefs.map((r) => r.event);
   const birth = events.find((e) => e.type === "Birth");
-  const death = events.find((e) => e.type === "Death");
+  const death = events.find((e) => e.type === "Death") ?? events.find((e) => e.type === "Burial");
+
+  const timeline = events
+    .filter((e) => e.dateYear || e.dateText || e.place || e.description)
+    .map((e) => ({
+      type: e.type,
+      date: formatDate(e),
+      place: e.place?.title ?? null,
+      note: e.description ?? null,
+      _k: dateSortKey(e),
+    }))
+    .sort((a, b) => a._k.localeCompare(b._k))
+    .map(({ _k, ...r }) => {
+      void _k;
+      return r;
+    });
 
   return {
     memorialId: m.id,
@@ -300,12 +348,32 @@ export async function getMemorialBookData(treeId: string, personId: string) {
     serviceText: m.serviceText,
     restingPlace: m.restingPlace,
     coverMediaId: m.coverMediaId,
+    template: m.template,
+    clan: m.person.clan?.name ?? null,
+    subClan: m.person.subClan ?? null,
+    community: m.person.clan?.community ?? null,
+    clanOrigin: m.person.clan?.origin ?? null,
     born: m.bornText || (birth ? formatDate(birth) : ""),
     died: m.diedText || (death ? formatDate(death) : ""),
+    bornPlace: birth?.place?.title ?? null,
+    diedPlace: death?.place?.title ?? null,
+    parents: [...new Set(parents)],
+    spouses: [...new Set(spouses)],
+    children: [...new Set(children)],
     survivors: m.includeLiving
       ? [...new Set(kin.filter((k) => k.living && !k.private).map((k) => k.name))]
       : [],
     preceded: [...new Set(kin.filter((k) => !k.living && !k.private).map((k) => k.name))],
+    timeline,
+    photos: m.person.mediaRefs
+      .filter((r) => r.media.mimeType.startsWith("image/"))
+      .map((r) => ({ id: r.media.id, mime: r.media.mimeType, caption: r.caption ?? null })),
+    guestbook: m.guestbook.map((g) => ({
+      name: g.name,
+      relation: g.relation,
+      message: g.message,
+      date: g.createdAt.toISOString().slice(0, 10),
+    })),
     program: m.program
       ? {
           venue: m.program.venue,
