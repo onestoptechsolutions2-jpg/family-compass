@@ -136,6 +136,39 @@ export async function addChildToFamily(treeId: string, familyId: string, formDat
   redirect(back.startsWith("/") ? back : `/trees/${treeId}/people/${child.id}`);
 }
 
+/** Record a death: marks the person deceased and sets the Death event.
+ *  This is the canonical way to identify a deceased person — it flips the
+ *  `living` flag and creates a dated Death event that drives the memorial,
+ *  redaction, and "deceased" markers across the app. */
+export async function recordDeath(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const d = z
+    .object({
+      deathDate: z.string().trim().max(40).optional().default(""),
+      deathPlace: z.string().trim().max(300).optional().default(""),
+    })
+    .parse(Object.fromEntries(formData));
+
+  const person = await db.person.findFirst({
+    where: { id: personId, treeId },
+    select: { id: true },
+  });
+  if (!person) throw new Error("Person not found in this tree");
+
+  await setVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);
+  await db.person.update({ where: { id: personId }, data: { living: false } });
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "person",
+    objectId: personId,
+    summary: "recorded a death",
+  });
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
 /** Add a first child to a person who has no family yet. */
 export async function addFirstChild(treeId: string, personId: string, formData: FormData) {
   const ctx = await requireTreeEdit(treeId);

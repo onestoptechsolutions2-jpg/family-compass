@@ -36,6 +36,35 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
       guestbookModerated: true,
       includeLiving: true,
       viewCount: true,
+      status: true,
+      lockedAt: true,
+      finalisedAt: true,
+      lockedBy: { select: { name: true, email: true } },
+      contributors: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          relation: true,
+          token: true,
+          lastSeenAt: true,
+          createdAt: true,
+          _count: { select: { contributions: true } },
+        },
+      },
+      contributions: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          authorName: true,
+          section: true,
+          body: true,
+          status: true,
+          createdAt: true,
+          reviewedBy: { select: { name: true, email: true } },
+        },
+      },
       program: {
         select: {
           id: true,

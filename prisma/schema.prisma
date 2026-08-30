@@ -42,29 +42,32 @@ model User {
   sessions Session[]
 
   memberships          Membership[]
-  invitationsSent      Invitation[]         @relation("InvitedBy")
-  uploadedMedia        MediaObject[]        @relation("MediaUploader")
-  generationJobs       GenerationJob[]      @relation("GenerationRequestedBy")
-  payments             Payment[]            @relation("PaymentUser")
-  paymentsVerified     Payment[]            @relation("PaymentVerifier")
-  sharedViews          SharedView[]         @relation("SharedViewCreator")
+  invitationsSent      Invitation[]           @relation("InvitedBy")
+  uploadedMedia        MediaObject[]          @relation("MediaUploader")
+  generationJobs       GenerationJob[]        @relation("GenerationRequestedBy")
+  payments             Payment[]              @relation("PaymentUser")
+  paymentsVerified     Payment[]              @relation("PaymentVerifier")
+  sharedViews          SharedView[]           @relation("SharedViewCreator")
   auditLogs            AuditLog[]
   activityEvents       ActivityEvent[]
-  creditLedger         CreditLedger[]       @relation("CreditActor")
-  claimedPerson        Person?              @relation("PersonClaimedBy")
-  claimsDecided        PersonClaim[]        @relation("ClaimDecidedBy")
-  claimsCreatedFor     PersonClaim[]        @relation("ClaimCreatedUser")
+  creditLedger         CreditLedger[]         @relation("CreditActor")
+  claimedPerson        Person?                @relation("PersonClaimedBy")
+  claimsDecided        PersonClaim[]          @relation("ClaimDecidedBy")
+  claimsCreatedFor     PersonClaim[]          @relation("ClaimCreatedUser")
   loginTokens          LoginToken[]
-  deepSearches         DeepSearch[]         @relation("DeepSearchRequester")
-  engagementsRequested ResearchEngagement[] @relation("EngagementRequester")
-  engagementsAssigned  ResearchEngagement[] @relation("EngagementAssignee")
+  deepSearches         DeepSearch[]           @relation("DeepSearchRequester")
+  engagementsRequested ResearchEngagement[]   @relation("EngagementRequester")
+  engagementsAssigned  ResearchEngagement[]   @relation("EngagementAssignee")
   consentEvents        ConsentEvent[]
-  memorialsCreated     Memorial[]           @relation("MemorialCreator")
-  programEdits         FuneralProgram[]     @relation("ProgramEditor")
-  programRevisions     ProgramRevision[]    @relation("ProgramReviser")
+  memorialsCreated     Memorial[]             @relation("MemorialCreator")
+  memorialsLocked      Memorial[]             @relation("MemorialLocker")
+  memorialInvites      MemorialContributor[]  @relation("MemorialContributorInviter")
+  memorialReviews      MemorialContribution[] @relation("MemorialContributionReviewer")
+  programEdits         FuneralProgram[]       @relation("ProgramEditor")
+  programRevisions     ProgramRevision[]      @relation("ProgramReviser")
   notifications        Notification[]
-  apiKeysCreated       ApiKey[]             @relation("ApiKeyCreator")
-  webhooksCreated      WebhookEndpoint[]    @relation("WebhookCreator")
+  apiKeysCreated       ApiKey[]               @relation("ApiKeyCreator")
+  webhooksCreated      WebhookEndpoint[]      @relation("WebhookCreator")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -93,6 +96,21 @@ enum GuestbookStatus {
   HIDDEN
 }
 
+/// DRAFT → open editing + collecting contributions.
+/// IN_REVIEW → contributions closed to new merges, family reviewing.
+/// FINAL → locked; editing requires an explicit unlock by an editor.
+enum MemorialStatus {
+  DRAFT
+  IN_REVIEW
+  FINAL
+}
+
+enum ContributionStatus {
+  SUBMITTED
+  ACCEPTED
+  DECLINED
+}
+
 /// A tribute page for a deceased person: eulogy, funeral program, guestbook,
 /// and a shareable public link. Edits after publishing are audited.
 model Memorial {
@@ -116,14 +134,65 @@ model Memorial {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  person    Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
-  tree      Tree             @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  cover     MediaObject?     @relation("MemorialCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
-  createdBy User?            @relation("MemorialCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  guestbook GuestbookEntry[]
-  program   FuneralProgram?
+  // collaboration workflow
+  status      MemorialStatus @default(DRAFT)
+  lockedAt    DateTime?
+  lockedById  String?
+  finalisedAt DateTime?
+
+  person        Person                 @relation(fields: [personId], references: [id], onDelete: Cascade)
+  tree          Tree                   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  cover         MediaObject?           @relation("MemorialCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  createdBy     User?                  @relation("MemorialCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lockedBy      User?                  @relation("MemorialLocker", fields: [lockedById], references: [id], onDelete: SetNull)
+  guestbook     GuestbookEntry[]
+  program       FuneralProgram?
+  contributors  MemorialContributor[]
+  contributions MemorialContribution[]
 
   @@index([treeId])
+}
+
+/// A relative invited to contribute to a memorial draft. Opens a tokenised
+/// public link (typically shared over WhatsApp).
+model MemorialContributor {
+  id          String    @id @default(cuid())
+  memorialId  String
+  name        String
+  phone       String?
+  relation    String?
+  token       String    @unique
+  invitedById String?
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  memorial      Memorial               @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  invitedBy     User?                  @relation("MemorialContributorInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  contributions MemorialContribution[]
+
+  @@index([memorialId])
+}
+
+/// A submitted piece of writing for a memorial (a memory, a tribute, a
+/// correction). Reviewed by a tree editor before it is merged into the copy.
+model MemorialContribution {
+  id            String             @id @default(cuid())
+  memorialId    String
+  contributorId String?
+  authorName    String
+  section       String
+  body          String             @db.Text
+  status        ContributionStatus @default(SUBMITTED)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  mergedAt      DateTime?
+  createdAt     DateTime           @default(now())
+
+  memorial    Memorial             @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  contributor MemorialContributor? @relation(fields: [contributorId], references: [id], onDelete: SetNull)
+  reviewedBy  User?                @relation("MemorialContributionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([memorialId, status])
 }
 
 model GuestbookEntry {

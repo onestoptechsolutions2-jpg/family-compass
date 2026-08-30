@@ -33,6 +33,11 @@ export function PersonChip({
       >
         {initials(person.names)}
       </span>
+      {person.living === false && (
+        <span aria-label="deceased" title="Deceased" style={{ color: "var(--muted)" }}>
+          †
+        </span>
+      )}
       {displayName(person.names)}
     </Link>
   );

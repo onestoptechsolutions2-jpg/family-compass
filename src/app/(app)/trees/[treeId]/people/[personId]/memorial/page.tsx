@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { loadTreeContext, canEdit } from "@/lib/rbac";
+import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, type ProgramItem } from "@/lib/queries/memorial";
+import { sectionLabel } from "@/lib/memorial-sections";
 import { personMedia } from "@/lib/queries/media";
 import { MediaThumb } from "@/components/media/MediaThumb";
+import { CopyButton } from "@/components/CopyButton";
 import {
   createMemorial,
   updateMemorial,
@@ -16,7 +18,17 @@ import {
   moderateGuestbook,
   deleteMemorial,
   draftEulogy,
+  inviteContributor,
+  removeContributor,
+  reviewContribution,
+  setMemorialStatus,
 } from "./actions";
+
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Draft",
+  IN_REVIEW: "In review",
+  FINAL: "Final · locked",
+};
 
 export const metadata = { title: "Memorial" };
 
@@ -77,8 +89,22 @@ export default async function MemorialEditorPage({
 
   const media = await personMedia(treeId, personId);
   const order = ((memorial.program?.order as ProgramItem[]) ?? []).concat([{ title: "", detail: "" }]);
-  const url = `${await publicOrigin()}/m/${memorial.slug}`;
+  const origin = await publicOrigin();
+  const url = `${origin}/m/${memorial.slug}`;
   const pending = memorial.guestbook.filter((g) => g.status === "PENDING");
+
+  const locked = memorial.status === "FINAL";
+  const canManage = canManageTree(ctx.role);
+  const submitted = memorial.contributions.filter((c) => c.status === "SUBMITTED");
+  const reviewed = memorial.contributions.filter((c) => c.status !== "SUBMITTED");
+  const contributeLink = (token: string) => `${origin}/m/${memorial.slug}/contribute/${token}`;
+  const waLink = (phone: string | null, token: string) => {
+    const digits = (phone ?? "").replace(/\D/g, "");
+    const text = encodeURIComponent(
+      `Please help with ${name}'s memorial — add a memory or tribute here: ${contributeLink(token)}`,
+    );
+    return digits ? `https://wa.me/${digits}?text=${text}` : `https://wa.me/?text=${text}`;
+  };
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -98,6 +124,75 @@ export default async function MemorialEditorPage({
       </div>
 
       <code className="w-fit rounded bg-black/5 px-2 py-1 text-xs">{url}</code>
+
+      {/* ---- Workflow ---- */}
+      <div
+        className="flex flex-wrap items-center gap-3 rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+      >
+        <span
+          className="rounded-full px-2.5 py-1 text-xs font-semibold"
+          style={{
+            background: locked ? "var(--accent-soft)" : "var(--surface-2)",
+            color: locked ? "var(--accent)" : "var(--muted)",
+          }}
+        >
+          {STATUS_LABEL[memorial.status]}
+        </span>
+
+        {memorial.status === "DRAFT" && (
+          <form action={setMemorialStatus.bind(null, treeId, memorial.id, "IN_REVIEW")}>
+            <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+              Move to review
+            </button>
+          </form>
+        )}
+        {memorial.status === "IN_REVIEW" && (
+          <>
+            <form action={setMemorialStatus.bind(null, treeId, memorial.id, "DRAFT")}>
+              <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+                Back to draft
+              </button>
+            </form>
+            <form action={setMemorialStatus.bind(null, treeId, memorial.id, "FINAL")}>
+              <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+                Finalise &amp; lock
+              </button>
+            </form>
+          </>
+        )}
+        {locked && (
+          <>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
+              Locked{memorial.lockedAt ? ` ${memorial.lockedAt.toISOString().slice(0, 10)}` : ""}
+              {memorial.lockedBy?.name ? ` by ${memorial.lockedBy.name}` : ""}
+            </span>
+            {canManage ? (
+              <form action={setMemorialStatus.bind(null, treeId, memorial.id, "IN_REVIEW")}>
+                <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
+                  Unlock for editing
+                </button>
+              </form>
+            ) : (
+              <span className="text-xs" style={{ color: "var(--muted)" }}>
+                Ask a tree manager to unlock it to make changes.
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      {locked && (
+        <p
+          className="rounded-xl border px-4 py-3 text-sm"
+          style={{ borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent)" }}
+        >
+          This is the final, locked copy. Tribute, cover and programme editing are disabled until a
+          tree manager unlocks it.
+        </p>
+      )}
+
+      <fieldset disabled={locked} className="contents">
 
       {/* ---- Tribute ---- */}
       <form
@@ -272,6 +367,133 @@ export default async function MemorialEditorPage({
           </div>
         ) : null}
       </form>
+
+      </fieldset>
+
+      {/* ---- Collaboration ---- */}
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">Collaborators</h2>
+        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+          Invite relatives to send memories and tributes. Share the WhatsApp link from your own
+          phone. You review every contribution before it appears.
+        </p>
+
+        {memorial.contributors.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-2 text-sm">
+            {memorial.contributors.map((c) => (
+              <li
+                key={c.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2.5"
+                style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}
+              >
+                <div>
+                  <span className="font-medium">{c.name}</span>
+                  {c.relation ? <span style={{ color: "var(--muted)" }}> · {c.relation}</span> : null}
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>
+                    {c.lastSeenAt ? `opened ${c.lastSeenAt.toISOString().slice(0, 10)}` : "not opened yet"}
+                    {" · "}
+                    {c._count.contributions} contribution{c._count.contributions === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={waLink(c.phone, c.token)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+                    style={{ background: "#25D366" }}
+                  >
+                    WhatsApp
+                  </a>
+                  <CopyButton value={contributeLink(c.token)} label="Copy link" />
+                  <form action={removeContributor.bind(null, treeId, memorial.id, c.id)}>
+                    <button className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)", color: "var(--danger)" }}>
+                      remove
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form action={inviteContributor.bind(null, treeId, memorial.id)} className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <input name="name" required placeholder="Name" className="rounded-lg border px-3 py-2 text-sm" style={style} />
+          <input name="phone" placeholder="Phone (for WhatsApp)" className="rounded-lg border px-3 py-2 text-sm" style={style} />
+          <input name="relation" placeholder="Relation" className="rounded-lg border px-3 py-2 text-sm sm:hidden" style={style} />
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            Add
+          </button>
+        </form>
+      </section>
+
+      {/* ---- Contributions inbox ---- */}
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">
+          Contributions
+          {submitted.length > 0 && (
+            <span className="ml-2 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+              {submitted.length} to review
+            </span>
+          )}
+        </h2>
+
+        {memorial.contributions.length === 0 && (
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>Nothing submitted yet.</p>
+        )}
+
+        <ul className="mt-3 flex flex-col gap-2 text-sm">
+          {submitted.map((c) => (
+            <li key={c.id} className="rounded-lg border p-3" style={{ borderColor: "var(--accent)", background: "var(--surface-2)" }}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">
+                  {c.authorName}
+                  <span style={{ color: "var(--muted)" }}> · {sectionLabel(c.section)}</span>
+                </span>
+                <span className="text-xs" style={{ color: "var(--muted)" }}>
+                  {c.createdAt.toISOString().slice(0, 10)}
+                </span>
+              </div>
+              <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+              <div className="mt-2 flex gap-2 text-xs">
+                <form action={reviewContribution.bind(null, treeId, memorial.id, c.id, "ACCEPTED")}>
+                  <button
+                    disabled={locked}
+                    className="rounded-md bg-brand-600 px-3 py-1 font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  >
+                    Accept &amp; merge
+                  </button>
+                </form>
+                <form action={reviewContribution.bind(null, treeId, memorial.id, c.id, "DECLINED")}>
+                  <button className="rounded-md border px-3 py-1" style={{ borderColor: "var(--border)", color: "var(--danger)" }}>
+                    Decline
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+          {reviewed.map((c) => (
+            <li key={c.id} className="rounded-lg border p-2.5" style={{ borderColor: "var(--hairline)" }}>
+              <div className="flex items-center justify-between text-xs" style={{ color: "var(--muted)" }}>
+                <span>
+                  {c.authorName} · {sectionLabel(c.section)}
+                </span>
+                <span style={{ color: c.status === "ACCEPTED" ? "var(--success)" : "var(--danger)" }}>
+                  {c.status.toLowerCase()}
+                  {c.reviewedBy?.name ? ` by ${c.reviewedBy.name}` : ""}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-sm">{c.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* ---- Guestbook ---- */}
       <section

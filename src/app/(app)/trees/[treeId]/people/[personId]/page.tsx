@@ -10,10 +10,11 @@ import { PersonChip } from "@/components/PersonChip";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
+import { Dialog } from "@/components/Dialog";
 import { primaryName } from "@/lib/person";
 import { deletePerson } from "../actions";
 import { uploadPersonPhoto, detachPersonMedia } from "../../media/actions";
-import { addParent, addPartner, addChildToFamily, addFirstChild } from "./quick-actions";
+import { addParent, addPartner, addChildToFamily, addFirstChild, recordDeath } from "./quick-actions";
 
 export default async function PersonDetailPage({
   params,
@@ -32,6 +33,10 @@ export default async function PersonDetailPage({
     .map((r) => r.event)
     .sort((a, b) => dateSortKey(a).localeCompare(dateSortKey(b)));
 
+  const hasDeathEvent = events.some((e) => e.type === "Death" || e.type === "Burial");
+  const deceased = person.living === false || hasDeathEvent;
+  const fieldStyle = { borderColor: "var(--border)", background: "var(--surface-2)" };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -45,6 +50,11 @@ export default async function PersonDetailPage({
           </Link>
           <h2 className="mt-1 text-2xl font-semibold">
             {displayName(person.names)}
+            {deceased && (
+              <span className="ml-2 align-middle" title="Deceased" style={{ color: "var(--muted)" }}>
+                †
+              </span>
+            )}
             {person.claimedByUserId === ctx.user.id && (
               <span className="ml-2 align-middle rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
                 This is you
@@ -53,7 +63,7 @@ export default async function PersonDetailPage({
           </h2>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {person.gender.toLowerCase()}
-            {person.living ? " · living" : ""}
+            {deceased ? " · deceased" : person.living ? " · living" : ""}
             {person.clan ? ` · ${person.clan.name} clan` : ""}
             {person.subClan ? ` (${person.subClan})` : ""}
             {person.phone ? ` · ${person.phone}` : ""}
@@ -65,7 +75,32 @@ export default async function PersonDetailPage({
         </div>
         {editable && (
           <div className="flex flex-wrap gap-2">
-            {events.some((e) => e.type === "Death" || e.type === "Burial") && (
+            {!deceased && (
+              <Dialog
+                title={`Record a death — ${displayName(person.names)}`}
+                label="Record a death"
+                buttonClass="rounded-lg border px-3 py-1.5 text-sm"
+              >
+                <form action={recordDeath.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    Marks this person as deceased and adds a Death event. This enables the memorial
+                    page and applies the deceased marker across the tree.
+                  </p>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Date of death (optional)</span>
+                    <input name="deathDate" placeholder="YYYY-MM-DD or free text" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                  </label>
+                  <label className="text-sm">
+                    <span style={{ color: "var(--muted)" }}>Place of death (optional)</span>
+                    <input name="deathPlace" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} list="ke-loc" />
+                  </label>
+                  <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Record death
+                  </button>
+                </form>
+              </Dialog>
+            )}
+            {deceased && (
               <Link
                 href={`/trees/${treeId}/people/${personId}/memorial`}
                 className="rounded-lg border px-3 py-1.5 text-sm"
