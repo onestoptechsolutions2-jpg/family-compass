@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { GenerationKind, type PrismaClient } from "@prisma/client";
 
 import { hashPassword, passwordProblem } from "../src/lib/password";
-import { KENYA_LOCATION_ROWS } from "./data/kenya-western";
+import { KENYA_ALL_ROWS as KENYA_LOCATION_ROWS } from "./data/kenya-national";
 import { REFERENCE_CLAN_ROWS } from "./data/reference-clans";
 
 const normalizeClan = (s: string) =>
@@ -94,7 +94,7 @@ export async function seedKenyaLocations(db: PrismaClient): Promise<void> {
   const seen = new Set<string>();
   const data = rows.filter((r) => (seen.has(r.path) ? false : (seen.add(r.path), true)));
   await db.kenyaLocation.createMany({ data, skipDuplicates: true });
-  console.log(`Seed: KenyaLocation loaded ${data.length} Western/Nyanza units.`);
+  console.log(`Seed: KenyaLocation loaded ${data.length} units across all 47 counties.`);
 }
 
 export async function seedReferenceClans(db: PrismaClient): Promise<void> {

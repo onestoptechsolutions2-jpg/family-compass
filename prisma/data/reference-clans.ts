@@ -86,10 +86,158 @@ const KALENJIN: Entry[] = [
   { community: "Kalenjin", name: "Terik", region: "Nandi / Vihiga" },
 ];
 
+// ---- Abagusii (Kisii) — clans. ----
+const KISII: Entry[] = [
+  { community: "Kisii", name: "Abagirango", region: "Kisii" },
+  { community: "Kisii", name: "Abagetutu", region: "Kisii" },
+  { community: "Kisii", name: "Abanchari", region: "Kisii (Bonchari)" },
+  { community: "Kisii", name: "Abamachoge", region: "Kisii" },
+  { community: "Kisii", name: "Abasweta", region: "Kisii / Nyamira" },
+  { community: "Kisii", name: "Abanyaribari", region: "Kisii" },
+  { community: "Kisii", name: "Abakisii-Bosongo", region: "Kisii" },
+  { community: "Kisii", name: "Abamugusii", region: "Nyamira" },
+  { community: "Kisii", name: "Abagusii ba Wanjare", aka: "Abanyaribari Wanjare", region: "Kisii" },
+];
+
+// ---- Abakuria (Kuria) — the main clans (ibiaro). ----
+const KURIA: Entry[] = [
+  { community: "Kuria", name: "Abanyabasi", region: "Migori (Kuria East)" },
+  { community: "Kuria", name: "Abagumbe", region: "Migori (Kuria West)" },
+  { community: "Kuria", name: "Abairege", region: "Migori (Kuria West)" },
+  { community: "Kuria", name: "Abakira", region: "Migori" },
+  { community: "Kuria", name: "Abanyamongo", region: "Migori" },
+  { community: "Kuria", name: "Abatimbaru", region: "Migori" },
+];
+
+// ---- Meru — the sub-groups / njuri sections. ----
+const MERU: Entry[] = [
+  { community: "Meru", name: "Imenti", region: "Meru (North/Central/South Imenti)" },
+  { community: "Meru", name: "Tigania", region: "Meru (Tigania East/West)" },
+  { community: "Meru", name: "Igembe", region: "Meru (Igembe)" },
+  { community: "Meru", name: "Miutini", region: "Meru" },
+  { community: "Meru", name: "Igoji", region: "Meru (South Imenti)" },
+  { community: "Meru", name: "Mwimbi", region: "Tharaka-Nithi (Maara)" },
+  { community: "Meru", name: "Muthambi", region: "Tharaka-Nithi (Maara)" },
+  { community: "Meru", name: "Chuka", region: "Tharaka-Nithi" },
+  { community: "Meru", name: "Tharaka", region: "Tharaka-Nithi (Tharaka)" },
+  { community: "Meru", name: "Mwimbi-Muthambi", region: "Tharaka-Nithi" },
+];
+
+// ---- Embu / Mbeere. ----
+const EMBU: Entry[] = [
+  { community: "Embu", name: "Embu (Aembu)", region: "Embu" },
+  { community: "Embu", name: "Mbeere (Ambeere)", region: "Embu (Mbeere North/South)" },
+];
+
+// ---- Mijikenda — the nine sub-groups. ----
+const MIJIKENDA: Entry[] = [
+  { community: "Mijikenda", name: "Giriama", aka: "Agiryama", region: "Kilifi" },
+  { community: "Mijikenda", name: "Digo", region: "Kwale" },
+  { community: "Mijikenda", name: "Duruma", region: "Kwale (Kinango)" },
+  { community: "Mijikenda", name: "Chonyi", region: "Kilifi" },
+  { community: "Mijikenda", name: "Kambe", region: "Kilifi (Rabai)" },
+  { community: "Mijikenda", name: "Ribe", region: "Kilifi (Rabai)" },
+  { community: "Mijikenda", name: "Rabai", region: "Kilifi (Rabai)" },
+  { community: "Mijikenda", name: "Jibana", region: "Kilifi" },
+  { community: "Mijikenda", name: "Kauma", region: "Kilifi" },
+];
+
+// ---- Taita. ----
+const TAITA: Entry[] = [
+  { community: "Taita", name: "Wadawida", aka: "Dawida", region: "Taita-Taveta (Wundanyi/Mwatate)" },
+  { community: "Taita", name: "Wasaghala", aka: "Saghala", region: "Taita-Taveta (Voi)" },
+  { community: "Taita", name: "Wakasigau", aka: "Kasigau", region: "Taita-Taveta (Voi)" },
+  { community: "Taita", name: "Wataveta", region: "Taita-Taveta (Taveta)" },
+];
+
+// ---- Maasai — territorial sections (iloshon). ----
+const MAASAI: Entry[] = [
+  { community: "Maasai", name: "Ilkisonko", aka: "Kisongo", region: "Kajiado South" },
+  { community: "Maasai", name: "Ilpurko", aka: "Purko", region: "Narok" },
+  { community: "Maasai", name: "Iloitai", aka: "Loita", region: "Narok South" },
+  { community: "Maasai", name: "Ildamat", region: "Kajiado / Narok" },
+  { community: "Maasai", name: "Ilkeekonyokie", region: "Kajiado West / Narok East" },
+  { community: "Maasai", name: "Ilmatapato", region: "Kajiado Central" },
+  { community: "Maasai", name: "Ilkaputiei", region: "Kajiado East" },
+  { community: "Maasai", name: "Ildalalekutuk", region: "Kajiado" },
+  { community: "Maasai", name: "Iloodokilani", region: "Kajiado West" },
+  { community: "Maasai", name: "Isiria", region: "Narok (Trans Mara)" },
+  { community: "Maasai", name: "Moitanik", aka: "Uasin Gishu Maasai", region: "Narok" },
+];
+
+// ---- Samburu — the phratries / clans. ----
+const SAMBURU: Entry[] = [
+  { community: "Samburu", name: "Lmasula", region: "Samburu" },
+  { community: "Samburu", name: "Lpisikishu", region: "Samburu" },
+  { community: "Samburu", name: "Lukumai", region: "Samburu" },
+  { community: "Samburu", name: "Lorokushu", region: "Samburu" },
+  { community: "Samburu", name: "Longeli", region: "Samburu" },
+  { community: "Samburu", name: "Lngwesi", region: "Samburu / Laikipia" },
+];
+
+// ---- Turkana — territorial sections. ----
+const TURKANA: Entry[] = [
+  { community: "Turkana", name: "Ngisonyoka", region: "Turkana South" },
+  { community: "Turkana", name: "Ngibocheros", region: "Turkana Central" },
+  { community: "Turkana", name: "Ngiyapakuno", region: "Turkana North" },
+  { community: "Turkana", name: "Ngimonia", region: "Turkana" },
+  { community: "Turkana", name: "Ngikamatak", region: "Turkana West" },
+  { community: "Turkana", name: "Ngsiir", region: "Turkana" },
+  { community: "Turkana", name: "Ngibelai", region: "Turkana" },
+];
+
+// ---- Somali (Kenyan) — major clan families. ----
+const SOMALI: Entry[] = [
+  { community: "Somali", name: "Ogaden", aka: "Darod", region: "Garissa" },
+  { community: "Somali", name: "Degodia", aka: "Hawiye", region: "Wajir / Mandera" },
+  { community: "Somali", name: "Garre", region: "Mandera" },
+  { community: "Somali", name: "Murulle", region: "Mandera" },
+  { community: "Somali", name: "Ajuran", region: "Wajir" },
+  { community: "Somali", name: "Gurreh", region: "Mandera" },
+  { community: "Somali", name: "Isaaq", region: "urban centres" },
+  { community: "Somali", name: "Hawiye", region: "north eastern" },
+];
+
+// ---- Cushitic communities of northern Kenya. ----
+const NORTHERN: Entry[] = [
+  { community: "Borana", name: "Borana (Oromo)", region: "Marsabit / Isiolo" },
+  { community: "Gabra", name: "Gabra", region: "Marsabit (North Horr)" },
+  { community: "Rendille", name: "Rendille", region: "Marsabit (Laisamis)" },
+  { community: "Burji", name: "Burji", region: "Marsabit / Moyale" },
+  { community: "Sakuye", name: "Sakuye", region: "Marsabit / Isiolo" },
+  { community: "Dassanach", name: "Dassanach", aka: "Merille", region: "Turkana (Ileret)" },
+  { community: "El Molo", name: "El Molo", region: "Marsabit (Lake Turkana)" },
+];
+
+// ---- Other communities. ----
+const OTHER: Entry[] = [
+  { community: "Teso", name: "Iteso", region: "Busia (Teso North/South)" },
+  { community: "Kuria", name: "Abakuria", region: "Migori" },
+  { community: "Swahili", name: "Waswahili", region: "Coast (Mombasa, Lamu)" },
+  { community: "Pokomo", name: "Wapokomo", region: "Tana River" },
+  { community: "Orma", name: "Orma", region: "Tana River" },
+  { community: "Taveta", name: "Wataveta", region: "Taita-Taveta (Taveta)" },
+  { community: "Ogiek", name: "Ogiek", region: "Mau / Mt Elgon forests" },
+  { community: "Sengwer", name: "Sengwer", region: "Cherangany Hills (Elgeyo-Marakwet / Trans-Nzoia)" },
+  { community: "Nubian", name: "Nubi", region: "Nairobi (Kibra) / Kisumu" },
+];
+
 export const REFERENCE_CLAN_ROWS: Entry[] = [
   ...LUHYA,
   ...LUO,
   ...KIKUYU,
   ...KAMBA,
   ...KALENJIN,
+  ...KISII,
+  ...KURIA,
+  ...MERU,
+  ...EMBU,
+  ...MIJIKENDA,
+  ...TAITA,
+  ...MAASAI,
+  ...SAMBURU,
+  ...TURKANA,
+  ...SOMALI,
+  ...NORTHERN,
+  ...OTHER,
 ].map((e) => ({ ...e, notes: e.notes ?? SRC }));
