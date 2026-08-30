@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   },
   description:
     "Build your family tree, invite relatives, and share a beautiful chart centered on any person.",
-  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
+  ...(process.env.APP_URL ? { metadataBase: new URL(process.env.APP_URL) } : {}),
 };
 
 export default function RootLayout({

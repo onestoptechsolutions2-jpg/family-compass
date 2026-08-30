@@ -57,19 +57,26 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
 ## Deploy on Coolify
 
 1. **New Resource → Docker Compose**, point it at this repo (`docker-compose.yml`).
-2. Set environment variables in the Coolify UI:
+2. Set environment variables in the Coolify UI. Nothing is baked into the
+   image — the compose file **refuses to start** without the required ones:
 
-   | Variable | Notes |
-   |---|---|
-   | `AUTH_SECRET` | `openssl rand -base64 33` |
-   | `AUTH_URL` / `APP_URL` | your public `https://…` origin |
-   | `POSTGRES_PASSWORD` | strong value |
-   | `DATABASE_URL` | `postgresql://familycompass:<pw>@postgres:5432/familycompass?schema=public` |
-   | `GOOGLE_CLIENT_ID` / `_SECRET` | optional |
-   | `EMAIL_SERVER` / `EMAIL_FROM` | optional (magic-link + notifications) |
-   | `ADMIN_EMAILS` | comma-separated |
+   | Variable | Req? | Notes |
+   |---|---|---|
+   | `APP_URL` / `AUTH_URL` | ✅ | public origin, no trailing slash — e.g. `https://myroots.laitor.co.ke` |
+   | `AUTH_SECRET` | ✅ | `openssl rand -base64 33` |
+   | `POSTGRES_PASSWORD` | ✅ | strong value |
+   | `DATABASE_URL` | ✅ | `postgresql://<user>:<pw>@postgres:5432/<db>?schema=public` (match `POSTGRES_*`) |
+   | `APP_PORT` | — | host port the container is published on (point your domain/proxy here), e.g. `9090` |
+   | `PORT` | — | port Next listens on inside the container (default `3000`) |
+   | `POSTGRES_USER` / `POSTGRES_DB` | — | default `familycompass` |
+   | `GOOGLE_CLIENT_ID` / `_SECRET` | — | one sign-in method needed |
+   | `EMAIL_SERVER` / `EMAIL_FROM` | — | the other sign-in method (magic link) |
+   | `ADMIN_EMAILS` | — | comma-separated; platform-admin on first sign-in |
+   | `RUN_SEED_ON_MIGRATE` | — | `true` on the very first deploy only |
 
-3. Attach your domain to the **`app`** service, port **3000**.
+3. Attach your domain (e.g. `myroots.laitor.co.ke`) to the **`app`** service.
+   Coolify's proxy routes it to the container's `$PORT`; `APP_PORT` is the
+   host-published port if you front it yourself.
 4. Deploy. On boot the `app` container runs `prisma migrate deploy`
    (`RUN_MIGRATIONS=true`); the `worker` container has it disabled to avoid a
    migration race.

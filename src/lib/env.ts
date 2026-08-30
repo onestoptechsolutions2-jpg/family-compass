@@ -3,6 +3,10 @@ import { z } from "zod";
 /**
  * Validated process environment. Import from server code only.
  * Throws at boot if a required variable is missing/malformed.
+ *
+ * Nothing here has an environment-specific default — public origin, database
+ * and secrets must all be supplied by the deployment. The only baked values
+ * are throwaway placeholders used during `next build` (see below).
  */
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -11,7 +15,9 @@ const schema = z.object({
 
   AUTH_SECRET: z.string().min(1, "AUTH_SECRET is required (openssl rand -base64 33)"),
   AUTH_URL: z.string().url().optional(),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+  // Public origin of the app, e.g. https://myroots.example.com — used to build
+  // share links and payment references.
+  APP_URL: z.string().url(),
   AUTH_TRUST_HOST: z
     .string()
     .optional()
@@ -21,7 +27,7 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
 
   EMAIL_SERVER: z.string().optional().default(""),
-  EMAIL_FROM: z.string().optional().default("Family Compass <no-reply@localhost>"),
+  EMAIL_FROM: z.string().optional().default(""),
 
   ADMIN_EMAILS: z
     .string()
@@ -35,18 +41,17 @@ const schema = z.object({
     ),
 });
 
-// During `next build` (no database, no secrets) we don't want a hard failure —
-// pages are compiled, not run. Validation still throws at real runtime.
+// During `next build` (no database, no secrets, no real origin) we don't want a
+// hard failure — pages are compiled, not run. Runtime validation is unchanged.
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 const BUILD_FALLBACKS = {
   DATABASE_URL: "postgresql://build:build@localhost:5432/build?schema=public",
   AUTH_SECRET: "build-time-placeholder-secret",
+  APP_URL: "http://localhost",
 } as const;
 
-const source = isBuildPhase
-  ? { ...BUILD_FALLBACKS, ...process.env }
-  : process.env;
+const source = isBuildPhase ? { ...BUILD_FALLBACKS, ...process.env } : process.env;
 
 const parsed = schema.safeParse(source);
 
@@ -60,7 +65,7 @@ export const env = (parsed.success ? parsed.data : schema.parse(BUILD_FALLBACKS)
 >;
 
 export const hasGoogleOAuth = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-export const hasEmailProvider = Boolean(env.EMAIL_SERVER);
+export const hasEmailProvider = Boolean(env.EMAIL_SERVER && env.EMAIL_FROM);
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
