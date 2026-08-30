@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/rbac";
 import { signOut } from "@/lib/auth";
 import { userConsentState } from "@/lib/consent";
 import { unreadNotificationCount } from "@/lib/notify";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
 
           <div className="flex items-center gap-3">
+            <CommandPalette />
             <Link href="/notifications" className="relative hover:underline" title="Notifications">
               🔔
               {unread > 0 && (
