@@ -10,6 +10,7 @@ import { requireTreeEdit } from "@/lib/rbac";
 import { parseISODateInput, dateSortKey } from "@/lib/date";
 import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
+import { emitTreeEvent } from "@/lib/webhooks";
 
 const label = (first?: string, surname?: string) =>
   `${first ?? ""} ${surname ?? ""}`.trim() || "a person";
@@ -170,6 +171,12 @@ export async function createPerson(treeId: string, formData: FormData) {
       placeText: d.deathPlace || null,
       actorUserId: ctx.user.id,
     });
+    await emitTreeEvent(treeId, "person.event_recorded", {
+      personId: person.id,
+      type: "Death",
+      date: d.deathDate || null,
+      place: d.deathPlace || null,
+    });
   }
 
   revalidatePath(`/trees/${treeId}/people`);
@@ -231,6 +238,12 @@ export async function updatePerson(treeId: string, personId: string, formData: F
       dateText: d.deathDate || null,
       placeText: d.deathPlace || null,
       actorUserId: ctx.user.id,
+    });
+    await emitTreeEvent(treeId, "person.event_recorded", {
+      personId,
+      type: "Death",
+      date: d.deathDate || null,
+      place: d.deathPlace || null,
     });
   }
 

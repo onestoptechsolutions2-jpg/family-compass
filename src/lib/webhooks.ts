@@ -70,3 +70,22 @@ export async function emitEvent(
     console.error("[webhooks] emitEvent failed", event, err);
   }
 }
+
+/**
+ * Convenience wrapper for the common case where the caller has a `treeId` but
+ * not the workspace id. Resolves the workspace and forwards to `emitEvent`
+ * with the tree id already in the envelope. Never throws.
+ */
+export async function emitTreeEvent(
+  treeId: string,
+  event: EventName,
+  data: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const tree = await db.tree.findUnique({ where: { id: treeId }, select: { workspaceId: true } });
+    if (!tree) return;
+    await emitEvent(tree.workspaceId, event, data, { treeId });
+  } catch (err) {
+    console.error("[webhooks] emitTreeEvent failed", event, err);
+  }
+}

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { notifyTreeManagers } from "@/lib/notify";
+import { emitTreeEvent } from "@/lib/webhooks";
 import { CONTRIBUTION_SECTIONS } from "@/lib/memorial-sections";
 import { treeMediaUsage } from "@/lib/queries/media";
 import { toBytes } from "@/lib/bytes";
@@ -167,6 +168,15 @@ export async function submitContribution(slug: string, token: string, formData: 
       `${authorName}: "${(body || "(photos only)").slice(0, 140)}"` +
       (stored.ids.length ? ` · ${stored.ids.length} photo(s)` : ""),
     linkPath: `/trees/${ctx.treeId}/people/${ctx.personId}/memorial`,
+  });
+
+  await emitTreeEvent(ctx.treeId, "memorial.contribution_received", {
+    slug,
+    personId: ctx.personId,
+    section,
+    authorName,
+    photos: stored.ids.length,
+    hasDateProposal: dateLines.length > 0,
   });
 
   revalidatePath(`/m/${slug}/contribute/${token}`);

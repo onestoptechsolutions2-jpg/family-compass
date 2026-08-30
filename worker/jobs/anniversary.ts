@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { JobPayloads } from "@/lib/queue";
 import { QUEUE } from "@/lib/queue";
 import { collectAnniversaries } from "@/lib/queries/anniversaries";
+import { emitTreeEvent } from "@/lib/webhooks";
 
 type Payload = JobPayloads[typeof QUEUE.anniversaryScan];
 
@@ -63,6 +64,16 @@ export async function handleAnniversaryScan(_jobs: Job<Payload>[]) {
       })),
     });
     sent += audience.length;
+
+    await emitTreeEvent(a.treeId, "anniversary.upcoming", {
+      kind: a.kind,
+      personId: a.personId,
+      familyId: a.familyId,
+      date: a.date.toISOString().slice(0, 10),
+      inDays: a.inDays,
+      years: a.years,
+      title: a.title,
+    });
   }
 
   console.log(`[anniversary] ${items.length} occasions → ${sent} notifications`);

@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
+import { emitTreeEvent } from "@/lib/webhooks";
 import { randomToken } from "@/lib/slug";
 import {
   createBarePerson,
@@ -247,6 +248,12 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
       placeText: d.deathPlace || null,
       actorUserId: ctx.user.id,
     });
+    await emitTreeEvent(treeId, "person.event_recorded", {
+      personId,
+      type: "Death",
+      date: d.deathDate || null,
+      place: d.deathPlace || null,
+    });
   }
 
   redirect(`/trees/${treeId}/people/${personId}`);
@@ -299,6 +306,13 @@ export async function addEvent(treeId: string, personId: string, formData: FormD
     });
   }
 
+  await emitTreeEvent(treeId, "person.event_recorded", {
+    personId,
+    type,
+    date: d.date || null,
+    place: d.place || null,
+  });
+
   redirect(`/trees/${treeId}/people/${personId}`);
 }
 
@@ -344,6 +358,13 @@ export async function setPersonPrivacy(treeId: string, personId: string, formDat
 
   const ids = d.cascade ? await descendantIds(treeId, personId) : [personId];
   await db.person.updateMany({ where: { id: { in: ids }, treeId }, data: { privacy: d.privacy } });
+
+  await emitTreeEvent(treeId, "person.privacy_changed", {
+    personId,
+    privacy: d.privacy,
+    cascaded: d.cascade && ids.length > 1,
+    affected: ids.length,
+  });
 
   await logActivity({
     treeId,

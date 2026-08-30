@@ -146,11 +146,19 @@ function verify(rawBody, headerSig, secret) {
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+        Most events fire from a user action. <code>anniversary.upcoming</code> is different — a
+        scheduled daily scan emits it once per occasion per year for birthdays and death / wedding
+        anniversaries falling within the next 7 days. Use <code>person.event_recorded</code> (with a{" "}
+        <code>data.type</code> of <code>Death</code>, <code>Birth</code>, <code>Burial</code>, …) to
+        react the moment a life event is entered.
+      </p>
 
       <H id="notes">Notes</H>
       <ul className="mt-2 ml-5 list-disc space-y-1 text-sm" style={{ color: "var(--muted)" }}>
-        <li>Living-person and private-record redaction applies to API reads exactly as it does in shared views.</li>
+        <li>Living-person and private-record redaction applies to API reads exactly as it does in shared views. A person set to <em>Limited</em> visibility appears by name only; <em>Hidden</em> people are omitted entirely.</li>
         <li>Event names are stable and append-only. New fields may be added to <code>data</code> objects without notice — ignore unknown keys.</li>
+        <li>Webhook deliveries carry the raw <code>data</code> object shown above; they do not re-fetch or expand records, so redaction rules for reads don&apos;t apply — treat webhook payloads as internal.</li>
         <li>This is v1. Breaking changes ship under <code>/api/v2</code>.</li>
       </ul>
 

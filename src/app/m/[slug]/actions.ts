@@ -7,7 +7,7 @@ import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { notifyTreeManagers } from "@/lib/notify";
-import { emitEvent } from "@/lib/webhooks";
+import { emitEvent, emitTreeEvent } from "@/lib/webhooks";
 import { resolveGuestRelationship } from "@/lib/queries/memorial";
 import { isFlowerKind } from "@/lib/memorial-flowers";
 
@@ -15,7 +15,7 @@ import { isFlowerKind } from "@/lib/memorial-flowers";
 export async function layFlower(slug: string, formData: FormData) {
   const m = await db.memorial.findUnique({
     where: { slug },
-    select: { id: true, published: true },
+    select: { id: true, published: true, treeId: true },
   });
   if (!m || !m.published) redirect(`/m/${slug}`);
 
@@ -35,6 +35,8 @@ export async function layFlower(slug: string, formData: FormData) {
     data: { memorialId: m.id, kind, name, ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null },
   });
   jar.set(key, String(laid + 1), { httpOnly: true, sameSite: "lax", path: `/m/${slug}`, maxAge: 86400 });
+
+  await emitTreeEvent(m.treeId, "memorial.tribute_left", { slug, kind, name });
 
   revalidatePath(`/m/${slug}`);
   redirect(`/m/${slug}?flower=1#tributes`);
