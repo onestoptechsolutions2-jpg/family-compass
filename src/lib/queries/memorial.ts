@@ -155,6 +155,12 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
         orderBy: { createdAt: "desc" },
         select: { id: true, name: true, relation: true, message: true, status: true, createdAt: true },
       },
+      flowers: {
+        orderBy: { createdAt: "desc" },
+        take: 40,
+        select: { id: true, kind: true, name: true, hidden: true, createdAt: true },
+      },
+      _count: { select: { flowers: { where: { hidden: false } } } },
     },
   });
 }
@@ -211,6 +217,13 @@ export async function getPublicMemorial(slug: string) {
         orderBy: { createdAt: "asc" },
         select: { id: true, name: true, relation: true, message: true, createdAt: true },
       },
+      flowers: {
+        where: { hidden: false },
+        orderBy: { createdAt: "desc" },
+        take: 60,
+        select: { id: true, kind: true, name: true, createdAt: true },
+      },
+      _count: { select: { flowers: { where: { hidden: false } } } },
     },
   });
   if (!m) return null;

@@ -9,6 +9,8 @@ import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
+import { flowerEmoji } from "@/lib/memorial-flowers";
+import { moderateFlower } from "@/app/m/[slug]/actions";
 import { mapsHref } from "@/lib/geo";
 import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { personMedia } from "@/lib/queries/media";
@@ -860,6 +862,36 @@ export default async function MemorialEditorPage({
             <li style={{ color: "var(--muted)" }}>No entries yet.</li>
           )}
         </ul>
+      </section>
+
+      {/* ---- Flowers laid ---- */}
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">Flowers &amp; tributes ({memorial._count.flowers})</h2>
+        {memorial.flowers.length === 0 ? (
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>None laid yet.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {memorial.flowers.map((f) => (
+              <li key={f.id} className="flex items-center gap-2">
+                <span>{flowerEmoji(f.kind)}</span>
+                <span className={f.hidden ? "line-through" : ""} style={f.hidden ? { color: "var(--muted)" } : undefined}>
+                  {f.name ?? "In loving memory"}
+                </span>
+                <span className="text-xs" style={{ color: "var(--muted)" }}>
+                  {f.createdAt.toISOString().slice(0, 10)}
+                </span>
+                <form action={moderateFlower.bind(null, treeId, f.id, !f.hidden)} className="ml-auto">
+                  <button className="text-xs hover:underline" style={{ color: f.hidden ? "var(--link)" : "var(--danger)" }}>
+                    {f.hidden ? "restore" : "hide"}
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <form action={deleteMemorial.bind(null, treeId, memorial.id)}>

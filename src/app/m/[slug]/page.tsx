@@ -11,7 +11,8 @@ import { templateTheme } from "@/lib/memorial-templates";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { Dialog } from "@/components/Dialog";
 import { SaveMemorial } from "@/components/SaveMemorial";
-import { postGuestbook } from "./actions";
+import { FLOWER_KINDS, flowerEmoji } from "@/lib/memorial-flowers";
+import { postGuestbook, layFlower } from "./actions";
 
 export async function generateMetadata({
   params,
@@ -41,10 +42,10 @@ export default async function MemorialPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ posted?: string; err?: string; rel?: string; new?: string }>;
+  searchParams: Promise<{ posted?: string; err?: string; rel?: string; new?: string; flower?: string }>;
 }) {
   const { slug } = await params;
-  const { posted, err, rel, new: isNew } = await searchParams;
+  const { posted, err, rel, new: isNew, flower } = await searchParams;
   const m = await getPublicMemorial(slug);
   if (!m) notFound();
 
@@ -184,6 +185,62 @@ export default async function MemorialPage({
     <Frame>
       <article className="flex flex-col gap-6">
         <Hero />
+
+        {/* Flowers */}
+        <section id="flowers" className="rounded-2xl border p-4" style={cardStyle}>
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Lay a flower</h2>
+            <span className="text-sm" style={{ color: "var(--muted)" }}>
+              {m._count.flowers} {m._count.flowers === 1 ? "tribute" : "tributes"} laid
+            </span>
+          </div>
+
+          {flower === "1" && (
+            <p className="mt-1 text-sm" style={{ color: "var(--success)" }}>Thank you — your tribute has been laid.</p>
+          )}
+          {flower === "cap" && (
+            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>You&apos;ve laid plenty for now — thank you.</p>
+          )}
+
+          <form action={layFlower.bind(null, slug)} className="mt-3 flex flex-col gap-2">
+            <input
+              name="name"
+              placeholder="Your name (optional)"
+              className="w-full max-w-xs rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            />
+            <div className="flex flex-wrap gap-2">
+              {FLOWER_KINDS.map((k) => (
+                <button
+                  key={k.id}
+                  name="kind"
+                  value={k.id}
+                  className="rounded-full border px-3 py-1.5 text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                >
+                  <span className="mr-1">{k.emoji}</span>
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </form>
+
+          {m.flowers.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {m.flowers.map((f) => (
+                <li
+                  key={f.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
+                  style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}
+                  title={timeAgo(f.createdAt)}
+                >
+                  <span className="text-sm">{flowerEmoji(f.kind)}</span>
+                  <span>{f.name ?? "In loving memory"}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {eulogyParas.length > 0 && (
           <section className="flex flex-col gap-3 text-[15px] leading-relaxed">

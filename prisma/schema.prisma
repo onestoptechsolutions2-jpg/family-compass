@@ -158,6 +158,7 @@ model Memorial {
   createdBy     User?                  @relation("MemorialCreator", fields: [createdById], references: [id], onDelete: SetNull)
   lockedBy      User?                  @relation("MemorialLocker", fields: [lockedById], references: [id], onDelete: SetNull)
   guestbook     GuestbookEntry[]
+  flowers       MemorialFlower[]
   program       FuneralProgram?
   contributors  MemorialContributor[]
   contributions MemorialContribution[]
@@ -221,6 +222,22 @@ model GuestbookEntry {
   memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
 
   @@index([memorialId, status])
+}
+
+/// A light one-tap tribute anyone can leave on a public memorial — a flower,
+/// a candle, a wreath. No message, minimal moderation (managers can hide one).
+model MemorialFlower {
+  id         String   @id @default(cuid())
+  memorialId String
+  kind       String   @default("flower")
+  name       String?
+  ip         String?
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+
+  @@index([memorialId, hidden, createdAt])
 }
 
 /// Order of service for the funeral. Every save snapshots a ProgramRevision.

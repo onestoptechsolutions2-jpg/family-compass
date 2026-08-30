@@ -2,12 +2,55 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { db } from "@/lib/db";
+import { requireTreeEdit } from "@/lib/rbac";
 import { notifyTreeManagers } from "@/lib/notify";
 import { emitEvent } from "@/lib/webhooks";
 import { resolveGuestRelationship } from "@/lib/queries/memorial";
+import { isFlowerKind } from "@/lib/memorial-flowers";
+
+/** One-tap tribute (flower / candle / wreath / heart). No message, no review. */
+export async function layFlower(slug: string, formData: FormData) {
+  const m = await db.memorial.findUnique({
+    where: { slug },
+    select: { id: true, published: true },
+  });
+  if (!m || !m.published) redirect(`/m/${slug}`);
+
+  const rawKind = String(formData.get("kind") ?? "flower");
+  const kind = isFlowerKind(rawKind) ? rawKind : "flower";
+  const nameRaw = String(formData.get("name") ?? "").trim().slice(0, 80);
+  const name = nameRaw.length >= 2 ? nameRaw : null;
+
+  // light per-browser cap so nobody carpets the wall
+  const jar = await cookies();
+  const key = `fc_fl_${slug}`;
+  const laid = Number(jar.get(key)?.value ?? "0");
+  if (laid >= 12) redirect(`/m/${slug}?flower=cap#tributes`);
+
+  const h = await headers();
+  await db.memorialFlower.create({
+    data: { memorialId: m.id, kind, name, ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null },
+  });
+  jar.set(key, String(laid + 1), { httpOnly: true, sameSite: "lax", path: `/m/${slug}`, maxAge: 86400 });
+
+  revalidatePath(`/m/${slug}`);
+  redirect(`/m/${slug}?flower=1#tributes`);
+}
+
+/** Manager hides / restores a flower from the memorial editor. */
+export async function moderateFlower(treeId: string, flowerId: string, hidden: boolean) {
+  await requireTreeEdit(treeId);
+  const f = await db.memorialFlower.findFirst({
+    where: { id: flowerId, memorial: { treeId } },
+    select: { memorial: { select: { personId: true } } },
+  });
+  if (!f) throw new Error("Not found");
+  await db.memorialFlower.update({ where: { id: flowerId }, data: { hidden } });
+  revalidatePath(`/trees/${treeId}/people/${f.memorial.personId}/memorial`);
+}
 
 export async function postGuestbook(slug: string, formData: FormData) {
   const m = await db.memorial.findUnique({
