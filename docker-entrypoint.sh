@@ -7,6 +7,11 @@ set -e
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   echo "==> prisma migrate deploy"
   npx prisma migrate deploy
+
+  if [ "${RUN_SEED_ON_MIGRATE:-false}" = "true" ]; then
+    echo "==> prisma db seed"
+    npx tsx prisma/seed.ts || echo "seed failed (continuing)"
+  fi
 fi
 
 exec "$@"
