@@ -101,6 +101,9 @@ export async function getPersonDetail(treeId: string, personId: string) {
       phone: true,
       claimedByUserId: true,
       claimedBy: { select: { name: true } },
+      clanId: true,
+      subClan: true,
+      clan: { select: { name: true } },
       names: { select: NAME_SELECT, orderBy: { order: "asc" } },
       attributes: { select: { id: true, type: true, value: true }, orderBy: { order: "asc" } },
       eventRefs: {

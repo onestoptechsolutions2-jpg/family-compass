@@ -10,8 +10,13 @@ import { chartSvg } from "@/lib/charts/svg";
 import { svgToPng } from "@/lib/generation/raster";
 import { chartPdf, familyBookPdf } from "@/lib/generation/pdf";
 import { makeThumbnail } from "@/lib/media";
+import { computeLayout } from "@/components/tree/layout";
+import { computeFan } from "@/components/tree/fan";
+import { getPaymentSettings, generationBaseKes } from "@/lib/payments";
+import { computeGenerationPrice } from "@/lib/pricing";
 
 type Artifact = { fileName: string; mime: string; bytes: Buffer };
+type BuildResult = { artifact: Artifact; nodeCount: number; generations: number };
 
 const CHART_KINDS = new Set<GenerationKind>([
   GenerationKind.PEDIGREE_PDF,
@@ -42,7 +47,7 @@ async function saveMedia(treeId: string, a: Artifact): Promise<string> {
 async function buildArtifacts(
   generationJobId: string,
   phase: "preview" | "output",
-): Promise<Artifact> {
+): Promise<BuildResult> {
   const job = await db.generationJob.findUniqueOrThrow({
     where: { id: generationJobId },
     select: {
@@ -62,27 +67,47 @@ async function buildArtifacts(
     const graph = await getTreeGraph(job.tree.id, job.centralPersonId);
     if (!graph.persons[job.centralPersonId]) throw new Error("Central person not found in tree");
     const kind = job.kind as "PEDIGREE_PDF" | "FAN_CHART" | "DESCENDANT_CHART";
+
+    const nodeCount =
+      kind === "FAN_CHART"
+        ? computeFan(graph, job.centralPersonId, Math.min(gens + 1, 7)).segments.length
+        : computeLayout(
+            graph,
+            job.centralPersonId,
+            kind === "PEDIGREE_PDF" ? "ancestors" : "descendants",
+            gens,
+          ).nodes.length;
+
     const { svg } = chartSvg(graph, job.centralPersonId, kind, gens, {
       watermark,
       title: params.title ?? job.tree.name,
     });
     const png = svgToPng(svg, 2400);
-    if (phase === "preview") {
-      return { fileName: `${base}-${kind.toLowerCase()}-preview.png`, mime: "image/png", bytes: png };
-    }
-    const pdf = await chartPdf(png, { title: params.title ?? job.tree.name });
-    return { fileName: `${base}-${kind.toLowerCase()}.pdf`, mime: "application/pdf", bytes: pdf };
+    const artifact: Artifact =
+      phase === "preview"
+        ? { fileName: `${base}-${kind.toLowerCase()}-preview.png`, mime: "image/png", bytes: png }
+        : {
+            fileName: `${base}-${kind.toLowerCase()}.pdf`,
+            mime: "application/pdf",
+            bytes: await chartPdf(png, { title: params.title ?? job.tree.name }),
+          };
+    return { artifact, nodeCount, generations: gens };
   }
 
+  const data = await loadTreeForExport(job.tree.id);
+  const nodeCount = data.people.length + data.families.length;
+
   if (job.kind === GenerationKind.FAMILY_BOOK) {
-    const data = await loadTreeForExport(job.tree.id);
     const pdf = await familyBookPdf(data, { watermark });
     const suffix = phase === "preview" ? "-preview" : "";
-    return { fileName: `${base}-family-book${suffix}.pdf`, mime: "application/pdf", bytes: pdf };
+    return {
+      artifact: { fileName: `${base}-family-book${suffix}.pdf`, mime: "application/pdf", bytes: pdf },
+      nodeCount,
+      generations: gens,
+    };
   }
 
   if (job.kind === GenerationKind.GEDCOM_EXPORT) {
-    const data = await loadTreeForExport(job.tree.id);
     if (phase === "preview") {
       const preview =
         `Family Compass — GEDCOM export preview\n` +
@@ -95,21 +120,40 @@ async function buildArtifacts(
           })
           .join("\n") +
         `\n\nUnlock to download the full .ged file.\n`;
-      return { fileName: `${base}-gedcom-preview.txt`, mime: "text/plain", bytes: Buffer.from(preview) };
+      return {
+        artifact: { fileName: `${base}-gedcom-preview.txt`, mime: "text/plain", bytes: Buffer.from(preview) },
+        nodeCount,
+        generations: gens,
+      };
     }
-    return { fileName: `${base}.ged`, mime: "text/vnd.familysearch.gedcom", bytes: Buffer.from(toGedcom(data)) };
+    return {
+      artifact: {
+        fileName: `${base}.ged`,
+        mime: "text/vnd.familysearch.gedcom",
+        bytes: Buffer.from(toGedcom(data)),
+      },
+      nodeCount,
+      generations: gens,
+    };
   }
 
   if (job.kind === GenerationKind.GRAMPS_EXPORT) {
-    const data = await loadTreeForExport(job.tree.id);
     if (phase === "preview") {
       const preview =
         `Family Compass — Gramps export preview\n` +
         `${data.people.length} people, ${data.families.length} families, ${data.events.length} events.\n\n` +
         `Unlock to download the full .gramps file (gzipped Gramps XML 1.7.1).\n`;
-      return { fileName: `${base}-gramps-preview.txt`, mime: "text/plain", bytes: Buffer.from(preview) };
+      return {
+        artifact: { fileName: `${base}-gramps-preview.txt`, mime: "text/plain", bytes: Buffer.from(preview) },
+        nodeCount,
+        generations: gens,
+      };
     }
-    return { fileName: `${base}.gramps`, mime: "application/gzip", bytes: toGrampsXml(data) };
+    return {
+      artifact: { fileName: `${base}.gramps`, mime: "application/gzip", bytes: toGrampsXml(data) },
+      nodeCount,
+      generations: gens,
+    };
   }
 
   throw new Error(`Unsupported generation kind: ${job.kind}`);
@@ -121,17 +165,31 @@ export async function renderGeneration(
 ): Promise<void> {
   const job = await db.generationJob.findUniqueOrThrow({
     where: { id: generationJobId },
-    select: { treeId: true },
+    select: { treeId: true, kind: true },
   });
 
-  const artifact = await buildArtifacts(generationJobId, phase);
+  const { artifact, nodeCount, generations } = await buildArtifacts(generationJobId, phase);
   const mediaId = await saveMedia(job.treeId, artifact);
 
-  await db.generationJob.update({
-    where: { id: generationJobId },
-    data:
-      phase === "preview"
-        ? { previewMediaId: mediaId, status: "PREVIEW_READY", error: null }
-        : { outputMediaId: mediaId, status: "OUTPUT_READY", error: null },
-  });
+  if (phase === "preview") {
+    const settings = await getPaymentSettings();
+    const bases = await generationBaseKes();
+    const baseKes = bases[job.kind] ?? settings.defaultPriceKes;
+    const { priceKes } = computeGenerationPrice(baseKes, generations, nodeCount, settings);
+    await db.generationJob.update({
+      where: { id: generationJobId },
+      data: {
+        previewMediaId: mediaId,
+        status: "PREVIEW_READY",
+        error: null,
+        nodeCount,
+        priceKes,
+      },
+    });
+  } else {
+    await db.generationJob.update({
+      where: { id: generationJobId },
+      data: { outputMediaId: mediaId, status: "OUTPUT_READY", error: null },
+    });
+  }
 }

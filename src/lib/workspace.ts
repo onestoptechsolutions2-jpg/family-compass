@@ -29,3 +29,18 @@ export async function ensurePersonalWorkspace(userId: string, displayName: strin
     },
   });
 }
+
+/** The user's own workspace id (creates one if missing). */
+export async function personalWorkspaceId(userId: string, displayName = "My"): Promise<string> {
+  const owned = await db.membership.findFirst({
+    where: { userId, role: Role.OWNER },
+    select: { workspaceId: true },
+  });
+  if (owned) return owned.workspaceId;
+  await ensurePersonalWorkspace(userId, displayName);
+  const created = await db.membership.findFirstOrThrow({
+    where: { userId, role: Role.OWNER },
+    select: { workspaceId: true },
+  });
+  return created.workspaceId;
+}

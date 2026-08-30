@@ -17,6 +17,8 @@ export type PersonFormValues = {
   gender?: Gender;
   living?: boolean;
   privacy?: Privacy;
+  clanId?: string | null;
+  subClan?: string | null;
   events?: EventLike[];
 };
 
@@ -36,8 +38,12 @@ export function PersonForm({
   action,
   values,
   submitLabel,
+  clans = [],
+  locationHints = [],
 }: {
   action: (formData: FormData) => void;
+  clans?: { id: string; name: string }[];
+  locationHints?: string[];
   values?: PersonFormValues;
   submitLabel: string;
 }) {
@@ -77,6 +83,34 @@ export function PersonForm({
         </label>
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>Clan</span>
+          <select
+            name="clanId"
+            defaultValue={values?.clanId ?? ""}
+            className={field}
+            style={fieldStyle}
+          >
+            <option value="">— none —</option>
+            {clans.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>Sub-clan / lineage</span>
+          <input
+            name="subClan"
+            defaultValue={values?.subClan ?? ""}
+            className={field}
+            style={fieldStyle}
+          />
+        </label>
+      </div>
+
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="living" value="true" defaultChecked={values?.living ?? false} />
         <span>Living person (details hidden on public shares)</span>
@@ -105,7 +139,7 @@ export function PersonForm({
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Place</span>
             <input
-              name="birthPlace"
+              name="birthPlace" list="ke-loc"
               defaultValue={birth?.place?.title ?? ""}
               className={field}
               style={fieldStyle}
@@ -132,7 +166,7 @@ export function PersonForm({
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Place</span>
             <input
-              name="deathPlace"
+              name="deathPlace" list="ke-loc"
               defaultValue={death?.place?.title ?? ""}
               className={field}
               style={fieldStyle}
@@ -140,6 +174,14 @@ export function PersonForm({
           </label>
         </div>
       </fieldset>
+
+      {locationHints.length > 0 && (
+        <datalist id="ke-loc">
+          {locationHints.map((h) => (
+            <option key={h} value={h} />
+          ))}
+        </datalist>
+      )}
 
       <div>
         <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireTreeEdit } from "@/lib/rbac";
+import { db } from "@/lib/db";
+import { locationHints } from "@/lib/queries/locations";
 import { getPersonDetail } from "@/lib/queries/people";
 import { primaryName } from "@/lib/person";
 import { PersonForm } from "@/components/PersonForm";
@@ -20,6 +22,10 @@ export default async function EditPersonPage({
   if (!person) notFound();
 
   const name = primaryName(person.names);
+  const [clans, hints] = await Promise.all([
+    db.clan.findMany({ where: { treeId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    locationHints(),
+  ]);
   const action = updatePerson.bind(null, treeId, personId);
 
   return (
@@ -35,12 +41,16 @@ export default async function EditPersonPage({
       <PersonForm
         action={action}
         submitLabel="Save changes"
+        clans={clans}
+        locationHints={hints}
         values={{
           first: name?.first,
           surname: name?.surname,
           gender: person.gender,
           living: person.living,
           privacy: person.privacy,
+          clanId: person.clanId,
+          subClan: person.subClan,
           events: person.eventRefs.map((r) => r.event),
         }}
       />

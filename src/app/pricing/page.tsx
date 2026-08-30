@@ -28,12 +28,13 @@ export default function PricingPage() {
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-semibold">KES 750</span>
+          <span className="text-4xl font-semibold">from KES 750</span>
           <span style={{ color: "var(--muted)" }}>per generated download</span>
         </div>
         <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-          Preview any chart for free with a watermark. Pay by M-Pesa to unlock a clean,
-          high-resolution copy of that generation.
+          Preview any chart free with a watermark, then pay by M-Pesa for a clean copy. The
+          price scales with the document, how many generations it covers, and how many
+          people/families are on it — a big reunion book costs more than a one-page pedigree.
         </p>
         <ul className="mt-5 flex flex-col gap-3">
           {PAID.map(([title, body]) => (
@@ -64,6 +65,25 @@ export default function PricingPage() {
           <strong>unlimited</strong> chart and export downloads for that tree. Best if you&apos;ll
           make more than four in a year (reunions, funerals, milestone birthdays).
         </p>
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border p-6" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div className="text-2xl font-semibold">KES 300</div>
+          <div style={{ color: "var(--muted)" }}>per deep search</div>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            Check a name / clan across every family in the research directory — e.g. before a
+            relationship or marriage. Free preview shows how many matches exist.
+          </p>
+        </div>
+        <div className="rounded-2xl border p-6" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div className="text-2xl font-semibold">Research Partner</div>
+          <div style={{ color: "var(--muted)" }}>quoted per project</div>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            We do the research for you — field interviews and archives. Priced by depth
+            (generations) and size (people/families). Firm quote first.
+          </p>
+        </div>
       </div>
 
       <Link

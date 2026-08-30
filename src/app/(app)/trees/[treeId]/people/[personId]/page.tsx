@@ -51,6 +51,8 @@ export default async function PersonDetailPage({
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {person.gender.toLowerCase()}
             {person.living ? " · living" : ""}
+            {person.clan ? ` · ${person.clan.name} clan` : ""}
+            {person.subClan ? ` (${person.subClan})` : ""}
             {person.phone ? ` · ${person.phone}` : ""}
             {person.claimedByUserId && person.claimedByUserId !== ctx.user.id
               ? ` · claimed by ${person.claimedBy?.name ?? "a relative"}`

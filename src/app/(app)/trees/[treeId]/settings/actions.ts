@@ -28,6 +28,26 @@ export async function setHomePerson(treeId: string, formData: FormData) {
   revalidatePath(`/trees/${treeId}/settings`);
 }
 
+const discoverySchema = z.object({
+  discoverable: z.coerce.boolean().default(false),
+  community: z.string().trim().max(120).optional(),
+  region: z.string().trim().max(120).optional(),
+});
+
+export async function updateDiscovery(treeId: string, formData: FormData) {
+  await requireTreeManage(treeId);
+  const d = discoverySchema.parse(Object.fromEntries(formData));
+  await db.tree.update({
+    where: { id: treeId },
+    data: {
+      discoverable: d.discoverable,
+      community: d.community || null,
+      region: d.region || null,
+    },
+  });
+  revalidatePath(`/trees/${treeId}/settings`);
+}
+
 export async function deleteTree(treeId: string) {
   const ctx = await loadTreeContext(treeId);
   if (!canManageWorkspace(ctx.role)) throw new Error("Only the workspace owner can delete a tree");

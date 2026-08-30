@@ -19,11 +19,19 @@ const personSchema = z.object({
   gender: z.enum(Gender).default(Gender.UNKNOWN),
   living: z.coerce.boolean().default(false),
   privacy: z.enum(Privacy).default(Privacy.INHERIT),
+  clanId: z.string().trim().optional().default(""),
+  subClan: z.string().trim().max(120).optional().default(""),
   birthDate: z.string().trim().max(40).optional().default(""),
   birthPlace: z.string().trim().max(300).optional().default(""),
   deathDate: z.string().trim().max(40).optional().default(""),
   deathPlace: z.string().trim().max(300).optional().default(""),
 });
+
+async function resolveClan(treeId: string, clanId: string): Promise<string | null> {
+  if (!clanId) return null;
+  const c = await db.clan.findFirst({ where: { id: clanId, treeId }, select: { id: true } });
+  return c?.id ?? null;
+}
 
 function parse(formData: FormData) {
   const parsed = personSchema.safeParse(Object.fromEntries(formData));
@@ -123,6 +131,8 @@ export async function createPerson(treeId: string, formData: FormData) {
       gender: d.gender,
       living: d.living,
       privacy: d.privacy,
+      clanId: await resolveClan(treeId, d.clanId),
+      subClan: d.subClan || null,
       names: {
         create: {
           type: "BIRTH",
@@ -171,6 +181,8 @@ export async function updatePerson(treeId: string, personId: string, formData: F
       gender: d.gender,
       living: d.living,
       privacy: d.privacy,
+      clanId: await resolveClan(treeId, d.clanId),
+      subClan: d.subClan || null,
       names: primary
         ? { update: { where: { id: primary.id }, data: { first: d.first || null, surname: d.surname || null } } }
         : {

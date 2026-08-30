@@ -14,5 +14,5 @@ export function getProvider(id: string): PaymentProvider {
   return REGISTRY[id] ?? manualMpesaProvider;
 }
 
-export { getPaymentSettings } from "./provider";
+export { getPaymentSettings, generationBaseKes } from "./provider";
 export type { PaymentSettings, CheckoutInstruction, PaymentProvider } from "./provider";

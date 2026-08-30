@@ -6,11 +6,11 @@ import { GenerationKind, PaymentKind, PaymentStatus, CreditReason } from "@prism
 
 import { db } from "@/lib/db";
 import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
-import { spendCredit, grantCredits } from "@/lib/credits";
+import { spendCredits, grantCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activity";
 import { paymentReference } from "@/lib/slug";
 import { enqueue, QUEUE } from "@/lib/queue";
-import { BUNDLES, KEEPER_PLAN, GENERATION_NEEDS_CENTRAL } from "@/lib/pricing";
+import { BUNDLES, KEEPER_PLAN, GENERATION_NEEDS_CENTRAL, creditsForPrice } from "@/lib/pricing";
 import { getPaymentSettings } from "@/lib/payments";
 
 const createSchema = z.object({
@@ -62,6 +62,7 @@ export async function unlockGeneration(treeId: string, jobId: string) {
     select: {
       id: true,
       status: true,
+      priceKes: true,
       tree: { select: { freeExportUsedAt: true, keeperUntil: true } },
     },
   });
@@ -104,8 +105,10 @@ export async function unlockGeneration(treeId: string, jobId: string) {
     return;
   }
 
-  // 2) spend a credit if the workspace has one
-  const spent = await spendCredit(ctx.workspace.id, jobId, ctx.user.id);
+  // 2) spend credits (a big generation costs more than one)
+  const settings = await getPaymentSettings();
+  const needed = creditsForPrice(job.priceKes || settings.defaultPriceKes, settings.defaultPriceKes);
+  const spent = await spendCredits(ctx.workspace.id, jobId, needed, ctx.user.id);
   if (spent) {
     await db.generationJob.update({
       where: { id: jobId },

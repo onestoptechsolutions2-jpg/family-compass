@@ -122,13 +122,24 @@ optional** — only used if you also want the older email-invite flow.
 
 ### Monetization model (phase 6)
 
-Free to build, invite, and publish shared links. Two ways to pay for downloads:
+Free to build, invite, and publish shared links.
 
-- **Pay-as-you-go credits** — first export per tree free, then 1 credit each
-  (`SINGLE` KES 750 · `BUNDLE_5` KES 2,500 · `BUNDLE_15` KES 6,000).
-- **Family plan** — KES 3,000 / tree / year (`PaymentKind.KEEPER`) for
-  **unlimited** downloads while `Tree.keeperUntil` is in the future. Approving
-  the M-Pesa payment extends it by 12 months. Price editable in `/admin/settings`.
+- **Downloads (size-based).** First export per tree free. After that
+  `price = per-document base + (generations − free) × perGen + (nodes − free) ×
+  perNode` — computed when the preview renders, shown before you pay. A credit
+  is worth the standard price; a big generation costs `ceil(price / standard)`
+  credits. Bundles: `SINGLE` KES 750 · `BUNDLE_5` KES 2,500 · `BUNDLE_15`
+  KES 6,000.
+- **Family plan** (`PaymentKind.KEEPER`) — KES 3,000 / tree / year, unlimited
+  downloads of any size while `Tree.keeperUntil` is in the future.
+- **Deep search** (`PaymentKind.DEEP_SEARCH`) — KES 300 for one cross-tree
+  lookup (`/discover`): is this person from my bloodline / clan? Free preview
+  shows the match count; paid shows who, where, and a WhatsApp connect link.
+- **Research Partner** (`PaymentKind.RESEARCH_PARTNER`) — quoted engagement
+  (`/research` → `/admin/research`): we build the tree. Quote helper =
+  `base + perGen × generationsTarget + perNode × nodesTarget`.
+
+All prices/multipliers are editable in **/admin/settings**.
 
 Credits detail:
 first export per tree is **free**, then **1 credit per download**. Credits are

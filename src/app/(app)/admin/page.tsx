@@ -61,9 +61,12 @@ export default async function AdminHomePage() {
           );
         })}
       </div>
-      <div className="flex gap-4 text-sm">
+      <div className="flex flex-wrap gap-4 text-sm">
         <Link href="/admin/payments" className="text-brand-600 hover:underline">
           Payment verification →
+        </Link>
+        <Link href="/admin/research" className="text-brand-600 hover:underline">
+          Research engagements →
         </Link>
         <Link href="/admin/settings" className="text-brand-600 hover:underline">
           Payment settings →

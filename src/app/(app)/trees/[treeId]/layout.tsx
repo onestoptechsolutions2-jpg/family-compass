@@ -25,6 +25,8 @@ export default async function TreeLayout({
     { href: base, label: "Overview" },
     { href: `${base}/people`, label: "People" },
     { href: `${base}/families`, label: "Families" },
+    { href: `${base}/clans`, label: "Clans" },
+    { href: `${base}/relationship`, label: "Are we related?" },
     { href: `${base}/events`, label: "Events" },
     { href: `${base}/places`, label: "Places" },
     { href: `${base}/sources`, label: "Sources" },

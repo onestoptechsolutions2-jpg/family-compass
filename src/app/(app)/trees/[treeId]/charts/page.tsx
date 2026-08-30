@@ -93,8 +93,10 @@ export default async function ChartsPage({
               </div>
               <div className="text-2xl font-semibold">{credits}</div>
               <div className="text-xs" style={{ color: "var(--muted)" }}>
-                First export on this tree is free, then 1 credit per download — or go unlimited
-                with the Family plan.
+                First export free. After that the price depends on the document, how many
+                generations and how many people/families it covers ({settings.currency}{" "}
+                {settings.defaultPriceKes.toLocaleString()} for a standard one). Family plan =
+                unlimited, any size.
               </div>
             </>
           )}
@@ -315,9 +317,31 @@ export default async function ChartsPage({
                   <div className="font-medium">{GENERATION_LABELS[j.kind]}</div>
                   <div className="text-sm" style={{ color: "var(--muted)" }}>
                     {central ? `Centered on ${central} · ` : ""}
+                    {typeof (j.params as { generations?: number })?.generations === "number"
+                      ? `${(j.params as { generations?: number }).generations} gens · `
+                      : ""}
+                    {j.nodeCount != null ? `${j.nodeCount} nodes · ` : ""}
                     {STATUS_LABEL[j.status] ?? j.status}
                     {j.freeUnlock ? " · free" : ""}
                   </div>
+                  {["PREVIEW_READY", "AWAITING_PAYMENT"].includes(j.status) &&
+                    !keeperActive &&
+                    !j.freeUnlock && (
+                      <div className="mt-0.5 text-sm">
+                        This download:{" "}
+                        <strong>
+                          {settings.currency} {(j.priceKes || settings.defaultPriceKes).toLocaleString()}
+                        </strong>{" "}
+                        <span style={{ color: "var(--muted)" }}>
+                          (≈ {Math.max(1, Math.ceil((j.priceKes || settings.defaultPriceKes) / settings.defaultPriceKes))}{" "}
+                          credit
+                          {Math.ceil((j.priceKes || settings.defaultPriceKes) / settings.defaultPriceKes) === 1
+                            ? ""
+                            : "s"}
+                          )
+                        </span>
+                      </div>
+                    )}
                   {j.error && <div className="mt-1 text-sm text-red-600">{j.error}</div>}
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -326,9 +350,7 @@ export default async function ChartsPage({
                         <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
                           {keeperActive
                             ? "Get clean download (Family plan)"
-                            : credits > 0
-                              ? "Unlock download (1 credit)"
-                              : "Unlock download"}
+                            : "Unlock download"}
                         </button>
                       </form>
                     )}

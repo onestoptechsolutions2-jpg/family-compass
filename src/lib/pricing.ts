@@ -1,18 +1,18 @@
 import { GenerationKind, PaymentKind } from "@prisma/client";
 
-/** Credit bundles a buyer can purchase. Single price may be overridden by
- *  PaymentSettings.defaultPriceKes. */
+export type BundleKind = "SINGLE" | "BUNDLE_5" | "BUNDLE_15";
+
+/** Credit bundles. `SINGLE` price may be overridden by PaymentSettings.defaultPriceKes. */
 export const BUNDLES: Record<
-  Exclude<PaymentKind, "KEEPER">,
+  BundleKind,
   { credits: number; priceKes: number; label: string; blurb: string }
 > = {
-  SINGLE: { credits: 1, priceKes: 750, label: "1 export", blurb: "One print-ready download" },
+  SINGLE: { credits: 1, priceKes: 750, label: "1 export", blurb: "one standard download" },
   BUNDLE_5: { credits: 5, priceKes: 2500, label: "5 exports", blurb: "KES 500 each" },
   BUNDLE_15: { credits: 15, priceKes: 6000, label: "15 exports", blurb: "KES 400 each" },
 };
 
-/** Annual per-tree subscription — unlimited downloads while active.
- *  Price may be overridden by PaymentSettings.keeperPriceKes. */
+/** Annual per-tree subscription — unlimited downloads while active. */
 export const KEEPER_PLAN = {
   defaultPriceKes: 3000,
   months: 12,
@@ -39,6 +39,56 @@ export const GENERATION_NEEDS_CENTRAL: Record<GenerationKind, boolean> = {
 };
 
 export function bundleForKind(kind: PaymentKind) {
-  if (kind === PaymentKind.KEEPER) return null;
-  return BUNDLES[kind];
+  return kind === "SINGLE" || kind === "BUNDLE_5" || kind === "BUNDLE_15" ? BUNDLES[kind] : null;
+}
+
+// ---------------------------------------------------------------------------
+// Size-based print pricing
+// ---------------------------------------------------------------------------
+
+export type PriceFactors = {
+  defaultPriceKes: number;
+  priceFreeGenerations: number;
+  priceFreeNodes: number;
+  pricePerGenerationKes: number;
+  pricePerNodeKes: number;
+};
+
+export function computeGenerationPrice(
+  baseKes: number,
+  generations: number,
+  nodeCount: number,
+  f: PriceFactors,
+): { priceKes: number; generationsSurcharge: number; nodesSurcharge: number } {
+  const extraGens = Math.max(0, Math.ceil(generations) - f.priceFreeGenerations);
+  const extraNodes = Math.max(0, nodeCount - f.priceFreeNodes);
+  const generationsSurcharge = extraGens * f.pricePerGenerationKes;
+  const nodesSurcharge = extraNodes * f.pricePerNodeKes;
+  return {
+    priceKes: Math.max(0, Math.round(baseKes + generationsSurcharge + nodesSurcharge)),
+    generationsSurcharge,
+    nodesSurcharge,
+  };
+}
+
+/** How many KES-750-equivalent credits a priced generation costs. */
+export function creditsForPrice(priceKes: number, creditValueKes: number): number {
+  if (creditValueKes <= 0) return 1;
+  return Math.max(1, Math.ceil(priceKes / creditValueKes));
+}
+
+// ---------------------------------------------------------------------------
+// Research Partner quote
+// ---------------------------------------------------------------------------
+
+export function computeResearchQuote(
+  generationsTarget: number | null | undefined,
+  nodesTarget: number | null | undefined,
+  s: { researchBaseKes: number; researchPerGenerationKes: number; researchPerNodeKes: number },
+): number {
+  return Math.round(
+    s.researchBaseKes +
+      (generationsTarget ?? 0) * s.researchPerGenerationKes +
+      (nodesTarget ?? 0) * s.researchPerNodeKes,
+  );
 }

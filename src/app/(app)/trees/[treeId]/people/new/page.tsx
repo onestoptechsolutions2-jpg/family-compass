@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { requireTreeEdit } from "@/lib/rbac";
+import { db } from "@/lib/db";
+import { locationHints } from "@/lib/queries/locations";
 import { PersonForm } from "@/components/PersonForm";
 import { createPerson } from "../actions";
 
@@ -14,6 +16,10 @@ export default async function NewPersonPage({
   const { treeId } = await params;
   await requireTreeEdit(treeId);
 
+  const [clans, hints] = await Promise.all([
+    db.clan.findMany({ where: { treeId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    locationHints(),
+  ]);
   const action = createPerson.bind(null, treeId);
 
   return (
@@ -26,7 +32,7 @@ export default async function NewPersonPage({
         ← People
       </Link>
       <h2 className="text-lg font-semibold">Add a person</h2>
-      <PersonForm action={action} submitLabel="Create person" />
+      <PersonForm action={action} submitLabel="Create person" clans={clans} locationHints={hints} />
     </div>
   );
 }

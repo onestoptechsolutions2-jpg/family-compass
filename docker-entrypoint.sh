@@ -16,8 +16,10 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     npx prisma migrate deploy
   fi
 
-  if [ "${RUN_SEED_ON_MIGRATE:-false}" = "true" ]; then
-    echo "==> prisma db seed"
+  # Seed is idempotent (upserts). Runs every deploy so there are no manual
+  # terminal steps; set SKIP_SEED=true to opt out.
+  if [ "${SKIP_SEED:-false}" != "true" ]; then
+    echo "==> seed"
     npx tsx prisma/seed.ts || echo "seed failed (continuing)"
   fi
 fi

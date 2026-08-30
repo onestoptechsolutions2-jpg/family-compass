@@ -4,7 +4,7 @@ import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { personOptions } from "@/lib/queries/people";
 import { PersonSelect } from "@/components/PersonSelect";
-import { renameTree, setHomePerson, deleteTree } from "./actions";
+import { renameTree, setHomePerson, updateDiscovery, deleteTree } from "./actions";
 
 export const metadata = { title: "Settings" };
 
@@ -19,7 +19,14 @@ export default async function TreeSettingsPage({
 
   const tree = await db.tree.findUniqueOrThrow({
     where: { id: treeId },
-    select: { name: true, description: true, homePersonId: true },
+    select: {
+      name: true,
+      description: true,
+      homePersonId: true,
+      discoverable: true,
+      community: true,
+      region: true,
+    },
   });
   const options = await personOptions(treeId);
 
@@ -73,6 +80,50 @@ export default async function TreeSettingsPage({
           <button className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
             Set
           </button>
+        </form>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h3 className="font-medium">Research directory</h3>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          Let others find non-private people from this tree in a deep search (e.g. checking a
+          bloodline before marriage). No full tree is exposed — just name, clan, community and
+          approximate year, plus your WhatsApp for a connection request.
+        </p>
+        <form action={updateDiscovery.bind(null, treeId)} className="mt-3 flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="discoverable" value="true" defaultChecked={tree.discoverable} />
+            List this tree in the research directory
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Community</span>
+              <input
+                name="community"
+                defaultValue={tree.community ?? ""}
+                placeholder="Luhya, Kikuyu, Kamba, Kalenjin…"
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              />
+            </label>
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Region / county</span>
+              <input
+                name="region"
+                defaultValue={tree.region ?? ""}
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              />
+            </label>
+          </div>
+          <div>
+            <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+              Save
+            </button>
+          </div>
         </form>
       </section>
 

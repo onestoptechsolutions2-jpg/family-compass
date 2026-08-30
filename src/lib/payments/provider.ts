@@ -5,6 +5,14 @@ export type PaymentSettings = {
   currency: string;
   defaultPriceKes: number;
   keeperPriceKes: number;
+  priceFreeGenerations: number;
+  priceFreeNodes: number;
+  pricePerGenerationKes: number;
+  pricePerNodeKes: number;
+  deepSearchPriceKes: number;
+  researchBaseKes: number;
+  researchPerGenerationKes: number;
+  researchPerNodeKes: number;
   tillNumber: string | null;
   storeNumber: string | null;
   paybillNumber: string | null;
@@ -19,6 +27,14 @@ const DEFAULTS: PaymentSettings = {
   currency: "KES",
   defaultPriceKes: 750,
   keeperPriceKes: 3000,
+  priceFreeGenerations: 4,
+  priceFreeNodes: 60,
+  pricePerGenerationKes: 150,
+  pricePerNodeKes: 8,
+  deepSearchPriceKes: 300,
+  researchBaseKes: 5000,
+  researchPerGenerationKes: 1500,
+  researchPerNodeKes: 200,
   tillNumber: null,
   storeNumber: null,
   paybillNumber: null,
@@ -37,6 +53,14 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     currency: row.currency,
     defaultPriceKes: row.defaultPriceKes,
     keeperPriceKes: row.keeperPriceKes,
+    priceFreeGenerations: row.priceFreeGenerations,
+    priceFreeNodes: row.priceFreeNodes,
+    pricePerGenerationKes: row.pricePerGenerationKes,
+    pricePerNodeKes: row.pricePerNodeKes,
+    deepSearchPriceKes: row.deepSearchPriceKes,
+    researchBaseKes: row.researchBaseKes,
+    researchPerGenerationKes: row.researchPerGenerationKes,
+    researchPerNodeKes: row.researchPerNodeKes,
     tillNumber: row.tillNumber,
     storeNumber: row.storeNumber,
     paybillNumber: row.paybillNumber,
@@ -45,6 +69,11 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     instructions: row.instructions,
     verificationMode: row.verificationMode,
   };
+}
+
+export async function generationBaseKes(): Promise<Record<string, number>> {
+  const rows = await db.generationPricing.findMany();
+  return Object.fromEntries(rows.map((r) => [r.kind, r.baseKes]));
 }
 
 export type CheckoutInstruction = {

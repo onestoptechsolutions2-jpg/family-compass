@@ -71,14 +71,49 @@ export default async function AdminSettingsPage() {
           </label>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Family plan price / year</span>
-            <input
-              type="number"
-              name="keeperPriceKes"
-              defaultValue={s.keeperPriceKes}
-              className={field}
-              style={style}
-            />
+            <input type="number" name="keeperPriceKes" defaultValue={s.keeperPriceKes} className={field} style={style} />
           </label>
+
+          <div className="col-span-2 mt-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            Size-based print pricing
+          </div>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Free generations</span>
+            <input type="number" name="priceFreeGenerations" defaultValue={s.priceFreeGenerations} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Free nodes</span>
+            <input type="number" name="priceFreeNodes" defaultValue={s.priceFreeNodes} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Per extra generation</span>
+            <input type="number" name="pricePerGenerationKes" defaultValue={s.pricePerGenerationKes} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Per extra node</span>
+            <input type="number" name="pricePerNodeKes" defaultValue={s.pricePerNodeKes} className={field} style={style} />
+          </label>
+
+          <div className="col-span-2 mt-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            Deep search & Research Partner
+          </div>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Deep search price</span>
+            <input type="number" name="deepSearchPriceKes" defaultValue={s.deepSearchPriceKes} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Research base</span>
+            <input type="number" name="researchBaseKes" defaultValue={s.researchBaseKes} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Research per generation</span>
+            <input type="number" name="researchPerGenerationKes" defaultValue={s.researchPerGenerationKes} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Research per node</span>
+            <input type="number" name="researchPerNodeKes" defaultValue={s.researchPerNodeKes} className={field} style={style} />
+          </label>
+
           <label className="text-sm col-span-2">
             <span style={{ color: "var(--muted)" }}>Business name</span>
             <input name="businessName" defaultValue={s.businessName ?? ""} className={field} style={style} />

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { CreditReason, PaymentKind, PaymentStatus } from "@prisma/client";
+import { CreditReason, EngagementStatus, PaymentKind, PaymentStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
@@ -46,6 +46,18 @@ export async function approvePayment(paymentId: string) {
     until.setMonth(until.getMonth() + KEEPER_PLAN.months);
     await db.tree.update({ where: { id: treeId }, data: { keeperUntil: until } });
     summary = `Family plan verified — active until ${until.toISOString().slice(0, 10)}`;
+  } else if (payment.kind === PaymentKind.DEEP_SEARCH) {
+    await db.deepSearch.updateMany({
+      where: { paymentId: payment.id },
+      data: { status: "PAID" },
+    });
+    summary = "deep search unlocked";
+  } else if (payment.kind === PaymentKind.RESEARCH_PARTNER) {
+    await db.researchEngagement.updateMany({
+      where: { paymentId: payment.id },
+      data: { status: EngagementStatus.ACTIVE },
+    });
+    summary = "research engagement activated";
   } else if (payment.creditsGranted > 0) {
     await grantCredits(payment.workspaceId, payment.creditsGranted, {
       reason: CreditReason.PURCHASE,

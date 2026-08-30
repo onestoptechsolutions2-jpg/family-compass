@@ -17,6 +17,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             🧭 Family Compass
           </Link>
           <div className="flex items-center gap-4 text-sm">
+            <Link href="/discover" className="hover:underline">
+              Discover
+            </Link>
+            <Link href="/research" className="hover:underline">
+              Research
+            </Link>
             {user.isPlatformAdmin && (
               <Link href="/admin" className="hover:underline">
                 Admin
