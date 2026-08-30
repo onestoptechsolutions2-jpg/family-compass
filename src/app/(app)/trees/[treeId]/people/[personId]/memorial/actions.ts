@@ -10,6 +10,8 @@ import { slugify, randomToken } from "@/lib/slug";
 import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 import { draftEulogyText, normaliseOrder, type ProgramItem } from "@/lib/queries/memorial";
+import { expandTemplate } from "@/lib/programme-templates";
+import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { logActivity } from "@/lib/activity";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyTreeManagers } from "@/lib/notify";
@@ -253,6 +255,80 @@ export async function saveProgram(treeId: string, memorialId: string, formData: 
     objectType: "funeralProgram",
     objectId: m.personId,
     summary: "updated the funeral programme details",
+  });
+  revalidate(treeId, m.personId);
+}
+
+/** Scaffold a whole programme from a template; the family edits it afterwards. */
+export async function applyProgrammeTemplate(treeId: string, memorialId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+
+  const templateId = String(formData.get("templateId") ?? "");
+  const d1 = String(formData.get("d1") ?? "").trim();
+  const d2 = String(formData.get("d2") ?? "").trim();
+  const replace = formData.get("replace") === "1";
+
+  const items = expandTemplate(templateId, d1, d2);
+  if (!items) throw new Error("Unknown template");
+
+  const kept = replace ? [] : await currentOrder(memorialId);
+  const order: ProgramItem[] = [
+    ...kept,
+    ...items.map((it) => ({ id: `it_${randomToken(8)}`, day: it.day, title: it.title, detail: it.detail })),
+  ];
+  await commitOrder(memorialId, ctx.user.id, order, `applied "${templateId}" programme template`);
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "funeralProgram",
+    objectId: m.personId,
+    summary: "applied a programme template",
+  });
+  revalidate(treeId, m.personId);
+}
+
+/** Biography wizard — save the free-text answers and (optionally) regenerate. */
+export async function saveBioNotes(treeId: string, memorialId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  assertUnlocked(m);
+
+  const notes: BioNotes = {};
+  for (const f of BIO_FIELDS) {
+    const v = String(formData.get(f.key) ?? "").trim().slice(0, 4000);
+    if (v) notes[f.key] = v;
+  }
+  await db.memorial.update({
+    where: { id: memorialId },
+    data: { bioNotes: notes as unknown as object },
+  });
+
+  if (formData.get("regenerate") === "1") {
+    const draft = await draftEulogyText(treeId, m.personId);
+    if (draft) {
+      const overwrite = formData.get("overwrite") === "1";
+      const current = await db.memorial.findUniqueOrThrow({
+        where: { id: memorialId },
+        select: { eulogy: true },
+      });
+      const next =
+        overwrite || !current.eulogy?.trim()
+          ? draft
+          : `${current.eulogy.trim()}\n\n— rebuilt from records + biography —\n\n${draft}`;
+      await db.memorial.update({ where: { id: memorialId }, data: { eulogy: next } });
+    }
+  }
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "memorial",
+    objectId: m.personId,
+    summary: "updated the biography details",
   });
   revalidate(treeId, m.personId);
 }

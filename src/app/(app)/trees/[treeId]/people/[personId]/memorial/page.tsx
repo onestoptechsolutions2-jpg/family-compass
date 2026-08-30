@@ -8,6 +8,8 @@ import { displayName } from "@/lib/person";
 import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/memorial";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
+import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
+import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { personMedia } from "@/lib/queries/media";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { CopyButton } from "@/components/CopyButton";
@@ -25,6 +27,8 @@ import {
   moderateGuestbook,
   deleteMemorial,
   draftEulogy,
+  applyProgrammeTemplate,
+  saveBioNotes,
   inviteContributor,
   removeContributor,
   reviewContribution,
@@ -98,6 +102,7 @@ export default async function MemorialEditorPage({
   const media = await personMedia(treeId, personId);
   const order = normaliseOrder(memorial.program?.order);
   const orderDays = groupByDay(order);
+  const bio = (memorial.bioNotes ?? {}) as BioNotes;
   const origin = await publicOrigin();
   const url = `${origin}/m/${memorial.slug}`;
   const pending = memorial.guestbook.filter((g) => g.status === "PENDING");
@@ -304,7 +309,43 @@ export default async function MemorialEditorPage({
         </div>
       </form>
 
-      <div className="-mt-2 flex flex-wrap gap-2 text-sm">
+      <div className="-mt-2 flex flex-wrap items-center gap-2 text-sm">
+        <Dialog
+          title="Biography wizard"
+          label="✨ Biography wizard"
+          wide
+          buttonClass="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          <form action={saveBioNotes.bind(null, treeId, memorial.id)} className="flex flex-col gap-3">
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              Fill in what the records can&apos;t tell us. Dates, places, parents, spouse, children
+              and clan are pulled automatically. Save, then rebuild the eulogy to weave it together.
+            </p>
+            {BIO_FIELDS.map((f) => (
+              <label key={f.key} className="text-sm">
+                <span style={{ color: "var(--muted)" }}>{f.label}</span>
+                <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>— {f.hint}</span>
+                {f.rows > 1 ? (
+                  <textarea name={f.key} rows={f.rows} defaultValue={bio[f.key] ?? ""} className={field} style={style} />
+                ) : (
+                  <input name={f.key} defaultValue={bio[f.key] ?? ""} className={field} style={style} />
+                )}
+              </label>
+            ))}
+            <div className="flex flex-wrap items-center gap-3 border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="regenerate" value="1" defaultChecked /> Rebuild the eulogy now
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="overwrite" value="1" /> Replace the current eulogy (else append)
+              </label>
+            </div>
+            <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+              Save &amp; build
+            </button>
+          </form>
+        </Dialog>
+
         <form action={draftEulogy.bind(null, treeId, memorial.id)}>
           <input type="hidden" name="overwrite" value="0" />
           <button className="rounded-lg border px-3 py-1.5" style={{ borderColor: "var(--border)" }}>
@@ -392,8 +433,45 @@ export default async function MemorialEditorPage({
         </form>
 
         {/* order of service, grouped by day */}
-        <div className="mt-5 flex items-center justify-between">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-medium">Order of service</h3>
+          <div className="flex items-center gap-2">
+          <Dialog
+            title="Start from a programme template"
+            label="✨ Use a template"
+            wide
+            buttonClass="rounded-lg border px-3 py-1.5 text-xs font-medium"
+          >
+            <form action={applyProgrammeTemplate.bind(null, treeId, memorial.id)} className="flex flex-col gap-3">
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                Scaffolds a full order of service you then edit item by item.
+              </p>
+              <label className="text-sm">
+                <span style={{ color: "var(--muted)" }}>Template</span>
+                <select name="templateId" className={field} style={style} defaultValue={PROGRAMME_TEMPLATES[0]?.id}>
+                  {PROGRAMME_TEMPLATES.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label} — {t.blurb}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="text-sm">
+                  <span style={{ color: "var(--muted)" }}>Day 1 label</span>
+                  <input name="d1" placeholder="Fri 12 Sep · Vigil" className={field} style={style} />
+                </label>
+                <label className="text-sm">
+                  <span style={{ color: "var(--muted)" }}>Day 2 label (if used)</span>
+                  <input name="d2" placeholder="Sat 13 Sep · Service & burial" className={field} style={style} />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="replace" value="1" /> Replace any existing items
+              </label>
+              <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                Build programme
+              </button>
+            </form>
+          </Dialog>
           <Dialog
             title="Add a programme item"
             label="➕ Add item"
@@ -422,6 +500,7 @@ export default async function MemorialEditorPage({
               </button>
             </form>
           </Dialog>
+          </div>
         </div>
 
         {order.length === 0 && (

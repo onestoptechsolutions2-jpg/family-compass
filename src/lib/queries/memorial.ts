@@ -65,6 +65,7 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
       guestbookModerated: true,
       includeLiving: true,
       template: true,
+      bioNotes: true,
       viewCount: true,
       status: true,
       lockedAt: true,
@@ -419,7 +420,8 @@ export async function gatherEulogyFacts(
   treeId: string,
   personId: string,
 ): Promise<EulogyFacts | null> {
-  const p = await db.person.findFirst({
+  const [p, mem] = await Promise.all([
+    db.person.findFirst({
     where: { id: personId, treeId },
     select: {
       gender: true,
@@ -452,7 +454,9 @@ export async function gatherEulogyFacts(
         select: { partner1: { select: MINI }, childRefs: { select: { person: { select: MINI } } } },
       },
     },
-  });
+    }),
+    db.memorial.findFirst({ where: { personId, treeId }, select: { bioNotes: true } }),
+  ]);
   if (!p) return null;
 
   const events = p.eventRefs.map((r) => r.event);
@@ -493,6 +497,7 @@ export async function gatherEulogyFacts(
     spouses: [...new Set(spouses)],
     children: [...new Set(children)],
     siblingsCount: null,
+    notes: (mem?.bioNotes as EulogyFacts["notes"]) ?? null,
   };
 }
 

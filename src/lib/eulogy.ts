@@ -20,12 +20,44 @@ export type EulogyFacts = {
   children?: string[];
   siblingsCount?: number | null;
   restingPlace?: string | null;
+  notes?: BioNotes | null;
 };
 
+/** Free-text answers gathered by the biography wizard. */
+export type BioNotes = {
+  earlyLife?: string;
+  education?: string;
+  career?: string;
+  faith?: string;
+  character?: string;
+  interests?: string;
+  achievements?: string;
+  illness?: string;
+  finalDays?: string;
+  lastWords?: string;
+  favouriteScripture?: string;
+  favouriteHymn?: string;
+};
+
+export const BIO_FIELDS: { key: keyof BioNotes; label: string; hint: string; rows: number }[] = [
+  { key: "earlyLife", label: "Early life & childhood", hint: "Where they grew up, home, family life", rows: 3 },
+  { key: "education", label: "Education", hint: "Schools, college, courses, qualifications", rows: 3 },
+  { key: "career", label: "Work & career", hint: "Jobs, employers, business, service, retirement", rows: 3 },
+  { key: "faith", label: "Faith & church", hint: "Denomination, church, baptism, ministry, role", rows: 2 },
+  { key: "character", label: "Character & values", hint: "How the family will remember them", rows: 3 },
+  { key: "interests", label: "Interests & hobbies", hint: "Farming, sport, music, cooking, travel…", rows: 2 },
+  { key: "achievements", label: "Achievements & honours", hint: "Awards, milestones, contributions to the community", rows: 2 },
+  { key: "illness", label: "Illness", hint: "Nature of the illness, care received (optional)", rows: 2 },
+  { key: "finalDays", label: "Final days", hint: "The last weeks, who was present", rows: 2 },
+  { key: "lastWords", label: "Last words / final wishes", hint: "Anything they said or asked for", rows: 2 },
+  { key: "favouriteScripture", label: "Favourite scripture / reading", hint: "e.g. Psalm 23", rows: 1 },
+  { key: "favouriteHymn", label: "Favourite hymn / song", hint: "For the programme and the book", rows: 1 },
+];
+
 function pronoun(g: EulogyFacts["gender"]) {
-  if (g === "MALE") return { subj: "He", poss: "his" };
-  if (g === "FEMALE") return { subj: "She", poss: "her" };
-  return { subj: "They", poss: "their" };
+  if (g === "MALE") return { subj: "He", poss: "his", obj: "him" };
+  if (g === "FEMALE") return { subj: "She", poss: "her", obj: "her" };
+  return { subj: "They", poss: "their", obj: "them" };
 }
 
 function list(items: string[] | undefined): string {
@@ -74,12 +106,58 @@ export function buildEulogyDraft(f: EulogyFacts): string {
     if (bits.length) paras.push(bits.join(" "));
   }
 
-  // 3 — a place for the family to write the life story
-  paras.push(
-    `[Add here: ${first}'s education, work, faith, character, and the moments the family remembers most.]`,
-  );
+  // 3 — the life story, from the biography wizard (or a prompt if not filled)
+  const n = f.notes ?? {};
+  const lead = (s?: string) => (s && s.trim() ? s.trim() : "");
+  const storyParas: string[] = [];
 
-  // 4 — passing
+  const el = lead(n.earlyLife);
+  const ed = lead(n.education);
+  if (el || ed) {
+    storyParas.push(
+      [el && `${el}`, ed && `${p.subj} was educated at ${ed.replace(/^(at|in)\s+/i, "")}.`]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+  const ca = lead(n.career);
+  if (ca) storyParas.push(`In ${p.poss} working life, ${lowerFirst(ca)}`.replace(/\.?$/, "."));
+  const fa = lead(n.faith);
+  if (fa) storyParas.push(`${p.subj} was a person of faith. ${capitalise(fa)}`.replace(/\.?$/, "."));
+  const ch = lead(n.character);
+  const inx = lead(n.interests);
+  if (ch || inx) {
+    storyParas.push(
+      [
+        ch && `Those who knew ${first} remember ${p.obj} as ${lowerFirst(ch)}`.replace(/\.?$/, "."),
+        inx && `${p.subj} loved ${lowerFirst(inx)}`.replace(/\.?$/, "."),
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+  const ac = lead(n.achievements);
+  if (ac) storyParas.push(`Among ${p.poss} achievements, ${lowerFirst(ac)}`.replace(/\.?$/, "."));
+
+  if (storyParas.length) paras.push(...storyParas);
+  else
+    paras.push(
+      `[Add here: ${first}'s education, work, faith, character, and the moments the family remembers most — the Biography wizard collects these.]`,
+    );
+
+  // 4 — illness & final days
+  {
+    const il = lead(n.illness);
+    const fd = lead(n.finalDays);
+    const lw = lead(n.lastWords);
+    const bits: string[] = [];
+    if (il) bits.push(capitalise(il).replace(/\.?$/, "."));
+    if (fd) bits.push(capitalise(fd).replace(/\.?$/, "."));
+    if (lw) bits.push(`In ${p.poss} last words, ${first} said: “${lw.replace(/^["“]|["”]$/g, "")}”.`);
+    if (bits.length) paras.push(bits.join(" "));
+  }
+
+  // 5 — passing
   {
     const bits: string[] = [];
     bits.push(`${f.name} passed away`);
@@ -88,9 +166,18 @@ export function buildEulogyDraft(f: EulogyFacts): string {
     let s = bits.join(" ") + ".";
     if (f.ageYears && f.ageYears > 0) s += ` ${p.subj} was ${f.ageYears} years old.`;
     if (f.restingPlace) s += ` ${p.subj} is laid to rest at ${f.restingPlace}.`;
+    const fav = lead(n.favouriteScripture);
+    if (fav) s += ` ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} favourite scripture was ${fav}.`;
     s += ` ${p.subj} is survived and remembered by ${p.poss} family and community.`;
     paras.push(s);
   }
 
   return paras.join("\n\n");
+}
+
+function lowerFirst(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
