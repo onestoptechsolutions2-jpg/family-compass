@@ -124,6 +124,7 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
           body: true,
           status: true,
           createdAt: true,
+          photoMediaIds: true,
           reviewedBy: { select: { name: true, email: true } },
         },
       },

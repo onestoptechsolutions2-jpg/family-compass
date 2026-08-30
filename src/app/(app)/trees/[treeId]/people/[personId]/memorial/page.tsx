@@ -790,6 +790,18 @@ export default async function MemorialEditorPage({
                 </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+              {c.photoMediaIds.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {c.photoMediaIds.map((mid) => (
+                    <div key={mid} className="h-16 w-16 overflow-hidden rounded border" style={{ borderColor: "var(--border)" }}>
+                      <MediaThumb mediaId={mid} mimeType="image/jpeg" alt="" />
+                    </div>
+                  ))}
+                  <span className="self-end text-xs" style={{ color: "var(--muted)" }}>
+                    {c.photoMediaIds.length} photo{c.photoMediaIds.length === 1 ? "" : "s"} — attached to {name} on accept
+                  </span>
+                </div>
+              )}
               <div className="mt-2 flex gap-2 text-xs">
                 <form action={reviewContribution.bind(null, treeId, memorial.id, c.id, "ACCEPTED")}>
                   <button

@@ -189,7 +189,6 @@ export default async function ContributePage({
           <span style={{ color: "var(--muted)" }}>Your words</span>
           <textarea
             name="body"
-            required
             rows={7}
             placeholder={
               isDraft
@@ -200,8 +199,47 @@ export default async function ContributePage({
             style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
           />
         </label>
+        <fieldset className="rounded-lg border p-3" style={{ borderColor: "var(--hairline)" }}>
+          <legend className="px-1 text-xs" style={{ color: "var(--muted)" }}>
+            Dates to add or correct (optional)
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Born</span>
+              <input name="bornDate" placeholder="e.g. 12 March 1948" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+            </label>
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Died</span>
+              <input name="diedDate" placeholder="e.g. 2 Aug 2025" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+            </label>
+          </div>
+          <label className="mt-2 block text-sm">
+            <span style={{ color: "var(--muted)" }}>Another date (baptism, wedding, graduation…)</span>
+            <input name="otherDate" placeholder="e.g. Wedding — 4 June 1972" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+          </label>
+        </fieldset>
+
+        <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>Photos (optional — up to 10)</span>
+          <input
+            type="file"
+            name="photos"
+            multiple
+            accept="image/*"
+            className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          />
+          <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
+            Up to 10 images, 10&nbsp;MB each. The family reviews them before they appear.
+          </span>
+        </label>
+
         {err === "name" && <p className="text-sm" style={{ color: "var(--danger)" }}>Please add your name.</p>}
-        {err && err !== "name" && <p className="text-sm" style={{ color: "var(--danger)" }}>Please write a little more.</p>}
+        {err === "1" && <p className="text-sm" style={{ color: "var(--danger)" }}>Please write a little more, or attach a photo.</p>}
+        {err === "photos-max" && <p className="text-sm" style={{ color: "var(--danger)" }}>Please attach no more than 10 photos.</p>}
+        {err === "photo-size" && <p className="text-sm" style={{ color: "var(--danger)" }}>One photo is over the 10&nbsp;MB limit.</p>}
+        {err === "photo-type" && <p className="text-sm" style={{ color: "var(--danger)" }}>Only image files can be attached.</p>}
+        {err === "photo-quota" && <p className="text-sm" style={{ color: "var(--danger)" }}>This memorial&apos;s photo storage is full — tell the family.</p>}
         <button className="self-start rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
           Send to the family
         </button>

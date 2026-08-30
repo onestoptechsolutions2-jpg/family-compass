@@ -20,8 +20,10 @@ import { MERGE_TARGET } from "@/lib/memorial-sections";
 import { isTemplateId } from "@/lib/memorial-templates";
 import { MemorialStatus, ContributionStatus } from "@prisma/client";
 
-const revalidate = (treeId: string, personId: string) =>
+const revalidate = (treeId: string, personId: string) => {
   revalidatePath(`/trees/${treeId}/people/${personId}/memorial`);
+  revalidatePath(`/trees/${treeId}/people/${personId}`);
+};
 
 async function ownMemorial(treeId: string, memorialId: string) {
   const m = await db.memorial.findFirst({
@@ -525,11 +527,40 @@ export async function reviewContribution(
   const m = await ownMemorial(treeId, memorialId);
   const c = await db.memorialContribution.findFirst({
     where: { id: contributionId, memorialId },
-    select: { id: true, section: true, body: true, authorName: true, status: true },
+    select: { id: true, section: true, body: true, authorName: true, status: true, photoMediaIds: true },
   });
   if (!c || c.status !== ContributionStatus.SUBMITTED) throw new Error("Nothing to review");
 
   let merged = false;
+  if (decision === "ACCEPTED") {
+    // attach any contributed photos to the person
+    if (c.photoMediaIds.length > 0) {
+      const media = await db.mediaObject.findMany({
+        where: { id: { in: c.photoMediaIds }, treeId, refs: { none: {} } },
+        select: { id: true },
+      });
+      if (media.length > 0) {
+        let order = await db.mediaRef.count({ where: { personId: m.personId } });
+        await db.mediaRef.createMany({
+          data: media.map((mo) => ({
+            mediaId: mo.id,
+            personId: m.personId,
+            order: order++,
+            caption: `Contributed by ${c.authorName}`,
+          })),
+        });
+        merged = true;
+      }
+    }
+  } else {
+    // declined — drop the orphaned uploads
+    if (c.photoMediaIds.length > 0) {
+      await db.mediaObject.deleteMany({
+        where: { id: { in: c.photoMediaIds }, treeId, refs: { none: {} } },
+      });
+    }
+  }
+
   if (decision === "ACCEPTED") {
     const target = MERGE_TARGET[c.section];
     if (target) {

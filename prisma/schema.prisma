@@ -199,6 +199,7 @@ model MemorialContribution {
   reviewedById  String?
   reviewedAt    DateTime?
   mergedAt      DateTime?
+  photoMediaIds String[]           @default([])
   createdAt     DateTime           @default(now())
 
   memorial    Memorial             @relation(fields: [memorialId], references: [id], onDelete: Cascade)
