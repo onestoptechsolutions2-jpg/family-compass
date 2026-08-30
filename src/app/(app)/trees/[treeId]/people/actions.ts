@@ -17,6 +17,8 @@ const label = (first?: string, surname?: string) =>
 
 const personSchema = z.object({
   first: z.string().trim().max(200).optional().default(""),
+  firstName: z.string().trim().max(120).optional().default(""),
+  middleName: z.string().trim().max(160).optional().default(""),
   surname: z.string().trim().max(200).optional().default(""),
   gender: z.enum(Gender).default(Gender.UNKNOWN),
   living: z.coerce.boolean().default(false),
@@ -38,7 +40,11 @@ async function resolveClan(treeId: string, clanId: string): Promise<string | nul
 function parse(formData: FormData) {
   const parsed = personSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Invalid input");
-  return parsed.data;
+  const d = parsed.data;
+  // The form now supplies first + middle separately; store them joined in `first`.
+  const split = [d.firstName, d.middleName].map((s) => s.trim()).filter(Boolean).join(" ");
+  if (split) d.first = split;
+  return d;
 }
 
 async function upsertPlace(treeId: string, title: string): Promise<string | null> {

@@ -50,12 +50,22 @@ export function PersonForm({
   const birth = values?.events?.find((e) => e.type === "Birth");
   const death = values?.events?.find((e) => e.type === "Death");
 
+  // `Name.first` holds all given names space-separated — split the first token
+  // off as the personal name and treat the rest as middle name(s).
+  const givenParts = (values?.first ?? "").trim().split(/\s+/).filter(Boolean);
+  const firstName = givenParts[0] ?? "";
+  const middleName = givenParts.slice(1).join(" ");
+
   return (
     <form action={action} className="flex max-w-xl flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <label className="text-sm">
-          <span style={{ color: "var(--muted)" }}>Given name(s)</span>
-          <input name="first" defaultValue={values?.first ?? ""} className={field} style={fieldStyle} />
+          <span style={{ color: "var(--muted)" }}>First name</span>
+          <input name="firstName" defaultValue={firstName} className={field} style={fieldStyle} />
+        </label>
+        <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>Middle name(s)</span>
+          <input name="middleName" defaultValue={middleName} className={field} style={fieldStyle} />
         </label>
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Surname</span>
