@@ -9,6 +9,7 @@ import { personOptions } from "@/lib/queries/people";
 import { formatName } from "@/lib/person";
 import { displayPhone } from "@/lib/wa";
 import { CopyButton } from "@/components/CopyButton";
+import { QrShare } from "@/components/QrShare";
 import { PersonSelect } from "@/components/PersonSelect";
 import {
   inviteMember,
@@ -328,6 +329,13 @@ export default async function SharingPage({
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <code className="truncate rounded bg-black/5 px-1.5 py-0.5 text-xs">{url}</code>
                   <CopyButton value={url} />
+                  <QrShare
+                    value={url}
+                    title="Shared tree QR"
+                    label="QR"
+                    caption="Scan to open this shared family profile."
+                    buttonClass="rounded-md border px-2 py-1 text-xs"
+                  />
                   <a href={url} target="_blank" rel="noreferrer" className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)" }}>
                     open
                   </a>

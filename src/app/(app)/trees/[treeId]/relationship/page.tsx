@@ -6,6 +6,7 @@ import { getTreeGraph } from "@/lib/queries/graph";
 import { personOptions } from "@/lib/queries/people";
 import { displayName } from "@/lib/person";
 import { bloodRelationship } from "@/lib/kinship";
+import { affinalRelationship } from "@/lib/affinity";
 import { PersonSelect } from "@/components/PersonSelect";
 
 export const metadata = { title: "Relationship check" };
@@ -56,6 +57,9 @@ export default async function RelationshipPage({
           : null;
       const ancestor = k.commonAncestorId ? graph.persons[k.commonAncestorId]?.name : null;
       const close = k.related && k.closeness >= 0 && k.closeness <= 6;
+      const aff = !k.related && !k.marriedToEachOther ? affinalRelationship(graph, pa.id, pb.id) : null;
+      const nameA = displayName(pa.names);
+      const nameB = displayName(pb.names);
 
       result = (
         <div
@@ -103,6 +107,30 @@ export default async function RelationshipPage({
             <p className="mt-2 text-sm">
               No blood relationship or shared clan found <em>in this tree</em>.
             </p>
+          )}
+
+          {aff?.found && (
+            <div className="mt-3 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}>
+              <p className="font-medium">Related by marriage</p>
+              <p className="mt-1" style={{ color: "var(--muted)" }}>
+                {aff.via.replace(/^A's /, `${nameA}'s `)}.
+              </p>
+              <ul className="mt-2 space-y-1">
+                <li>
+                  {nameA} → {nameB}:{" "}
+                  <strong>{aff.aToB.en}</strong>
+                  {aff.aToB.sw ? <span style={{ color: "var(--muted)" }}> ({aff.aToB.sw})</span> : null}
+                </li>
+                <li>
+                  {nameB} → {nameA}:{" "}
+                  <strong>{aff.bToA.en}</strong>
+                  {aff.bToA.sw ? <span style={{ color: "var(--muted)" }}> ({aff.bToA.sw})</span> : null}
+                </li>
+              </ul>
+              {aff.note && (
+                <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>{aff.note}</p>
+              )}
+            </div>
           )}
 
           {!k.related && !sameClan && (

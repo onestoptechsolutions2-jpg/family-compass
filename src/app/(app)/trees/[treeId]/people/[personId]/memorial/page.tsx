@@ -10,6 +10,7 @@ import { sectionLabel } from "@/lib/memorial-sections";
 import { personMedia } from "@/lib/queries/media";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { CopyButton } from "@/components/CopyButton";
+import { QrShare } from "@/components/QrShare";
 import {
   createMemorial,
   updateMemorial,
@@ -123,7 +124,17 @@ export default async function MemorialEditorPage({
         </div>
       </div>
 
-      <code className="w-fit rounded bg-black/5 px-2 py-1 text-xs">{url}</code>
+      <div className="flex flex-wrap items-center gap-2">
+        <code className="rounded bg-black/5 px-2 py-1 text-xs">{url}</code>
+        <CopyButton value={url} label="Copy link" />
+        <QrShare
+          value={url}
+          title={`QR — ${name}'s memorial`}
+          label="Show QR"
+          caption="Point a phone camera here to open the memorial."
+          buttonClass="rounded-lg border px-3 py-1 text-xs font-medium"
+        />
+      </div>
 
       {/* ---- Workflow ---- */}
       <div
@@ -409,6 +420,13 @@ export default async function MemorialEditorPage({
                     WhatsApp
                   </a>
                   <CopyButton value={contributeLink(c.token)} label="Copy link" />
+                  <QrShare
+                    value={contributeLink(c.token)}
+                    title={`QR for ${c.name}`}
+                    label="QR"
+                    caption={`${c.name} can scan this to add a memory for ${name}.`}
+                    buttonClass="rounded-md border px-2 py-1 text-xs"
+                  />
                   <form action={removeContributor.bind(null, treeId, memorial.id, c.id)}>
                     <button className="rounded-md border px-2 py-1 text-xs" style={{ borderColor: "var(--border)", color: "var(--danger)" }}>
                       remove
