@@ -1,0 +1,24 @@
+import { NextResponse, type NextRequest } from "next/server";
+
+import { consumeLoginToken } from "@/lib/login-token";
+import { startDbSession } from "@/lib/session";
+import { getSessionUser } from "@/lib/rbac";
+
+export const dynamic = "force-dynamic";
+
+/** One-time passwordless sign-in link (super-admin bootstrap etc.). */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ token: string }> },
+) {
+  const { token } = await params;
+  const origin = new URL(req.url).origin;
+
+  if (await getSessionUser()) return NextResponse.redirect(new URL("/app", origin));
+
+  const userId = await consumeLoginToken(token);
+  if (!userId) return NextResponse.redirect(new URL("/login?error=BadLink", origin));
+
+  await startDbSession(userId);
+  return NextResponse.redirect(new URL("/app", origin));
+}

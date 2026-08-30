@@ -46,6 +46,23 @@ model User {
   claimedPerson   Person?          @relation("PersonClaimedBy")
   claimsDecided   PersonClaim[]    @relation("ClaimDecidedBy")
   claimsCreatedFor PersonClaim[]   @relation("ClaimCreatedUser")
+  loginTokens     LoginToken[]
+}
+
+/// One-time passwordless sign-in link (super-admin bootstrap, "email me a
+/// link" style flows). Strictly single-use.
+model LoginToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  purpose   String    @default("login")
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Account {

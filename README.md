@@ -82,11 +82,16 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
 4. Deploy. On boot the `app` container runs `prisma migrate deploy`
    (`RUN_MIGRATIONS=true`); the `worker` container has it disabled to avoid a
    migration race.
-5. First deploy only: set `RUN_SEED_ON_MIGRATE=true` **or** run
-   `npm run db:seed` once via a Coolify terminal to create the global
-   `PaymentSettings` row, then sign in as an `ADMIN_EMAILS` user and set your
-   M-Pesa Till / Store number in **/admin/settings**. Verify payments at
-   **/admin/payments**.
+5. First deploy: set `RUN_SEED_ON_MIGRATE=true` **or** run `npm run db:seed`
+   once via a Coolify terminal on the **`app`** container. This:
+   - creates the global `PaymentSettings` row, and
+   - creates a **super-admin** from `SUPERADMIN_EMAIL` (or `ADMIN_EMAILS[0]`)
+     and **prints a one-time sign-in link** to the logs
+     (`<APP_URL>/api/auth/link/<token>`, single use, 7 days).
+
+   Open that link → you're signed in as platform admin. Then set your M-Pesa
+   Till / Store number in **/admin/settings** and verify payments at
+   **/admin/payments**. Need a fresh link later: `npm run admin:link`.
 
 ### Accounts & sign-in
 
