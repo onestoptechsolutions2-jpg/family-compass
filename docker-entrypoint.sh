@@ -6,7 +6,15 @@ set -e
 # race each other applying migrations.
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   echo "==> prisma migrate deploy"
-  npx prisma migrate deploy
+  if ! npx prisma migrate deploy; then
+    echo "==> migrate deploy failed — marking any failed migrations rolled back and retrying once"
+    for dir in prisma/migrations/*/; do
+      name=$(basename "$dir")
+      [ "$name" = "*" ] && continue
+      npx prisma migrate resolve --rolled-back "$name" 2>/dev/null || true
+    done
+    npx prisma migrate deploy
+  fi
 
   if [ "${RUN_SEED_ON_MIGRATE:-false}" = "true" ]; then
     echo "==> prisma db seed"
