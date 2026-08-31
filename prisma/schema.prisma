@@ -1176,6 +1176,28 @@ model SharedView {
   @@index([slug])
 }
 
+/// Lightweight, privacy-conscious view telemetry for public links (shared
+/// trees, memorial pages, contribution & claim links). No cookies of the
+/// viewer's, no reversible IP — just enough to answer "how many people, and
+/// roughly where".
+model ViewEvent {
+  id           String   @id @default(cuid())
+  kind         String // share | memorial | give | claim
+  targetId     String // slug or token
+  treeId       String?
+  country      String? // ISO-2 from a CDN/proxy header, when present
+  timezone     String? // IANA tz reported by the browser
+  region       String? // derived display, e.g. "Nairobi · Africa"
+  lang         String? // primary browser language
+  referrerHost String?
+  deviceKind   String? // mobile | tablet | desktop | bot
+  ipHash       String? // sha256(ip + daily salt) — for unique-visitor counts only
+  createdAt    DateTime @default(now())
+
+  @@index([kind, targetId, createdAt])
+  @@index([treeId, createdAt])
+}
+
 // ===========================================================================
 // Import jobs
 // ===========================================================================

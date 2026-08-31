@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { fundByToken, fundTotals, fundContributions } from "@/lib/chama";
 import { chamaEnabled } from "@/lib/chama/plugin";
 import { getPaymentSettings } from "@/lib/payments";
+import { ViewBeacon } from "@/components/ViewBeacon";
 import { submitContribution } from "./actions";
 
 export const metadata: Metadata = { title: "Family welfare fund", robots: { index: false } };
@@ -50,6 +51,7 @@ export default async function GivePage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 py-8">
+      <ViewBeacon kind="give" target={token} />
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
         {fund.memorial?.slug && (

@@ -6,6 +6,7 @@ import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/memorial";
+import { viewSummary } from "@/lib/queries/view-analytics";
 import { chamaEnabled } from "@/lib/chama/plugin";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
@@ -113,6 +114,7 @@ export default async function MemorialEditorPage({
   }
 
   const media = await personMedia(treeId, personId);
+  const reach = await viewSummary("memorial", memorial.slug);
   const order = normaliseOrder(memorial.program?.order);
   const orderDays = groupByDay(order);
   const bio = (memorial.bioNotes ?? {}) as BioNotes;
@@ -151,7 +153,16 @@ export default async function MemorialEditorPage({
           <a href={url} target="_blank" rel="noreferrer" className="rounded-lg border px-3 py-1.5" style={{ borderColor: "var(--border)" }}>
             {memorial.published ? "View public page" : "Preview"}
           </a>
-          <span style={{ color: "var(--muted)" }}>{memorial.viewCount} views</span>
+          <span style={{ color: "var(--muted)" }}>
+            {memorial.viewCount} views
+            {reach.total > 0 && (
+              <>
+                {" · "}
+                {reach.uniques} visitors (30d)
+                {reach.byRegion[0] ? ` · mostly ${reach.byRegion[0].label}` : ""}
+              </>
+            )}
+          </span>
         </div>
       </div>
 

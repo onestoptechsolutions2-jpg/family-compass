@@ -11,6 +11,7 @@ import { ProfileHero } from "@/components/profile/ProfileHero";
 import { Section } from "@/components/profile/Section";
 import { ConnectionGrid, type Connection } from "@/components/profile/ConnectionGrid";
 import { MediaThumb } from "@/components/media/MediaThumb";
+import { ViewBeacon } from "@/components/ViewBeacon";
 import { submitSharePassword } from "./actions";
 
 const MODE_MAP: Record<ShareMode, "ancestors" | "hourglass" | "descendants"> = {
@@ -198,6 +199,7 @@ export default async function SharedViewPage({
 
   return (
     <Frame>
+      <ViewBeacon kind="share" target={slug} />
       {!isSubjectCentral && (
         <Link
           href={`/s/${slug}`}

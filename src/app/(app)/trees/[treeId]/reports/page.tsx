@@ -4,6 +4,7 @@ import { loadTreeContext, canEdit } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { getTreeStatistics, getReportDrilldown } from "@/lib/queries/statistics";
 import { claimStatusReport, CLAIM_CATEGORIES } from "@/lib/queries/claim-report";
+import { treeViewSummary } from "@/lib/queries/view-analytics";
 import { genderColor, genderSymbol } from "@/lib/person";
 import { CopyButton } from "@/components/CopyButton";
 import { sendClaimLink } from "./actions";
@@ -71,9 +72,10 @@ export default async function ReportsPage({
   const { d, claimOk, claimErr } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   const editable = canEdit(ctx.role);
-  const [s, claims, origin] = await Promise.all([
+  const [s, claims, reach, origin] = await Promise.all([
     getTreeStatistics(treeId),
     claimStatusReport(treeId),
+    treeViewSummary(treeId),
     publicOrigin(),
   ]);
   const drill = d ? await getReportDrilldown(treeId, d) : null;
@@ -194,6 +196,79 @@ export default async function ReportsPage({
           <h3 className="font-medium">Clans represented</h3>
           <Bars rows={s.topClans} base={() => null} />
         </Card>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">Public reach</h3>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Where people who opened this tree&apos;s public links (shared trees, memorials,
+            contribution pages) are — from their browser timezone, last 30 days. No accounts, no
+            stored addresses.
+          </p>
+        </div>
+        {reach.total === 0 ? (
+          <Card>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              No public views yet. Share a link and check back.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card>
+              <div className="flex gap-6">
+                <div>
+                  <div className="text-2xl font-semibold">{reach.total}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>views (30d)</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold">{reach.uniques}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>visitors</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold">{reach.last7}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>last 7 days</div>
+                </div>
+              </div>
+              <ul className="mt-3 flex flex-col gap-1 text-sm">
+                {reach.byDevice.map((r) => (
+                  <li key={r.label} className="flex justify-between">
+                    <span style={{ color: "var(--muted)" }}>{r.label}</span>
+                    <span className="tabular-nums">{r.n}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card>
+              <h4 className="font-medium">Where they are</h4>
+              <ul className="mt-2 flex flex-col gap-1 text-sm">
+                {(reach.byRegion.length ? reach.byRegion : reach.byCountry).map((r) => (
+                  <li key={r.label} className="flex justify-between">
+                    <span className="truncate" style={{ color: "var(--muted)" }}>{r.label}</span>
+                    <span className="tabular-nums">{r.n}</span>
+                  </li>
+                ))}
+                {reach.byRegion.length === 0 && reach.byCountry.length === 0 && (
+                  <li className="text-xs" style={{ color: "var(--muted)" }}>Not enough signal yet.</li>
+                )}
+              </ul>
+            </Card>
+            <Card>
+              <h4 className="font-medium">How they arrived</h4>
+              <ul className="mt-2 flex flex-col gap-1 text-sm">
+                {reach.byReferrer.map((r) => (
+                  <li key={r.label} className="flex justify-between">
+                    <span className="truncate" style={{ color: "var(--muted)" }}>{r.label}</span>
+                    <span className="tabular-nums">{r.n}</span>
+                  </li>
+                ))}
+                {reach.byReferrer.length === 0 && (
+                  <li className="text-xs" style={{ color: "var(--muted)" }}>Mostly direct / shared privately.</li>
+                )}
+              </ul>
+            </Card>
+          </div>
+        )}
       </section>
 
       <section id="claims" className="flex scroll-mt-4 flex-col gap-3">

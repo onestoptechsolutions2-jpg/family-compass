@@ -12,6 +12,7 @@ import { chamaEnabled } from "@/lib/chama/plugin";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { Dialog } from "@/components/Dialog";
 import { SaveMemorial } from "@/components/SaveMemorial";
+import { ViewBeacon } from "@/components/ViewBeacon";
 import { FlipBook, type BookPage } from "@/components/FlipBook";
 import { FLOWER_KINDS, flowerEmoji, TRIBUTE_REACTIONS } from "@/lib/memorial-flowers";
 import { postGuestbook, layFlower, reactToTribute, replyToTribute } from "./actions";
@@ -411,6 +412,7 @@ export default async function MemorialPage({
 
   return (
     <Frame>
+      <ViewBeacon kind="memorial" target={slug} />
       <article className="flex flex-col gap-6">
         {backToken && (
           <Link
