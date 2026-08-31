@@ -1,11 +1,28 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { Role } from "@prisma/client";
 
-import { requireTreeManage } from "@/lib/rbac";
-import { approveClaim, rejectClaim } from "@/lib/claims";
+import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
+import { approveClaim, rejectClaim, issueClaimInvite } from "@/lib/claims";
+
+/** Generate (or refresh) a claim link for a person from the account-claims report. */
+export async function sendClaimLink(treeId: string, personId: string) {
+  const ctx = await requireTreeEdit(treeId);
+  try {
+    await issueClaimInvite(treeId, personId, null, ctx.user.id);
+  } catch (e) {
+    redirect(
+      `/trees/${treeId}/claims?claimErr=${encodeURIComponent(
+        e instanceof Error ? e.message : "failed",
+      )}#accounts`,
+    );
+  }
+  revalidatePath(`/trees/${treeId}/claims`);
+  redirect(`/trees/${treeId}/claims?claimOk=${personId}#accounts`);
+}
 
 export async function approveClaimAction(treeId: string, claimId: string, formData: FormData) {
   const ctx = await requireTreeManage(treeId);

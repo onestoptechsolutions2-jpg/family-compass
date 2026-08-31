@@ -85,7 +85,7 @@ export default async function GuidePage({
         { text: "Create a read-only shared link centred on one person. Living people are redacted unless you opt in; add a password or expiry if you want.", href: "/sharing", label: "Sharing" },
         "Send a living relative a claim link from their profile so they can confirm it's them and keep it updated — you approve every claim. If they're already on the tree, a manager can use “Mark as claimed → This is me / another member” instead.",
         "Claiming only applies to living people. Recording a death releases any account link — the profile becomes a memorial, and “This is you” / “Mark as claimed” no longer appear on it.",
-        { text: "The tree Report groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there.", href: "/reports", label: "Reports" },
+        { text: "The Claims page has an “Account claims” section that groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there.", href: "/claims", label: "Claims" },
       ],
     },
     {
