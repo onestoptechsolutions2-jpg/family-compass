@@ -346,6 +346,31 @@ export async function personCircle(treeId: string, personId: string) {
   );
 }
 
+/** Every memory a person appears in, newest first. */
+export function personMemories(treeId: string, personId: string) {
+  return db.memory.findMany({
+    where: { treeId, participants: { some: { personId } } },
+    orderBy: [{ dateSortKey: "desc" }, { createdAt: "desc" }],
+    take: 200,
+    select: {
+      id: true,
+      title: true,
+      body: true,
+      dateText: true,
+      createdAt: true,
+      place: { select: { title: true } },
+      participants: {
+        select: {
+          personId: true,
+          note: true,
+          confirmedAt: true,
+          person: { select: PERSON_MINI },
+        },
+      },
+    },
+  });
+}
+
 /** The memories two people share, newest first. */
 export function sharedMemories(treeId: string, p1: string, p2: string) {
   return db.memory.findMany({

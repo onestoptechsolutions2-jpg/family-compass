@@ -5,6 +5,8 @@ import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
+import { personCircle, personMemories, RELATION_ROLES, RELATION_CONTEXTS } from "@/lib/relationships";
+import { addMemoryAction, addToCircleAction } from "./relationship-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { ClaimedWizard } from "@/components/ClaimedWizard";
 import { personMedia } from "@/lib/queries/media";
@@ -73,6 +75,10 @@ export default async function PersonDetailPage({
   if (!person) notFound();
   const relations = await getPersonRelations(treeId, personId);
   const media = await personMedia(treeId, personId);
+  const [circle, relMemories] = await Promise.all([
+    personCircle(treeId, personId),
+    personMemories(treeId, personId),
+  ]);
   const eventComments = await commentsForEvents(
     [...person.eventRefs].map((r) => r.event.id),
   );
@@ -844,8 +850,196 @@ export default async function PersonDetailPage({
       </section>
             ),
           },
+          {
+            id: "circle",
+            label: "Circle",
+            badge: circle.length || undefined,
+            panel: (
+              <section
+                className="flex flex-col gap-4 rounded-xl border p-4"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-medium">Circle &amp; shared history</h3>
+                    <p className="text-sm" style={{ color: "var(--muted)" }}>
+                      The people {displayName(person.names)} is close to — related or not. Closeness
+                      is read from the memories they share, not set by hand.
+                    </p>
+                  </div>
+                  {editable && (
+                    <div className="flex flex-wrap gap-2">
+                      <Dialog label="Add a memory" title="A shared memory" wide>
+                        <form action={addMemoryAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>What happened</span>
+                            <input name="title" required maxLength={200} placeholder="The road trip to Kisumu" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                          </label>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>Tell it (optional)</span>
+                            <textarea name="body" rows={4} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                          </label>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>Roughly when (optional)</span>
+                            <input name="dateText" placeholder="about 2016 · the year we moved" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                          </label>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>Who else was there</span>
+                            <select name="others" multiple size={6} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                              {pickList.map((o) => (
+                                <option key={o.id} value={o.id}>{o.label}</option>
+                              ))}
+                            </select>
+                            <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
+                              Ctrl / ⌘-click for more than one. Each person can add their own side later.
+                            </span>
+                          </label>
+                          <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                            Save memory
+                          </button>
+                        </form>
+                      </Dialog>
+
+                      <Dialog label="Add to circle" title="Add someone to the circle" wide>
+                        <form action={addToCircleAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>Who</span>
+                            <select name="person" required className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                              <option value="">Pick a person…</option>
+                              {pickList.map((o) => (
+                                <option key={o.id} value={o.id}>{o.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>They are a…</span>
+                            <select name="role" defaultValue="friend" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                              {RELATION_ROLES.map((r) => (
+                                <option key={r} value={r}>{r.replace(/-/g, " ")}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>How did this start?</span>
+                            <textarea name="originText" rows={3} placeholder="My father worked with him at KPLC and they stayed close" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                          </label>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>Through (optional)</span>
+                              <select name="via" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                                <option value="">— nobody in particular —</option>
+                                {pickList.map((o) => (
+                                  <option key={o.id} value={o.id}>{o.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>Context (optional)</span>
+                              <select name="originContext" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                                <option value="">—</option>
+                                {RELATION_CONTEXTS.map((c) => (
+                                  <option key={c} value={c}>{c.replace(/-/g, " ")}</option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>Roughly when it started (optional)</span>
+                            <input name="originAt" placeholder="early 2000s" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                          </label>
+                          <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                            Add to circle
+                          </button>
+                        </form>
+                      </Dialog>
+                    </div>
+                  )}
+                </div>
+
+                {circle.length > 0 ? (
+                  <ul className="flex flex-col gap-2">
+                    {circle.map((c) => (
+                      <li key={c.edgeId} className="rounded-lg border p-3" style={{ borderColor: "var(--hairline)" }}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <PersonChip person={{ id: c.person.id, gender: c.person.gender, names: c.person.names }} treeId={treeId} />
+                          {c.roles.map((r) => (
+                            <span key={r} className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--surface-2)", color: "var(--muted)" }}>
+                              {r.replace(/-/g, " ")}
+                            </span>
+                          ))}
+                          {c.reciprocated && (
+                            <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                              both say so
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                          {c.memories} shared {c.memories === 1 ? "memory" : "memories"}
+                          {c.lastInteractionAt ? ` · last ${formatRelDays(c.lastInteractionAt)}` : ""}
+                          {c.score ? ` · closeness ${c.score}` : ""}
+                        </div>
+                        {(c.origin.text || c.origin.via || c.origin.context) && (
+                          <div className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                            {c.origin.via ? `Through ${displayName(c.origin.via.names)}` : "How it started"}
+                            {c.origin.context ? ` · ${c.origin.context.replace(/-/g, " ")}` : ""}
+                            {c.origin.at ? ` · ${c.origin.at}` : ""}
+                            {c.origin.text ? ` — ${c.origin.text}` : ""}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>
+                    No one in the circle yet. Add a shared memory or name a tie above.
+                  </p>
+                )}
+
+                {relMemories.length > 0 && (
+                  <div>
+                    <h4 className="font-medium">Memories</h4>
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {relMemories.map((m) => (
+                        <li key={m.id} className="rounded-lg border p-3 text-sm" style={{ borderColor: "var(--hairline)" }}>
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className="font-medium">{m.title}</span>
+                            <span className="text-xs" style={{ color: "var(--muted)" }}>
+                              {[m.dateText, m.place?.title].filter(Boolean).join(" · ")}
+                            </span>
+                          </div>
+                          {m.body && <p className="mt-1 whitespace-pre-wrap">{m.body}</p>}
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {m.participants.map((p) => (
+                              <span key={p.personId} className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--surface-2)", color: "var(--muted)" }}>
+                                {displayName(p.person.names)}{p.confirmedAt ? " ✓" : ""}
+                              </span>
+                            ))}
+                          </div>
+                          {m.participants.filter((p) => p.note).map((p) => (
+                            <p key={p.personId} className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                              <span style={{ color: "var(--fg)" }}>{displayName(p.person.names)}:</span> {p.note}
+                            </p>
+                          ))}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            ),
+          },
         ]}
       />
     </div>
   );
+}
+
+/** "3 days ago" / "2 months ago" — coarse, for the circle "last" hint. */
+function formatRelDays(d: Date): string {
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  if (days < 365) return `${Math.round(days / 30)} months ago`;
+  return `${Math.round(days / 365)} years ago`;
 }
