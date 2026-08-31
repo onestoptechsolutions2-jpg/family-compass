@@ -1,4 +1,53 @@
+import Link from "next/link";
+
 type Part = { key: string; label: string; pct: number };
+
+const RAMP =
+  "linear-gradient(90deg, #ef4444 0%, #f97316 28%, #eab308 55%, #84cc16 78%, #22c55e 100%)";
+
+/** The scaled-gradient fill: reaches `v`% wide and ends on the colour for `v`. */
+function fillStyle(v: number): React.CSSProperties {
+  return {
+    width: `${v}%`,
+    backgroundImage: RAMP,
+    backgroundSize: `${(100 / Math.max(v, 1)) * 100}% 100%`,
+    backgroundRepeat: "no-repeat",
+  };
+}
+
+/** One slim labelled row — used for the per-family breakdown. */
+export function EnergyRow({
+  label,
+  value,
+  sub,
+  href,
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+  href?: string;
+}) {
+  const v = Math.max(0, Math.min(100, Math.round(value)));
+  const body = (
+    <div className="flex items-center gap-3">
+      <span className="w-40 shrink-0 truncate text-sm">{label}</span>
+      <span className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--surface-2)" }}>
+        <span className="block h-full rounded-full transition-[width] duration-700" style={fillStyle(v)} />
+      </span>
+      <span className="w-14 shrink-0 text-right text-xs tabular-nums" style={{ color: "var(--muted)" }}>
+        {v}
+        {sub ? ` · ${sub}` : ""}
+      </span>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block rounded-md px-1 py-1 hover:bg-[var(--surface-2)]">
+      {body}
+    </Link>
+  ) : (
+    <div className="px-1 py-1">{body}</div>
+  );
+}
 
 /**
  * "Family energy" meter. A single gradient-filled bar whose fill both reaches
@@ -39,16 +88,7 @@ export function EnergyBar({
         aria-valuemax={100}
         aria-label={label}
       >
-        <div
-          className="h-full rounded-full transition-[width] duration-700"
-          style={{
-            width: `${v}%`,
-            backgroundImage:
-              "linear-gradient(90deg, #ef4444 0%, #f97316 28%, #eab308 55%, #84cc16 78%, #22c55e 100%)",
-            backgroundSize: `${(100 / Math.max(v, 1)) * 100}% 100%`,
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+        <div className="h-full rounded-full transition-[width] duration-700" style={fillStyle(v)} />
       </div>
 
       {parts && parts.length > 0 && (

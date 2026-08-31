@@ -8,6 +8,107 @@ function decadeOf(year: number | null | undefined): string | null {
   return `${Math.floor(year / 10) * 10}s`;
 }
 
+export type EnergyPart = { key: string; label: string; pct: number };
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+/**
+ * "Energy" per household: how living & complete each Family's record is,
+ * scored from the same signals as the tree-wide bar but over just that
+ * family's members (both partners + every child), plus how many of the
+ * chosen/kin bonds among them are recorded.
+ */
+export async function familyEnergyReport(treeId: string) {
+  const families = await db.family.findMany({
+    where: { treeId },
+    select: {
+      id: true,
+      partner1: { select: { id: true, names: { select: NAME_SELECT } } },
+      partner2: { select: { id: true, names: { select: NAME_SELECT } } },
+      childRefs: { select: { person: { select: { id: true, names: { select: NAME_SELECT } } } } },
+      _count: { select: { eventRefs: true } },
+    },
+  });
+  if (families.length === 0) return [];
+
+  const memberIds = new Set<string>();
+  for (const f of families) {
+    if (f.partner1) memberIds.add(f.partner1.id);
+    if (f.partner2) memberIds.add(f.partner2.id);
+    for (const c of f.childRefs) memberIds.add(c.person.id);
+  }
+
+  const [people, edges] = await Promise.all([
+    db.person.findMany({
+      where: { id: { in: [...memberIds] } },
+      select: {
+        id: true,
+        _count: { select: { mediaRefs: true, eventRefs: true, memoryParticipations: true } },
+        eventRefs: { where: { event: { type: "Birth" } }, select: { id: true }, take: 1 },
+      },
+    }),
+    db.relationEdge.findMany({ where: { treeId }, select: { aPersonId: true, bPersonId: true } }),
+  ]);
+
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const personEnergy = (id: string): number => {
+    const p = byId.get(id);
+    if (!p) return 0;
+    const dated = p.eventRefs.length > 0 ? 1 : 0;
+    const photos = clamp01(p._count.mediaRefs / 2);
+    const events = clamp01(p._count.eventRefs / 2);
+    const stories = clamp01(p._count.memoryParticipations / 2);
+    return (dated + photos + events + stories) / 4;
+  };
+
+  const edgeSet = new Set(edges.map((e) => `${e.aPersonId}|${e.bPersonId}`));
+  const bondsAmong = (ids: string[]): number => {
+    if (ids.length < 2) return 0;
+    let hit = 0;
+    let pairs = 0;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        pairs++;
+        const [a, b] = ids[i]! < ids[j]! ? [ids[i]!, ids[j]!] : [ids[j]!, ids[i]!];
+        if (edgeSet.has(`${a}|${b}`)) hit++;
+      }
+    }
+    return pairs ? hit / pairs : 0;
+  };
+
+  const rows = families.map((f) => {
+    const members = [
+      f.partner1?.id,
+      f.partner2?.id,
+      ...f.childRefs.map((c) => c.person.id),
+    ].filter((x): x is string => !!x);
+
+    const memberAvg = members.length
+      ? members.reduce((a, id) => a + personEnergy(id), 0) / members.length
+      : 0;
+    const bonds = bondsAmong(members);
+    const score = Math.round((memberAvg * 0.8 + bonds * 0.2) * 100);
+
+    const partners = [f.partner1, f.partner2]
+      .filter(Boolean)
+      .map((p) => displayName(p!.names))
+      .join(" & ");
+
+    return {
+      id: f.id,
+      label: partners || "Unknown couple",
+      size: members.length,
+      score,
+      parts: [
+        { key: "member", label: "Records", pct: Math.round(memberAvg * 100) },
+        { key: "bonds", label: "Bonds", pct: Math.round(bonds * 100) },
+      ] as EnergyPart[],
+    };
+  });
+
+  return rows.sort((a, b) => b.score - a.score || b.size - a.size);
+}
+
 export async function getTreeStatistics(treeId: string) {
   const [people, families, eventCount, sourceCount, placeCount, clans, memoryCount, edgeCount] =
     await Promise.all([
@@ -127,7 +228,6 @@ export async function getTreeStatistics(treeId: string) {
     }));
 
   // ---- "Family energy": how living & complete the record is (0–100) --------
-  const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
   const per = (n: number) => (total ? n / total : 0);
   const energyParts = [
     { key: "connected", label: "Connected", weight: 1.1, v: clamp01(per(connectedPeople)) },

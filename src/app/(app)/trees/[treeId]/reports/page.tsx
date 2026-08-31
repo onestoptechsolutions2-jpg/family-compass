@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 import { loadTreeContext } from "@/lib/rbac";
-import { getTreeStatistics, getReportDrilldown } from "@/lib/queries/statistics";
+import { getTreeStatistics, getReportDrilldown, familyEnergyReport } from "@/lib/queries/statistics";
 import { treeViewSummary } from "@/lib/queries/view-analytics";
 import { genderColor } from "@/lib/person";
-import { EnergyBar } from "@/components/EnergyBar";
+import { EnergyBar, EnergyRow } from "@/components/EnergyBar";
 
 export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
@@ -68,9 +68,10 @@ export default async function ReportsPage({
   const { treeId } = await params;
   const { d } = await searchParams;
   await loadTreeContext(treeId);
-  const [s, reach] = await Promise.all([
+  const [s, reach, familyEnergy] = await Promise.all([
     getTreeStatistics(treeId),
     treeViewSummary(treeId),
+    familyEnergyReport(treeId),
   ]);
   const drill = d ? await getReportDrilldown(treeId, d) : null;
   const base = `/trees/${treeId}/reports`;
@@ -86,6 +87,33 @@ export default async function ReportsPage({
       </div>
 
       <EnergyBar value={s.energy.score} parts={s.energy.parts} />
+
+      {familyEnergy.length > 0 && (
+        <Card>
+          <div className="flex items-baseline justify-between">
+            <h3 className="font-medium">Energy by family</h3>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
+              {familyEnergy.length} household{familyEnergy.length === 1 ? "" : "s"} · strongest first
+            </span>
+          </div>
+          <div className="mt-3 flex flex-col gap-0.5">
+            {familyEnergy.slice(0, 20).map((f) => (
+              <EnergyRow
+                key={f.id}
+                label={f.label}
+                value={f.score}
+                sub={`${f.size}p`}
+                href={`/trees/${treeId}/families/${f.id}`}
+              />
+            ))}
+          </div>
+          {familyEnergy.length > 20 && (
+            <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+              +{familyEnergy.length - 20} more
+            </p>
+          )}
+        </Card>
+      )}
 
       {drill && (
         <Card>
