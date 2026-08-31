@@ -25,22 +25,42 @@ export default async function TreeLayout({
   const tabs = [
     { href: base, label: "Overview" },
     { href: `${base}/people`, label: "People" },
-    { href: `${base}/families`, label: "Families" },
-    { href: `${base}/clans`, label: "Clans" },
-    { href: `${base}/relationship`, label: "Are we related?" },
-    { href: `${base}/events`, label: "Events" },
-    { href: `${base}/places`, label: "Places" },
-    { href: `${base}/sources`, label: "Sources" },
     { href: `${base}/media`, label: "Media" },
-    { href: `${base}/tree`, label: "Tree view" },
-    { href: `${base}/charts`, label: "Charts" },
-    { href: `${base}/reports`, label: "Reports" },
-    { href: `${base}/sharing`, label: "Sharing" },
-    ...(chamaEnabled() ? [{ href: `${base}/chama`, label: "Chama" }] : []),
-    { href: `${base}/claims`, label: "Claims" },
-    { href: `${base}/updates`, label: "Updates" },
-    { href: `${base}/import`, label: "Import" },
-    { href: `${base}/settings`, label: "Settings" },
+    {
+      label: "Records",
+      tabs: [
+        { href: `${base}/families`, label: "Families" },
+        { href: `${base}/events`, label: "Events" },
+        { href: `${base}/places`, label: "Places" },
+        { href: `${base}/sources`, label: "Sources" },
+        { href: `${base}/clans`, label: "Clans" },
+      ],
+    },
+    {
+      label: "Explore",
+      tabs: [
+        { href: `${base}/tree`, label: "Tree view" },
+        { href: `${base}/charts`, label: "Charts" },
+        { href: `${base}/reports`, label: "Reports" },
+        { href: `${base}/relationship`, label: "Are we related?" },
+        { href: `${base}/updates`, label: "Updates" },
+      ],
+    },
+    {
+      label: "Sharing",
+      tabs: [
+        { href: `${base}/sharing`, label: "Shared links" },
+        { href: `${base}/claims`, label: "Claims" },
+        ...(chamaEnabled() ? [{ href: `${base}/chama`, label: "Chama" }] : []),
+      ],
+    },
+    {
+      label: "Manage",
+      tabs: [
+        { href: `${base}/import`, label: "Import" },
+        { href: `${base}/settings`, label: "Settings" },
+      ],
+    },
   ];
 
   return (
