@@ -583,16 +583,25 @@ export default async function PersonDetailPage({
                 />
               )}
             </div>
-            {relations?.siblings.length ? (
-              <>
-                <h4 className="mt-3 text-sm font-medium">Siblings</h4>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {relations.siblings.map((p) => (
-                    <PersonChip key={p.id} person={p} treeId={treeId} />
-                  ))}
+            {(
+              [
+                ["Siblings", relations?.siblings],
+                ["Half-siblings", relations?.halfSiblings],
+                ["Step-parents", relations?.stepParents],
+                ["Step-siblings", relations?.stepSiblings],
+              ] as const
+            ).map(([label, list]) =>
+              list && list.length > 0 ? (
+                <div key={label}>
+                  <h4 className="mt-3 text-sm font-medium">{label}</h4>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {list.map((p) => (
+                      <PersonChip key={p.id} person={p} treeId={treeId} />
+                    ))}
+                  </div>
                 </div>
-              </>
-            ) : null}
+              ) : null,
+            )}
           </div>
 
           <div
@@ -648,6 +657,16 @@ export default async function PersonDetailPage({
                   )}
                 </div>
               )}
+            {relations && relations.stepChildren.length > 0 && (
+              <div>
+                <h4 className="mt-3 text-sm font-medium">Step-children</h4>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {relations.stepChildren.map((c) => (
+                    <PersonChip key={c.id} person={c} treeId={treeId} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
               </>
             ),

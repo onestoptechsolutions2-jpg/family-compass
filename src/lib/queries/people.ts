@@ -253,6 +253,10 @@ export function claimableRelatives(
   };
   relations.parents.forEach((p) => add(p as MiniPerson, "parent"));
   relations.siblings.forEach((p) => add(p as MiniPerson, "sibling"));
+  relations.halfSiblings.forEach((p) => add(p as MiniPerson, "half-sibling"));
+  relations.stepParents.forEach((p) => add(p as MiniPerson, "step-parent"));
+  relations.stepSiblings.forEach((p) => add(p as MiniPerson, "step-sibling"));
+  relations.stepChildren.forEach((p) => add(p as MiniPerson, "step-child"));
   relations.families.forEach((f) => {
     add(f.spouse as MiniPerson | null, "spouse");
     f.children.forEach((c) => add(c as MiniPerson, "child"));
@@ -260,69 +264,134 @@ export function claimableRelatives(
   return out;
 }
 
-/** Parents, siblings, partners and children for the person detail view. */
+const FAMILY_FULL = {
+  id: true,
+  type: true,
+  partner1Id: true,
+  partner2Id: true,
+  partner1: { select: PERSON_MINI },
+  partner2: { select: PERSON_MINI },
+  childRefs: { select: { person: { select: PERSON_MINI } }, orderBy: { order: "asc" } },
+} satisfies Prisma.FamilySelect;
+
+type RelPerson = Prisma.PersonGetPayload<{ select: typeof PERSON_MINI }>;
+
+/** Parents, siblings (full / half / step), partners, children and step-children
+ *  for the person detail view. */
 export async function getPersonRelations(treeId: string, personId: string) {
-  const person = await db.person.findFirst({
-    where: { id: personId, treeId },
-    select: {
-      id: true,
-      childRefs: {
-        select: {
-          family: {
-            select: {
-              id: true,
-              partner1Id: true,
-              partner2Id: true,
-              partner1: { select: PERSON_MINI },
-              partner2: { select: PERSON_MINI },
-              childRefs: {
-                select: { person: { select: PERSON_MINI } },
-                orderBy: { order: "asc" },
-              },
-            },
-          },
+  const [asChild, spouseFamilies] = await Promise.all([
+    db.childRef.findMany({
+      where: { personId, family: { treeId } },
+      orderBy: { family: { createdAt: "asc" } },
+      select: { family: { select: FAMILY_FULL } },
+    }),
+    db.family.findMany({
+      where: { treeId, OR: [{ partner1Id: personId }, { partner2Id: personId }] },
+      select: FAMILY_FULL,
+    }),
+  ]);
+  const parentFamilies = asChild.map((c) => c.family);
+  if (parentFamilies.length === 0 && spouseFamilies.length === 0) {
+    // still return a valid shape (person exists but is unconnected)
+    const exists = await db.person.findFirst({ where: { id: personId, treeId }, select: { id: true } });
+    if (!exists) return null;
+  }
+
+  const parentFamilyIds = new Set(parentFamilies.map((f) => f.id));
+  const parentIds = [
+    ...new Set(parentFamilies.flatMap((f) => [f.partner1Id, f.partner2Id]).filter((x): x is string => !!x)),
+  ];
+  const isParent = (id?: string | null): id is string => !!id && parentIds.includes(id);
+
+  const primary = parentFamilies[0] ?? null;
+  const parents = primary
+    ? [primary.partner1, primary.partner2].filter((p): p is NonNullable<typeof p> => !!p)
+    : [];
+
+  // Families that any parent is a partner in → full & half siblings, step-parents.
+  const parentUnions = parentIds.length
+    ? await db.family.findMany({
+        where: {
+          treeId,
+          OR: [{ partner1Id: { in: parentIds } }, { partner2Id: { in: parentIds } }],
         },
-      },
-      familiesAsPartner1: { select: { id: true } },
-      familiesAsPartner2: { select: { id: true } },
-    },
-  });
-  if (!person) return null;
-
-  const spouseFamilies = await db.family.findMany({
-    where: {
-      treeId,
-      OR: [{ partner1Id: personId }, { partner2Id: personId }],
-    },
-    select: {
-      id: true,
-      type: true,
-      partner1: { select: PERSON_MINI },
-      partner2: { select: PERSON_MINI },
-      childRefs: {
-        select: { person: { select: PERSON_MINI } },
-        orderBy: { order: "asc" },
-      },
-    },
-  });
-
-  const parentFamily = person.childRefs[0]?.family ?? null;
-  const parents = parentFamily
-    ? [parentFamily.partner1, parentFamily.partner2].filter((p): p is NonNullable<typeof p> => !!p)
+        select: FAMILY_FULL,
+      })
     : [];
-  const siblings = parentFamily
-    ? parentFamily.childRefs.map((c) => c.person).filter((p) => p.id !== personId)
-    : [];
+
+  const fullSibs = new Map<string, RelPerson>();
+  const halfSibs = new Map<string, RelPerson>();
+  const stepParents = new Map<string, RelPerson>();
+  for (const f of parentUnions) {
+    const p1 = isParent(f.partner1Id);
+    const p2 = isParent(f.partner2Id);
+    if (parentFamilyIds.has(f.id)) {
+      for (const c of f.childRefs) if (c.person.id !== personId) fullSibs.set(c.person.id, c.person);
+    } else if (p1 || p2) {
+      for (const c of f.childRefs) if (c.person.id !== personId) halfSibs.set(c.person.id, c.person);
+      const other = p1 ? f.partner2 : f.partner1;
+      if (other && !isParent(other.id)) stepParents.set(other.id, other);
+    }
+  }
+
+  // Families a step-parent is in, where the other partner is NOT one of my
+  // parents → step-siblings (connected only through the step-parent).
+  const stepSibs = new Map<string, RelPerson>();
+  const stepParentIds = [...stepParents.keys()];
+  if (stepParentIds.length) {
+    const stepUnions = await db.family.findMany({
+      where: {
+        treeId,
+        OR: [{ partner1Id: { in: stepParentIds } }, { partner2Id: { in: stepParentIds } }],
+      },
+      select: FAMILY_FULL,
+    });
+    for (const f of stepUnions) {
+      const spIsP1 = stepParents.has(f.partner1Id ?? "");
+      const other = spIsP1 ? f.partner2Id : f.partner1Id;
+      if (isParent(other)) continue; // half-sibling family, already counted
+      for (const c of f.childRefs) {
+        const id = c.person.id;
+        if (id === personId || fullSibs.has(id) || halfSibs.has(id)) continue;
+        stepSibs.set(id, c.person);
+      }
+    }
+  }
+
+  // Step-children: children in a partner's *other* unions that aren't ours.
+  const myFamilyIds = new Set(spouseFamilies.map((f) => f.id));
+  const spouseIds = [
+    ...new Set(
+      spouseFamilies
+        .map((f) => (f.partner1?.id === personId ? f.partner2?.id : f.partner1?.id))
+        .filter((x): x is string => !!x),
+    ),
+  ];
+  const myChildIds = new Set(spouseFamilies.flatMap((f) => f.childRefs.map((c) => c.person.id)));
+  const stepChildren = new Map<string, RelPerson>();
+  if (spouseIds.length) {
+    const spouseUnions = await db.family.findMany({
+      where: { treeId, OR: [{ partner1Id: { in: spouseIds } }, { partner2Id: { in: spouseIds } }] },
+      select: FAMILY_FULL,
+    });
+    for (const f of spouseUnions) {
+      if (myFamilyIds.has(f.id)) continue;
+      for (const c of f.childRefs) {
+        if (c.person.id === personId || myChildIds.has(c.person.id)) continue;
+        stepChildren.set(c.person.id, c.person);
+      }
+    }
+  }
 
   return {
     parents,
-    siblings,
-    parentFamily: parentFamily
-      ? {
-          id: parentFamily.id,
-          hasFather: !!parentFamily.partner1Id,
-          hasMother: !!parentFamily.partner2Id,
-        }
+    siblings: [...fullSibs.values()],
+    halfSiblings: [...halfSibs.values()],
+    stepParents: [...stepParents.values()],
+    stepSiblings: [...stepSibs.values()],
+    stepChildren: [...stepChildren.values()],
+    parentFamily: primary
+      ? { id: primary.id, hasFather: !!primary.partner1Id, hasMother: !!primary.partner2Id }
       : null,
     families: spouseFamilies.map((f) => {
       const spouse = f.partner1?.id === personId ? f.partner2 : f.partner1;
