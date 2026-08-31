@@ -11,7 +11,6 @@ import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { notifyTreeManagers, notifyUser } from "@/lib/notify";
 import { emitTreeEvent } from "@/lib/webhooks";
-import { randomToken } from "@/lib/slug";
 import {
   createBarePerson,
   setVitalEvent,
@@ -20,7 +19,7 @@ import {
   addChildRef,
 } from "@/lib/person-write";
 import { isPersonEventType } from "@/lib/event-types";
-import { linkPersonToUser, releaseClaimOnDeath } from "@/lib/claims";
+import { linkPersonToUser, releaseClaimOnDeath, issueClaimInvite } from "@/lib/claims";
 
 const personBits = {
   first: z.string().trim().max(200).optional().default(""),
@@ -396,51 +395,6 @@ export async function setPersonPrivacy(treeId: string, personId: string, formDat
 
 /** Editor generates a "claim your profile" link for a specific living,
  *  unclaimed person, to send to that relative (e.g. over WhatsApp). */
-/** Create a fresh single-use claim link for `personId`, superseding any live
- *  one. Guards: person in tree, living, unclaimed. Returns the new token. */
-async function issueClaimInvite(
-  treeId: string,
-  personId: string,
-  note: string | null,
-  actorId: string,
-): Promise<string> {
-  const person = await db.person.findFirst({
-    where: { id: personId, treeId },
-    select: {
-      claimedByUserId: true,
-      eventRefs: { where: { event: { type: { in: ["Death", "Burial"] } } }, select: { id: true } },
-    },
-  });
-  if (!person) throw new Error("Person not found in this tree");
-  if (person.claimedByUserId) throw new Error("This profile is already claimed");
-  if (person.eventRefs.length > 0) throw new Error("This person is recorded as deceased");
-
-  await db.claimInvite.updateMany({
-    where: { personId, revokedAt: null, usedAt: null },
-    data: { revokedAt: new Date() },
-  });
-  const token = randomToken(24);
-  await db.claimInvite.create({
-    data: {
-      treeId,
-      personId,
-      token,
-      note,
-      createdById: actorId,
-      expiresAt: new Date(Date.now() + 30 * 864e5),
-    },
-  });
-  await logActivity({
-    treeId,
-    actorId,
-    verb: "invited",
-    objectType: "person",
-    objectId: personId,
-    summary: "sent a profile claim link",
-  });
-  return token;
-}
-
 export async function createClaimInvite(treeId: string, personId: string, formData: FormData) {
   const ctx = await requireTreeEdit(treeId);
   const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;

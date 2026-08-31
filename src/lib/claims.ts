@@ -10,6 +10,58 @@ import { logActivity } from "@/lib/activity";
 
 const SIGNIN_TOKEN_DAYS = 14;
 
+/**
+ * Create a fresh single-use claim link for `personId`, superseding any live
+ * one. Guards: person is in the tree, living, and unclaimed. Returns the new
+ * token. Shared by the person page, the "invite relatives" flow, and the
+ * claim-status report.
+ */
+export async function issueClaimInvite(
+  treeId: string,
+  personId: string,
+  note: string | null,
+  actorId: string,
+): Promise<string> {
+  const person = await db.person.findFirst({
+    where: { id: personId, treeId },
+    select: {
+      claimedByUserId: true,
+      eventRefs: {
+        where: { event: { is: { type: { in: ["Death", "Burial"] } } } },
+        select: { id: true },
+      },
+    },
+  });
+  if (!person) throw new Error("Person not found in this tree");
+  if (person.claimedByUserId) throw new Error("This profile is already claimed");
+  if (person.eventRefs.length > 0) throw new Error("This person is recorded as deceased");
+
+  await db.claimInvite.updateMany({
+    where: { personId, revokedAt: null, usedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  const token = randomBytes(18).toString("hex");
+  await db.claimInvite.create({
+    data: {
+      treeId,
+      personId,
+      token,
+      note,
+      createdById: actorId,
+      expiresAt: new Date(Date.now() + 30 * 864e5),
+    },
+  });
+  await logActivity({
+    treeId,
+    actorId,
+    verb: "invited",
+    objectType: "person",
+    objectId: personId,
+    summary: "sent a profile claim link",
+  });
+  return token;
+}
+
 export type RequestClaimInput = {
   slug: string;
   personId: string | null;

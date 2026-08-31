@@ -1,8 +1,12 @@
 import Link from "next/link";
 
-import { loadTreeContext } from "@/lib/rbac";
+import { loadTreeContext, canEdit } from "@/lib/rbac";
+import { publicOrigin } from "@/lib/origin";
 import { getTreeStatistics, getReportDrilldown } from "@/lib/queries/statistics";
-import { genderColor } from "@/lib/person";
+import { claimStatusReport, CLAIM_CATEGORIES } from "@/lib/queries/claim-report";
+import { genderColor, genderSymbol } from "@/lib/person";
+import { CopyButton } from "@/components/CopyButton";
+import { sendClaimLink } from "./actions";
 
 export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
@@ -61,12 +65,17 @@ export default async function ReportsPage({
   searchParams,
 }: {
   params: Promise<{ treeId: string }>;
-  searchParams: Promise<{ d?: string }>;
+  searchParams: Promise<{ d?: string; claimOk?: string; claimErr?: string }>;
 }) {
   const { treeId } = await params;
-  const { d } = await searchParams;
-  await loadTreeContext(treeId);
-  const s = await getTreeStatistics(treeId);
+  const { d, claimOk, claimErr } = await searchParams;
+  const ctx = await loadTreeContext(treeId);
+  const editable = canEdit(ctx.role);
+  const [s, claims, origin] = await Promise.all([
+    getTreeStatistics(treeId),
+    claimStatusReport(treeId),
+    publicOrigin(),
+  ]);
   const drill = d ? await getReportDrilldown(treeId, d) : null;
   const base = `/trees/${treeId}/reports`;
   const q = (key: string) => `${base}?d=${encodeURIComponent(key)}`;
@@ -185,6 +194,78 @@ export default async function ReportsPage({
           <h3 className="font-medium">Clans represented</h3>
           <Bars rows={s.topClans} base={() => null} />
         </Card>
+      </section>
+
+      <section id="claims" className="flex scroll-mt-4 flex-col gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">Account claims</h3>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Which profiles are tied to a login, invited, or still open. Send a claim link straight
+            from here — the link goes to the owner, they confirm, a manager approves.
+          </p>
+        </div>
+
+        {claimErr && (
+          <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
+            {decodeURIComponent(claimErr)}
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          {CLAIM_CATEGORIES.map((c) => (
+            <a key={c.id} href={`#claim-${c.id}`} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <div className="text-2xl font-semibold">{claims.counts[c.id]}</div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>{c.label}</div>
+            </a>
+          ))}
+        </div>
+
+        {CLAIM_CATEGORIES.filter((c) => claims.rows[c.id].length > 0).map((c) => (
+          <Card key={c.id}>
+            <h4 id={`claim-${c.id}`} className="scroll-mt-4 font-medium">
+              {c.label} · {claims.counts[c.id]}
+            </h4>
+            <p className="text-xs" style={{ color: "var(--muted)" }}>{c.hint}</p>
+            <ul className="mt-3 flex flex-col gap-1.5 text-sm">
+              {claims.rows[c.id].map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Link href={`/trees/${treeId}/people/${r.id}`} className="font-medium hover:underline">
+                    {genderSymbol(r.gender) && (
+                      <span className="mr-1" style={{ color: genderColor(r.gender) }}>{genderSymbol(r.gender)}</span>
+                    )}
+                    {r.name}
+                  </Link>
+                  {r.category === "claimed" && r.claimedByName && (
+                    <span className="text-xs" style={{ color: "var(--muted)" }}>· {r.claimedByName}</span>
+                  )}
+                  {r.inviteToken && (
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <code className="rounded bg-black/5 px-1.5 py-0.5">{origin}/claim/{r.inviteToken}</code>
+                      <CopyButton value={`${origin}/claim/${r.inviteToken}`} label="Copy" />
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(`Hi ${r.name} — this is your profile on our family tree. Confirm it's you: ${origin}/claim/${r.inviteToken}`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded px-1.5 py-0.5 font-medium text-white"
+                        style={{ background: "#25D366" }}
+                      >
+                        WhatsApp
+                      </a>
+                    </span>
+                  )}
+                  {editable && (r.category === "claimable" || r.category === "invited") && (
+                    <form action={sendClaimLink.bind(null, treeId, r.id)}>
+                      <button className="rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border)" }}>
+                        {r.category === "invited" ? "New link" : "Send claim link"}
+                        {claimOk === r.id ? " ✓" : ""}
+                      </button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ))}
       </section>
     </div>
   );
