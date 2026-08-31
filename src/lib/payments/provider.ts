@@ -20,6 +20,12 @@ export type PaymentSettings = {
   accountRef: string | null;
   instructions: string | null;
   verificationMode: "MANUAL" | "AUTO_CODE" | "WEBHOOK";
+  bankTransfer: {
+    bank: string;
+    branch: string | null;
+    accountNo: string;
+    accountName: string;
+  } | null;
 };
 
 const DEFAULTS: PaymentSettings = {
@@ -43,6 +49,7 @@ const DEFAULTS: PaymentSettings = {
   instructions:
     "Send the exact amount to our M-Pesa Till, then paste the M-Pesa confirmation code below. Payments are verified within a few hours.",
   verificationMode: "MANUAL",
+  bankTransfer: null,
 };
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {
@@ -68,6 +75,18 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     accountRef: row.accountRef,
     instructions: row.instructions,
     verificationMode: row.verificationMode,
+    bankTransfer: parseBankTransfer(row.config),
+  };
+}
+
+function parseBankTransfer(config: unknown): PaymentSettings["bankTransfer"] {
+  const bt = (config as { bankTransfer?: Record<string, unknown> } | null)?.bankTransfer;
+  if (!bt || typeof bt.bank !== "string" || typeof bt.accountNo !== "string") return null;
+  return {
+    bank: bt.bank,
+    branch: typeof bt.branch === "string" ? bt.branch : null,
+    accountNo: bt.accountNo,
+    accountName: typeof bt.accountName === "string" ? bt.accountName : "",
   };
 }
 

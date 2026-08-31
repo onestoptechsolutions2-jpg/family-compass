@@ -137,6 +137,22 @@ export default async function AdminSettingsPage() {
             <span style={{ color: "var(--muted)" }}>Account ref</span>
             <input name="accountRef" defaultValue={s.accountRef ?? ""} className={field} style={style} />
           </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Bank</span>
+            <input name="bankName" defaultValue={s.bankTransfer?.bank ?? ""} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Bank branch</span>
+            <input name="bankBranch" defaultValue={s.bankTransfer?.branch ?? ""} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Bank account no.</span>
+            <input name="bankAccountNo" defaultValue={s.bankTransfer?.accountNo ?? ""} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Bank account name</span>
+            <input name="bankAccountName" defaultValue={s.bankTransfer?.accountName ?? ""} className={field} style={style} />
+          </label>
         </div>
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Checkout instructions</span>

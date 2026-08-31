@@ -43,18 +43,37 @@ const NANO = "23456789abcdefghijkmnpqrstuvwxyz";
 const rand = (n: number) => Array.from(randomBytes(n), (b) => NANO[b % NANO.length]).join("");
 
 export async function seedPaymentSettings(db: PrismaClient): Promise<void> {
+  // Manual-verification collection details. Editable later in Admin → Settings.
+  const collection = {
+    provider: "manual_mpesa" as const,
+    verificationMode: "MANUAL" as const,
+    businessName: "Leitor Investment Company Limited",
+    paybillNumber: "522522",
+    accountRef: "1320390277",
+    instructions:
+      "Pay the EXACT amount, then paste your M-Pesa / transaction code below.\n\n" +
+      "• M-Pesa Paybill: 522522, Account: 1320390277 (Leitor Investment Company Limited)\n" +
+      "• Bank transfer: KCB, Lowdar branch, Account 1320390277, Name Leitor Investment Company Limited\n\n" +
+      "Your download or Family plan is released only after we confirm the payment — usually within a few hours.",
+    config: {
+      bankTransfer: {
+        bank: "Kenya Commercial Bank",
+        branch: "Lowdar",
+        accountNo: "1320390277",
+        accountName: "Leitor Investment Company Limited",
+      },
+    },
+  };
+
   await db.paymentSettings.upsert({
     where: { scope: "global" },
-    update: {},
+    // keep the row's prices / other tweaks, but always refresh where money goes
+    update: collection,
     create: {
       scope: "global",
-      provider: "manual_mpesa",
       currency: "KES",
       defaultPriceKes: 750,
-      verificationMode: "MANUAL",
-      businessName: "Family Compass",
-      instructions:
-        "Send the exact amount to our M-Pesa Till, then paste the M-Pesa confirmation code below. Payments are verified within a few hours.",
+      ...collection,
     },
   });
 

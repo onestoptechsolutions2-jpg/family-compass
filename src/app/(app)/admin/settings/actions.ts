@@ -26,6 +26,10 @@ const schema = z.object({
   storeNumber: z.string().trim().max(40).optional(),
   paybillNumber: z.string().trim().max(40).optional(),
   accountRef: z.string().trim().max(60).optional(),
+  bankName: z.string().trim().max(80).optional(),
+  bankBranch: z.string().trim().max(80).optional(),
+  bankAccountNo: z.string().trim().max(40).optional(),
+  bankAccountName: z.string().trim().max(120).optional(),
   instructions: z.string().trim().max(2000).optional(),
   verificationMode: z.enum(VerificationMode).default(VerificationMode.MANUAL),
 });
@@ -53,6 +57,17 @@ export async function updatePaymentSettings(formData: FormData) {
     accountRef: d.accountRef || null,
     instructions: d.instructions || null,
     verificationMode: d.verificationMode,
+    config:
+      d.bankName && d.bankAccountNo
+        ? {
+            bankTransfer: {
+              bank: d.bankName,
+              branch: d.bankBranch || null,
+              accountNo: d.bankAccountNo,
+              accountName: d.bankAccountName || "",
+            },
+          }
+        : {},
   };
   await db.paymentSettings.upsert({
     where: { scope: "global" },

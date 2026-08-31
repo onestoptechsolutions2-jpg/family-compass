@@ -155,6 +155,11 @@ export default async function ChartsPage({
           </h3>
           {checkout.mode === "manual" && (
             <>
+              <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                Pay the exact amount, then submit your M-Pesa / transaction code below. Your{" "}
+                {pending.kind === "KEEPER" ? "Family plan" : "download"} is released{" "}
+                <strong>only after an admin confirms the payment</strong> — usually within a few hours.
+              </p>
               <table className="mt-3 text-sm">
                 <tbody>
                   {checkout.payTo?.map((row) => (
