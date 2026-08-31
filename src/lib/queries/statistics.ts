@@ -9,7 +9,8 @@ function decadeOf(year: number | null | undefined): string | null {
 }
 
 export async function getTreeStatistics(treeId: string) {
-  const [people, families, eventCount, sourceCount, placeCount, clans] = await Promise.all([
+  const [people, families, eventCount, sourceCount, placeCount, clans, memoryCount, edgeCount] =
+    await Promise.all([
     db.person.findMany({
       where: { treeId },
       select: {
@@ -38,7 +39,20 @@ export async function getTreeStatistics(treeId: string) {
     db.source.count({ where: { treeId } }),
     db.place.count({ where: { treeId } }),
     db.clan.findMany({ where: { treeId }, select: { id: true, name: true } }),
+    db.memory.count({ where: { treeId } }),
+    db.relationEdge.count({ where: { treeId } }),
   ]);
+
+  const connectedPeople = await db.person.count({
+    where: {
+      treeId,
+      OR: [
+        { familiesAsPartner1: { some: {} } },
+        { familiesAsPartner2: { some: {} } },
+        { childRefs: { some: {} } },
+      ],
+    },
+  });
 
   const total = people.length;
   const sex = { MALE: 0, FEMALE: 0, UNKNOWN: 0 } as Record<string, number>;
@@ -50,6 +64,7 @@ export async function getTreeStatistics(treeId: string) {
   const lifespans: number[] = [];
   let deceased = 0;
   let withPhoto = 0;
+  let withBirthYear = 0;
   let oldestLiving: { name: string; year: number } | null = null;
   let youngestLiving: { name: string; year: number } | null = null;
 
@@ -59,6 +74,7 @@ export async function getTreeStatistics(treeId: string) {
 
     const birthYear = p.eventRefs.find((e) => e.event.type === "Birth")?.event.dateYear ?? null;
     const deathYear = p.eventRefs.find((e) => e.event.type === "Death")?.event.dateYear ?? null;
+    if (birthYear) withBirthYear++;
     const living = presumedLiving({
       explicitLiving: p.living,
       birthYear,
@@ -110,6 +126,26 @@ export async function getTreeStatistics(treeId: string) {
         .join(" & ") || "Unknown couple",
     }));
 
+  // ---- "Family energy": how living & complete the record is (0–100) --------
+  const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+  const per = (n: number) => (total ? n / total : 0);
+  const energyParts = [
+    { key: "connected", label: "Connected", weight: 1.1, v: clamp01(per(connectedPeople)) },
+    { key: "dated", label: "Dated lives", weight: 1, v: clamp01(per(withBirthYear)) },
+    { key: "photos", label: "Photos", weight: 1, v: clamp01(per(withPhoto)) },
+    { key: "events", label: "Events", weight: 0.9, v: clamp01(per(eventCount) / 2) },
+    { key: "stories", label: "Memories", weight: 1.2, v: clamp01(per(memoryCount)) },
+    { key: "bonds", label: "Bonds", weight: 0.8, v: clamp01(per(edgeCount) / 1.5) },
+  ];
+  const wsum = energyParts.reduce((a, p) => a + p.weight, 0);
+  const energyScore = total
+    ? Math.round((energyParts.reduce((a, p) => a + p.weight * p.v, 0) / wsum) * 100)
+    : 0;
+  const energy = {
+    score: energyScore,
+    parts: energyParts.map((p) => ({ key: p.key, label: p.label, pct: Math.round(p.v * 100) })),
+  };
+
   const avgLifespan = lifespans.length
     ? Math.round(lifespans.reduce((a, b) => a + b, 0) / lifespans.length)
     : null;
@@ -133,6 +169,7 @@ export async function getTreeStatistics(treeId: string) {
       withPhotoPct: total ? Math.round((withPhoto / total) * 100) : 0,
       lifespanSample: lifespans.length,
     },
+    energy,
     avgLifespan,
     avgChildren,
     birthsByDecade: sortDecades(birthsByDecade),

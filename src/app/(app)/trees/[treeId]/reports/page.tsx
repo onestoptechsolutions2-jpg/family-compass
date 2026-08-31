@@ -4,6 +4,7 @@ import { loadTreeContext } from "@/lib/rbac";
 import { getTreeStatistics, getReportDrilldown } from "@/lib/queries/statistics";
 import { treeViewSummary } from "@/lib/queries/view-analytics";
 import { genderColor } from "@/lib/person";
+import { EnergyBar } from "@/components/EnergyBar";
 
 export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
@@ -83,6 +84,8 @@ export default async function ReportsPage({
           A live snapshot of this tree. Tap any figure or bar to see the people behind it.
         </p>
       </div>
+
+      <EnergyBar value={s.energy.score} parts={s.energy.parts} />
 
       {drill && (
         <Card>
