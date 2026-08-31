@@ -1,14 +1,32 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 
 import { requireUser } from "@/lib/rbac";
+import { db } from "@/lib/db";
 import { getUserWorkspaces } from "@/lib/queries/dashboard";
 import { createTree } from "./actions";
 
 export const metadata = { title: "Your trees" };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ trees?: string }>;
+}) {
   const user = await requireUser();
+  const { trees: showTrees } = await searchParams;
+
+  // A relative who claimed their own profile starts *as themselves*, centred
+  // on their profile — not on this workspace list. `?trees=1` opts out.
+  if (!showTrees) {
+    const claimed = await db.person.findFirst({
+      where: { claimedByUserId: user.id },
+      select: { id: true, treeId: true },
+    });
+    if (claimed) redirect(`/trees/${claimed.treeId}/people/${claimed.id}`);
+  }
+
   const workspaces = await getUserWorkspaces(user.id);
   const canCreateIn = workspaces.filter((w) => {
     const role = w.memberships[0]?.role;

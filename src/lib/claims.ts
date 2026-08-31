@@ -439,26 +439,41 @@ export async function releaseClaimOnDeath(personId: string): Promise<void> {
   }
 }
 
-/** Validate a one-time WhatsApp sign-in token; returns the userId or null. */
-export async function consumeSignInToken(token: string): Promise<string | null> {
+export type SignInTokenResult = {
+  userId: string;
+  personId: string | null;
+  treeId: string;
+};
+
+/** Validate a one-time WhatsApp sign-in token. Returns the account plus the
+ *  profile/tree it was issued for, so the caller can land the person on
+ *  their own profile rather than the generic dashboard. */
+export async function consumeSignInToken(token: string): Promise<SignInTokenResult | null> {
   const claim = await db.personClaim.findUnique({
     where: { signInToken: token },
     select: {
       id: true,
       createdUserId: true,
+      personId: true,
+      treeId: true,
       signInTokenExpiresAt: true,
       signInTokenUsedAt: true,
     },
   });
   if (!claim?.createdUserId) return null;
-  if (claim.signInTokenUsedAt) return claim.createdUserId; // idempotent re-click within window
+  const result: SignInTokenResult = {
+    userId: claim.createdUserId,
+    personId: claim.personId,
+    treeId: claim.treeId,
+  };
+  if (claim.signInTokenUsedAt) return result; // idempotent re-click within window
   if (claim.signInTokenExpiresAt && claim.signInTokenExpiresAt.getTime() < Date.now()) return null;
 
   await db.personClaim.update({
     where: { id: claim.id },
     data: { signInTokenUsedAt: new Date() },
   });
-  return claim.createdUserId;
+  return result;
 }
 
 /** Convenience: text for the "confirm on WhatsApp" message a claimant sends. */

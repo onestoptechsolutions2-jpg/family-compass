@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { personMedia } from "@/lib/queries/media";
 import { commentsForEvents } from "@/lib/discussions";
 import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
@@ -63,10 +64,10 @@ export default async function PersonDetailPage({
   searchParams,
 }: {
   params: Promise<{ treeId: string; personId: string }>;
-  searchParams: Promise<{ invited?: string; err?: string }>;
+  searchParams: Promise<{ invited?: string; err?: string; welcome?: string }>;
 }) {
   const { treeId, personId } = await params;
-  const { invited, err } = await searchParams;
+  const { invited, err, welcome } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   const person = await getPersonDetail(treeId, personId);
   if (!person) notFound();
@@ -155,6 +156,76 @@ export default async function PersonDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {welcome && person.claimedByUserId === ctx.user.id && !deceased && (() => {
+        const nm = primaryName(person.names);
+        const steps = [
+          {
+            done: !!(nm?.first && nm?.surname),
+            label: "Confirm your name and dates",
+            href: `/trees/${treeId}/people/${personId}/edit`,
+            cta: "Edit details",
+          },
+          {
+            done: events.some((e) => e.type === "Birth"),
+            label: "Add your date & place of birth",
+            href: `/trees/${treeId}/people/${personId}/edit`,
+            cta: "Add birth",
+          },
+          {
+            done: (relations?.parents.length ?? 0) > 0,
+            label: "Add your parents",
+            href: `/trees/${treeId}/people/${personId}#tab=family`,
+            cta: "Add parents",
+          },
+          {
+            done: media.length > 0,
+            label: "Add a photo of yourself",
+            href: `/trees/${treeId}/people/${personId}#tab=photos`,
+            cta: "Add photo",
+          },
+          {
+            done: false,
+            label: "Explore the family tree, centred on you",
+            href: `/trees/${treeId}/tree?focus=${personId}`,
+            cta: "Explore",
+          },
+        ];
+        const doneCount = steps.filter((s) => s.done).length;
+        return (
+          <div
+            className="flex flex-col gap-3 rounded-xl border p-4"
+            style={{ borderColor: "var(--color-brand-600)", background: "var(--card)" }}
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+                Welcome to {ctx.tree.name}
+              </p>
+              <h2 className="mt-0.5 text-lg font-semibold">This is your profile</h2>
+              <p className="text-sm" style={{ color: "var(--muted)" }}>
+                A few things to set up — {doneCount} of {steps.length} done. The tree always opens
+                centred on you.
+              </p>
+            </div>
+            <ol className="flex flex-col gap-1.5 text-sm">
+              {steps.map((s) => (
+                <li key={s.label} className="flex items-center gap-2">
+                  <span style={{ color: s.done ? "var(--success)" : "var(--muted)" }}>{s.done ? "✓" : "○"}</span>
+                  <span style={s.done ? { color: "var(--muted)", textDecoration: "line-through" } : undefined}>
+                    {s.label}
+                  </span>
+                  {!s.done && (
+                    <Link href={s.href} className="ml-auto shrink-0 text-xs hover:underline" style={{ color: "var(--link)" }}>
+                      {s.cta} →
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <InstallPrompt />
+          </div>
+        );
+      })()}
+
       <div>
         <Link
           href={`/trees/${treeId}/people`}

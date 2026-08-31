@@ -22,13 +22,19 @@ export async function GET(
   const origin = await publicOrigin();
 
   const current = await getSessionUser();
-  if (current) return NextResponse.redirect(new URL("/app", origin));
+  if (current) {
+    // Already signed in — don't burn the token; just point them somewhere sane.
+    return NextResponse.redirect(new URL("/app", origin));
+  }
 
-  const userId = await consumeSignInToken(token);
-  if (!userId) {
+  const claim = await consumeSignInToken(token);
+  if (!claim) {
     return NextResponse.redirect(new URL("/login?error=BadLink", origin));
   }
 
-  await startDbSession(userId);
-  return NextResponse.redirect(new URL("/app", origin));
+  await startDbSession(claim.userId);
+  const dest = claim.personId
+    ? `/trees/${claim.treeId}/people/${claim.personId}?welcome=1`
+    : "/app";
+  return NextResponse.redirect(new URL(dest, origin));
 }

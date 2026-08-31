@@ -73,7 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 className="absolute right-0 z-20 mt-2 w-56 rounded-xl border p-2 text-sm shadow-lg"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
-                <Link href="/app" className="block rounded-md px-2 py-2 hover:bg-black/5">Your trees</Link>
+                <Link href="/app?trees=1" className="block rounded-md px-2 py-2 hover:bg-black/5">Your trees</Link>
                 <Link href="/guide" className="block rounded-md px-2 py-2 hover:bg-black/5">Guide</Link>
                 <Link href="/communities" className="block rounded-md px-2 py-2 hover:bg-black/5">Communities</Link>
                 <Link href="/discover" className="block rounded-md px-2 py-2 hover:bg-black/5">Discover</Link>
