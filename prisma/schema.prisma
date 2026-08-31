@@ -73,6 +73,7 @@ model User {
   chamaConfirmations   ChamaContribution[]    @relation("ChamaContribConfirmer")
   eventCommentsAuthored EventComment[]        @relation("EventCommentAuthor")
   eventCommentsResolved EventComment[]        @relation("EventCommentResolver")
+  authoredMemories      Memory[]              @relation("MemoryAuthor")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -501,6 +502,8 @@ model Tree {
   anniversaryReminderLog AnniversaryReminder[]
   chamas         Chama[]
   chamaLink      ChamaLink?
+  memories       Memory[]
+  relationEdges  RelationEdge[]
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -627,6 +630,13 @@ model Person {
   claimInvites            ClaimInvite[]
   memorial                Memorial?
   chamaMemberships        ChamaMember[]   @relation("PersonChamaMemberships")
+
+  memoryParticipations MemoryParticipant[]
+  relationEdgesA       RelationEdge[]      @relation("RelationEdgeA")
+  relationEdgesB       RelationEdge[]      @relation("RelationEdgeB")
+  relationEdgesSeeded  RelationEdge[]      @relation("RelationEdgeSeededBy")
+  relationEdgesBridged RelationEdge[]      @relation("RelationEdgeOriginVia")
+  relationAssertions   RelationAssertion[] @relation("RelationAssertionBy")
 
   tags Tag[] @relation("PersonTags")
 
@@ -818,6 +828,7 @@ model Event {
   noteRefs     NoteRef[]
   attributes   Attribute[]
   comments     EventComment[]
+  memories     Memory[]
 
   @@unique([treeId, grampsId])
   @@index([treeId])
@@ -896,6 +907,7 @@ model Place {
   events    Event[]
   mediaRefs MediaRef[]
   noteRefs  NoteRef[]
+  memories  Memory[]
 
   @@unique([treeId, grampsId])
   @@index([treeId])
@@ -1107,6 +1119,7 @@ model MediaRef {
   placeId    String?
   sourceId   String?
   citationId String?
+  memoryId   String?
   order      Int     @default(0)
   caption    String?
   rectX      Float?
@@ -1121,10 +1134,12 @@ model MediaRef {
   place    Place?      @relation(fields: [placeId], references: [id], onDelete: Cascade)
   source   Source?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   citation Citation?   @relation(fields: [citationId], references: [id], onDelete: Cascade)
+  memory   Memory?     @relation(fields: [memoryId], references: [id], onDelete: Cascade)
 
   @@index([mediaId])
   @@index([personId])
   @@index([familyId])
+  @@index([memoryId])
 }
 
 model Attribute {
@@ -1799,4 +1814,113 @@ model WebhookDelivery {
   endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 
   @@index([endpointId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Relationships as shared history
+//
+// A relationship is not a stored "closeness" number — it is the ledger of
+// Memory + conversation two people accumulate over time. RelationEdge caches
+// a derived score for sorting; the truth is the participants list of each
+// Memory (and, later, threads and prompt answers). RelationAssertion lets
+// each side independently name the tie, so reciprocity is measurable.
+// ---------------------------------------------------------------------------
+
+model Memory {
+  id          String   @id @default(cuid())
+  treeId      String
+  title       String
+  body        String?  @db.Text
+  /// free-text date ("about 2009", "the rainy season we moved")
+  dateText    String?
+  dateSortKey String?
+  placeId     String?
+  eventId     String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tree      Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  place     Place? @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  event     Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy User?  @relation("MemoryAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  participants MemoryParticipant[]
+  mediaRefs    MediaRef[]
+
+  @@index([treeId])
+  @@index([dateSortKey])
+}
+
+model MemoryParticipant {
+  id          String    @id @default(cuid())
+  memoryId    String
+  personId    String
+  /// who this person was in the memory ("the driver", "my roommate")
+  role        String?
+  /// this person's own account of it — added by them, may differ from others
+  note        String?   @db.Text
+  confirmedAt DateTime?
+  addedById   String?
+  createdAt   DateTime  @default(now())
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([memoryId, personId])
+  @@index([personId])
+}
+
+model RelationEdge {
+  id                String    @id @default(cuid())
+  treeId            String
+  /// canonical order: aPersonId < bPersonId (string compare)
+  aPersonId         String
+  bPersonId         String
+  /// KIN | CHOSEN | BOTH
+  kind              String    @default("CHOSEN")
+  /// friend, mentor, elder, chosen-sibling, co-parent, community, …
+  roles             String[]  @default([])
+  seededById        String?
+  /// how the tie came to be, in plain words ("my father worked with him")
+  originText        String?
+  /// family | school | work | church | neighbourhood | friend-of-friend | community | online | other
+  originContext     String?
+  /// the person it came through ("my father", "my sister", "a friend")
+  originViaPersonId String?
+  /// roughly when it started
+  originAt          String?
+  firstMemoryAt     DateTime?
+  lastInteractionAt DateTime?
+  /// derived, cached: recency + volume + reciprocity of shared memories
+  score             Float     @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tree      Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  aPerson   Person  @relation("RelationEdgeA", fields: [aPersonId], references: [id], onDelete: Cascade)
+  bPerson   Person  @relation("RelationEdgeB", fields: [bPersonId], references: [id], onDelete: Cascade)
+  seededBy  Person? @relation("RelationEdgeSeededBy", fields: [seededById], references: [id], onDelete: SetNull)
+  originVia Person? @relation("RelationEdgeOriginVia", fields: [originViaPersonId], references: [id], onDelete: SetNull)
+
+  assertions RelationAssertion[]
+
+  @@unique([aPersonId, bPersonId])
+  @@index([treeId])
+  @@index([bPersonId])
+}
+
+model RelationAssertion {
+  id           String   @id @default(cuid())
+  edgeId       String
+  byPersonId   String
+  role         String?
+  /// optional self-report, kept only as a prior — never the measured truth
+  strengthHint Int?
+  assertedAt   DateTime @default(now())
+
+  edge     RelationEdge @relation(fields: [edgeId], references: [id], onDelete: Cascade)
+  byPerson Person       @relation("RelationAssertionBy", fields: [byPersonId], references: [id], onDelete: Cascade)
+
+  @@unique([edgeId, byPersonId])
 }
