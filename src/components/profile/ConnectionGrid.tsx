@@ -10,6 +10,7 @@ export type Connection = {
   detail?: string | null;
   href?: string;
   redacted?: boolean;
+  deceased?: boolean;
 };
 
 export function ConnectionGrid({ people }: { people: Connection[] }) {
@@ -30,7 +31,10 @@ export function ConnectionGrid({ people }: { people: Connection[] }) {
           >
             <Avatar name={c.redacted ? "•" : c.name} gender={c.gender} size={44} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{c.name}</p>
+              <p className="truncate text-sm font-medium">
+                {c.deceased && !c.redacted && <span style={{ color: "var(--muted)" }}>† </span>}
+                {c.name}
+              </p>
               <p className="truncate text-xs" style={{ color: "var(--muted)" }}>
                 {c.relation}
                 {c.detail ? ` · ${c.detail}` : ""}

@@ -471,6 +471,7 @@ export function TreeExplorer({
                         {initials(p.given, p.surname)}
                       </text>
                       <text x={52} y={h / 2 - 4} fontSize={13} fontWeight={600} fill="var(--fg)">
+                        {p.deceased && <tspan fill="var(--muted)">† </tspan>}
                         {p.name.length > 20 ? p.name.slice(0, 19) + "…" : p.name}
                       </text>
                       <text x={52} y={h / 2 + 14} fontSize={11} fill="var(--muted)">

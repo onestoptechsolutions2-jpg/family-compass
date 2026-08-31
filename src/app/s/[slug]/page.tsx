@@ -178,6 +178,7 @@ export default async function SharedViewPage({
         detail: yearsOf(rp!),
         href: linkTo(rp!.id),
         redacted: rp!.name.startsWith("Living "),
+        deceased: rp!.deceased,
       }));
 
   const parentIds = graph.up[subjectId] ?? [];

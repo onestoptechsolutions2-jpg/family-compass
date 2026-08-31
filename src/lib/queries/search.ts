@@ -23,7 +23,7 @@ export async function searchTree(treeId: string, qRaw: string): Promise<SearchHi
         living: true,
         names: { select: NAME_SELECT },
         eventRefs: {
-          where: { event: { type: { in: ["Birth", "Death"] } } },
+          where: { event: { type: { in: ["Birth", "Death", "Burial"] } } },
           select: { event: { select: { type: true, dateYear: true, dateMonth: true, dateDay: true, dateText: true, dateModifier: true, dateQuality: true } } },
         },
       },
@@ -61,12 +61,12 @@ export async function searchTree(treeId: string, qRaw: string): Promise<SearchHi
 
   for (const p of people) {
     const birth = p.eventRefs.find((r) => r.event.type === "Birth")?.event ?? null;
-    const death = p.eventRefs.find((r) => r.event.type === "Death")?.event ?? null;
+    const death = p.eventRefs.find((r) => r.event.type === "Death" || r.event.type === "Burial")?.event ?? null;
     const yrs = birth?.dateYear || death?.dateYear ? `${birth?.dateYear ?? "?"} – ${death?.dateYear ?? ""}` : "";
     hits.push({
       type: "person",
       id: p.id,
-      label: displayName(p.names),
+      label: (death ? "† " : "") + displayName(p.names),
       sub: [p.gender.toLowerCase(), yrs].filter(Boolean).join(" · "),
       href: `${base}/people/${p.id}`,
       icon: p.gender === "FEMALE" ? "♀" : p.gender === "MALE" ? "♂" : "•",
@@ -106,13 +106,23 @@ export async function searchAcrossTrees(userId: string, qRaw: string): Promise<S
       tree: { workspace: { memberships: { some: { userId } } } },
       names: { some: { OR: [{ first: like }, { surname: like }] } },
     },
-    select: { id: true, treeId: true, gender: true, names: { select: NAME_SELECT }, tree: { select: { name: true } } },
+    select: {
+      id: true,
+      treeId: true,
+      gender: true,
+      names: { select: NAME_SELECT },
+      tree: { select: { name: true } },
+      eventRefs: {
+        where: { event: { type: { in: ["Death", "Burial"] } } },
+        select: { id: true },
+      },
+    },
     take: 20,
   });
   return people.map((p) => ({
     type: "person",
     id: p.id,
-    label: displayName(p.names),
+    label: (p.eventRefs.length > 0 ? "† " : "") + displayName(p.names),
     sub: p.tree.name,
     href: `/trees/${p.treeId}/people/${p.id}`,
     icon: p.gender === "FEMALE" ? "♀" : p.gender === "MALE" ? "♂" : "•",

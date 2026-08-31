@@ -94,12 +94,12 @@ export default async function PeoplePage({
                   )}
                 </td>
                 <td className="px-3 py-2">
+                  {p.deceased && (
+                    <span className="mr-1" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
+                  )}
                   <Link href={`/trees/${treeId}/people/${p.id}`} className="font-medium hover:underline">
                     {p.name}
                   </Link>
-                  {p.deceased && (
-                    <span className="ml-2" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
-                  )}
                   {(p.parents.length > 0 || p.spouses.length > 0) && (
                     <div className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
                       {p.parents.length > 0 && (

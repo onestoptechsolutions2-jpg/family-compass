@@ -15,6 +15,7 @@ function graph(): TreeGraph {
     surname: "",
     gender,
     living: true,
+    deceased: false,
     birth: "",
     death: "",
     birthYear: null,

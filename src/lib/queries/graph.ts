@@ -9,6 +9,8 @@ export type GraphPerson = {
   surname: string;
   gender: "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
   living: boolean;
+  /** true only when a Death or Burial event is recorded */
+  deceased: boolean;
   birth: string;
   death: string;
   birthYear: number | null;
@@ -65,7 +67,7 @@ export async function getTreeGraph(treeId: string, focusId?: string | null): Pro
       living: true,
       names: { select: NAME_SELECT },
       eventRefs: {
-        where: { event: { type: { in: ["Birth", "Death"] } } },
+        where: { event: { type: { in: ["Birth", "Death", "Burial"] } } },
         select: {
           event: {
             select: {
@@ -108,7 +110,10 @@ export async function getTreeGraph(treeId: string, focusId?: string | null): Pro
   for (const p of people) {
     const n = primaryName(p.names);
     const birth = p.eventRefs.find((r) => r.event.type === "Birth")?.event ?? null;
-    const death = p.eventRefs.find((r) => r.event.type === "Death")?.event ?? null;
+    const death =
+      p.eventRefs.find((r) => r.event.type === "Death")?.event ??
+      p.eventRefs.find((r) => r.event.type === "Burial")?.event ??
+      null;
     persons[p.id] = {
       id: p.id,
       name: displayName(p.names),
@@ -116,6 +121,7 @@ export async function getTreeGraph(treeId: string, focusId?: string | null): Pro
       surname: n?.surname ?? "",
       gender: p.gender,
       living: p.living,
+      deceased: p.eventRefs.some((r) => r.event.type === "Death" || r.event.type === "Burial"),
       birth: birth ? formatDate(birth) : "",
       death: death ? formatDate(death) : "",
       birthYear: birth?.dateYear ?? null,

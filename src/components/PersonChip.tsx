@@ -9,6 +9,8 @@ type PersonMini = {
   living?: boolean;
   /** true only when a Death/Burial event is recorded */
   deceased?: boolean;
+  /** alternative to `deceased`: the Death/Burial eventRefs themselves */
+  eventRefs?: { id: string }[];
   names: Pick<
     Name,
     "type" | "preferred" | "order" | "first" | "surname" | "surnamePrefix" | "nick" | "suffix" | "title"
@@ -23,6 +25,7 @@ export function PersonChip({
   treeId: string;
 }) {
   if (!person) return <span style={{ color: "var(--muted)" }}>Unknown</span>;
+  const deceased = person.deceased ?? (person.eventRefs?.length ?? 0) > 0;
   return (
     <Link
       href={`/trees/${treeId}/people/${person.id}`}
@@ -35,14 +38,14 @@ export function PersonChip({
       >
         {initials(person.names)}
       </span>
+      {deceased && (
+        <span aria-label="deceased" title="Deceased" style={{ color: "var(--muted)" }}>
+          †
+        </span>
+      )}
       {genderSymbol(person.gender) && (
         <span aria-hidden title={person.gender?.toLowerCase()} style={{ color: genderColor(person.gender) }}>
           {genderSymbol(person.gender)}
-        </span>
-      )}
-      {person.deceased && (
-        <span aria-label="deceased" title="Deceased" style={{ color: "var(--muted)" }}>
-          †
         </span>
       )}
       {displayName(person.names)}

@@ -100,7 +100,7 @@ export function chartSvg(
           <rect width="${CARD_W}" height="${ch}" rx="14" fill="#fff" stroke="${isCenter ? COLORS.center : COLORS.border}" stroke-width="${isCenter ? 2.5 : 1}"/>
           <circle cx="26" cy="${ch / 2}" r="17" fill="${disc}"/>
           <text x="26" y="${ch / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">${esc(initials(p.given, p.surname))}</text>
-          <text x="52" y="${ch / 2 - 4}" font-size="13" font-weight="600" fill="${COLORS.ink}">${esc(p.name.length > 22 ? p.name.slice(0, 21) + "…" : p.name)}</text>
+          <text x="52" y="${ch / 2 - 4}" font-size="13" font-weight="600" fill="${COLORS.ink}">${p.deceased ? `<tspan fill="${COLORS.border}">† </tspan>` : ""}${esc(p.name.length > 22 ? p.name.slice(0, 21) + "…" : p.name)}</text>
           <text x="52" y="${ch / 2 + 14}" font-size="11" fill="${COLORS.muted}">${esc(dates)}</text>
         </g>`;
       })

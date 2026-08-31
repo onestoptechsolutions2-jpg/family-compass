@@ -176,6 +176,9 @@ export default async function PersonDetailPage({
             </span>
             <div>
               <h2 className="text-2xl font-semibold leading-tight">
+                {deceased && (
+                  <span className="mr-1.5 align-middle text-lg" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
+                )}
                 {genderSymbol(person.gender) && (
                   <span className="mr-1.5 align-middle text-lg" title={genderLabel(person.gender)} style={{ color: genderColor(person.gender) }}>
                     {genderSymbol(person.gender)}

@@ -161,7 +161,7 @@ export async function getTreeStatistics(treeId: string) {
 // Report drill-downs
 // ---------------------------------------------------------------------------
 
-export type DrillPerson = { id: string; name: string; gender: string; symbol: string; years: string };
+export type DrillPerson = { id: string; name: string; gender: string; symbol: string; years: string; deceased: boolean };
 export type Drilldown = { title: string; people: DrillPerson[] } | null;
 
 /**
@@ -244,8 +244,8 @@ export async function getReportDrilldown(treeId: string, key: string): Promise<D
   return {
     title: titles[kind ?? ""] ?? "People",
     people: mapped.map(({ _birthDecade, _deathDecade, _surname, _living, _deceased, ...r }) => {
-      void _birthDecade; void _deathDecade; void _surname; void _living; void _deceased;
-      return r;
+      void _birthDecade; void _deathDecade; void _surname; void _living;
+      return { ...r, deceased: _deceased };
     }),
   };
 }

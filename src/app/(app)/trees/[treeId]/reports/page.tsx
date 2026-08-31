@@ -105,6 +105,7 @@ export default async function ReportsPage({
                   className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm hover:shadow-sm"
                   style={{ borderColor: "var(--border)", background: "var(--surface)" }}
                 >
+                  {p.deceased && <span title="Deceased" style={{ color: "var(--muted)" }}>†</span>}
                   {p.symbol && <span style={{ color: genderColor(p.gender) }}>{p.symbol}</span>}
                   {p.name}
                   {p.years && <span className="text-xs" style={{ color: "var(--muted)" }}>{p.years}</span>}
