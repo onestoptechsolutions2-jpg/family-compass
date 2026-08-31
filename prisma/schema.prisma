@@ -71,6 +71,8 @@ model User {
   webhooksCreated      WebhookEndpoint[]      @relation("WebhookCreator")
   chamasCreated        Chama[]                @relation("ChamaCreator")
   chamaConfirmations   ChamaContribution[]    @relation("ChamaContribConfirmer")
+  eventCommentsAuthored EventComment[]        @relation("EventCommentAuthor")
+  eventCommentsResolved EventComment[]        @relation("EventCommentResolver")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -799,11 +801,32 @@ model Event {
   citationRefs CitationRef[]
   noteRefs     NoteRef[]
   attributes   Attribute[]
+  comments     EventComment[]
 
   @@unique([treeId, grampsId])
   @@index([treeId])
   @@index([placeId])
   @@index([dateSortKey])
+}
+
+/// A discussion thread on a fact — "was it 1948 or 1949?", "his second wife,
+/// not his first". Tree members only; flat (no nesting), resolvable.
+model EventComment {
+  id         String    @id @default(cuid())
+  eventId    String
+  treeId     String
+  authorId   String?
+  body       String    @db.Text
+  resolvedAt DateTime?
+  resolvedById String?
+  createdAt  DateTime  @default(now())
+
+  event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  author   User? @relation("EventCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  resolver User? @relation("EventCommentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([eventId, createdAt])
+  @@index([treeId, resolvedAt])
 }
 
 enum EventRole {

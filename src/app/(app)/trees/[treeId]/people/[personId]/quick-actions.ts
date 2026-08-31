@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
+import { notifyTreeManagers, notifyUser } from "@/lib/notify";
 import { emitTreeEvent } from "@/lib/webhooks";
 import { randomToken } from "@/lib/slug";
 import {
@@ -455,4 +456,93 @@ export async function addFirstChild(treeId: string, personId: string, formData: 
     summary: "added a child",
   });
   redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+// ---- Event discussions -------------------------------------------------
+
+/** Add a comment to an event's discussion thread. */
+export async function addEventComment(
+  treeId: string,
+  personId: string,
+  eventId: string,
+  formData: FormData,
+) {
+  const ctx = await requireTreeEdit(treeId);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  if (body.length < 2) redirect(`/trees/${treeId}/people/${personId}#tab=timeline`);
+
+  const ev = await db.event.findFirst({
+    where: { id: eventId, treeId },
+    select: {
+      id: true,
+      type: true,
+      eventRefs: { select: { person: { select: { id: true, claimedByUserId: true } } } },
+    },
+  });
+  if (!ev) throw new Error("Event not found in this tree");
+
+  await db.eventComment.create({ data: { eventId, treeId, authorId: ctx.user.id, body } });
+
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "commented",
+    objectType: "event",
+    objectId: eventId,
+    summary: `discussed a ${ev.type} event`,
+  });
+
+  // notify tree managers + any claimed person on this event (not the author)
+  await notifyTreeManagers(
+    treeId,
+    {
+      kind: "event.comment_added",
+      title: `Discussion on a ${ev.type} event`,
+      body: `${ctx.user.name ?? ctx.user.email}: "${body.slice(0, 140)}"`,
+      linkPath: `/trees/${treeId}/people/${personId}#tab=timeline`,
+    },
+    { exceptUserId: ctx.user.id },
+  );
+  const claimers = [
+    ...new Set(
+      ev.eventRefs
+        .map((r) => r.person?.claimedByUserId)
+        .filter((id): id is string => !!id && id !== ctx.user.id),
+    ),
+  ];
+  for (const uid of claimers) {
+    await notifyUser(uid, {
+      kind: "event.comment_added",
+      title: `Discussion about your ${ev.type} record`,
+      body: `${ctx.user.name ?? ctx.user.email}: "${body.slice(0, 140)}"`,
+      treeId,
+      linkPath: `/trees/${treeId}/people/${personId}#tab=timeline`,
+    });
+  }
+
+  await emitTreeEvent(treeId, "event.comment_added", {
+    eventId,
+    personId,
+    eventType: ev.type,
+    excerpt: body.slice(0, 200),
+  });
+
+  redirect(`/trees/${treeId}/people/${personId}#tab=timeline`);
+}
+
+/** Mark a discussion thread resolved / reopen it. */
+export async function resolveEventComment(
+  treeId: string,
+  personId: string,
+  commentId: string,
+  resolve: boolean,
+) {
+  const ctx = await requireTreeEdit(treeId);
+  await db.eventComment.updateMany({
+    where: { id: commentId, treeId },
+    data: resolve
+      ? { resolvedAt: new Date(), resolvedById: ctx.user.id }
+      : { resolvedAt: null, resolvedById: null },
+  });
+  redirect(`/trees/${treeId}/people/${personId}#tab=timeline`);
 }

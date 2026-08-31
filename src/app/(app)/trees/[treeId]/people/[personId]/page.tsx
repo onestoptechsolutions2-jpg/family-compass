@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions } from "@/lib/queries/people";
 import { personMedia } from "@/lib/queries/media";
+import { commentsForEvents } from "@/lib/discussions";
 import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
@@ -30,6 +31,8 @@ import {
   setPersonPrivacy,
   createClaimInvite,
   revokeClaimInvite,
+  addEventComment,
+  resolveEventComment,
 } from "./quick-actions";
 import { PERSON_EVENT_TYPES } from "@/lib/event-types";
 
@@ -62,6 +65,9 @@ export default async function PersonDetailPage({
   if (!person) notFound();
   const relations = await getPersonRelations(treeId, personId);
   const media = await personMedia(treeId, personId);
+  const eventComments = await commentsForEvents(
+    [...person.eventRefs].map((r) => r.event.id),
+  );
   const editable = canEdit(ctx.role);
   const pickList = editable
     ? (await personOptions(treeId))
@@ -472,16 +478,67 @@ export default async function PersonDetailPage({
                   <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>No events recorded.</p>
                 )}
                 <ul className="mt-3 flex flex-col gap-2 text-sm">
-                  {events.map((e) => (
-                    <li key={e.id} className="flex gap-3">
-                      <span className="w-28 shrink-0" style={{ color: "var(--muted)" }}>{formatDate(e) || "—"}</span>
-                      <span>
-                        <span className="font-medium">{e.type}</span>
-                        {e.place ? ` · ${e.place.title}` : ""}
-                        {e.description ? ` — ${e.description}` : ""}
-                      </span>
-                    </li>
-                  ))}
+                  {events.map((e) => {
+                    const thread = eventComments.get(e.id) ?? [];
+                    const open = thread.filter((c) => !c.resolvedAt).length;
+                    return (
+                      <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="w-28 shrink-0" style={{ color: "var(--muted)" }}>{formatDate(e) || "—"}</span>
+                        <span>
+                          <span className="font-medium">{e.type}</span>
+                          {e.place ? ` · ${e.place.title}` : ""}
+                          {e.description ? ` — ${e.description}` : ""}
+                        </span>
+                        {editable && (
+                          <Dialog
+                            title={`Discuss — ${e.type}${formatDate(e) ? ` (${formatDate(e)})` : ""}`}
+                            label={thread.length ? `💬 ${thread.length}${open ? ` · ${open} open` : ""}` : "💬 discuss"}
+                            buttonClass="rounded-full border px-2 py-0.5 text-xs"
+                          >
+                            <div className="flex flex-col gap-3">
+                              {thread.length === 0 && (
+                                <p className="text-sm" style={{ color: "var(--muted)" }}>
+                                  Start a thread — a date query, a correction, or a note for the family.
+                                </p>
+                              )}
+                              <ul className="flex flex-col gap-2">
+                                {thread.map((c) => (
+                                  <li
+                                    key={c.id}
+                                    className="rounded-lg border p-2 text-sm"
+                                    style={{ borderColor: "var(--hairline)", background: c.resolvedAt ? "var(--surface-2)" : undefined }}
+                                  >
+                                    <div className="flex items-center justify-between text-xs" style={{ color: "var(--muted)" }}>
+                                      <span>{c.author} · {c.createdAt.toISOString().slice(0, 10)}</span>
+                                      <form action={resolveEventComment.bind(null, treeId, personId, c.id, !c.resolvedAt)}>
+                                        <button className="hover:underline">
+                                          {c.resolvedAt ? `resolved by ${c.resolver ?? "—"} · reopen` : "mark resolved"}
+                                        </button>
+                                      </form>
+                                    </div>
+                                    <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+                                  </li>
+                                ))}
+                              </ul>
+                              <form action={addEventComment.bind(null, treeId, personId, e.id)} className="flex flex-col gap-2">
+                                <textarea
+                                  name="body"
+                                  required
+                                  rows={3}
+                                  placeholder="Add to the discussion…"
+                                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                                  style={fieldStyle}
+                                />
+                                <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                                  Post
+                                </button>
+                              </form>
+                            </div>
+                          </Dialog>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ),

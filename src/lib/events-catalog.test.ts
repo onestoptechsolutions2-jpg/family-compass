@@ -12,6 +12,7 @@ describe("events catalogue", () => {
   it("carries the events added for life-event + anniversary integrations", () => {
     for (const name of [
       "person.event_recorded",
+      "event.comment_added",
       "person.privacy_changed",
       "memorial.contribution_received",
       "memorial.tribute_left",

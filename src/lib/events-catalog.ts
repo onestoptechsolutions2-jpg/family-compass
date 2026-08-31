@@ -12,6 +12,7 @@ export const EVENTS = {
   "person.updated": "A person's core details or events changed.",
   "person.deleted": "A person was removed from a tree.",
   "person.event_recorded": "A life event (Birth, Death, Burial, Baptism, Graduation, …) was recorded on a person.",
+  "event.comment_added": "Someone opened or added to a discussion thread on an event (a fact query, correction, or note).",
   "person.privacy_changed": "A person's public visibility was changed (public / limited / hidden), optionally cascaded to descendants.",
   "family.created": "A family (couple / parent unit) was created.",
   "memorial.published": "A memorial page went live (published toggled on).",
