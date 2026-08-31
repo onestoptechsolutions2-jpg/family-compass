@@ -71,6 +71,13 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v !== "false" && v !== "0"),
+  // The chama plugin — welfare funds on memorials + linking to an external
+  // Chama-platform group. On by default; set CHAMA_ENABLED=false to remove
+  // every chama surface (tab, memorial section, /give page).
+  CHAMA_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false" && v !== "0"),
   ALLOWED_SIGNUP_EMAILS: z.string().optional().default("").transform(csvLower),
   ALLOWED_SIGNUP_DOMAINS: z
     .string()

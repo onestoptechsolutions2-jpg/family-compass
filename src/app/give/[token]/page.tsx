@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { fundByToken, fundTotals, fundContributions } from "@/lib/chama";
+import { chamaEnabled } from "@/lib/chama/plugin";
 import { getPaymentSettings } from "@/lib/payments";
 import { submitContribution } from "./actions";
 
@@ -26,6 +27,7 @@ export default async function GivePage({
   params: Promise<{ token: string }>;
   searchParams: Promise<{ given?: string; err?: string }>;
 }) {
+  if (!chamaEnabled()) notFound();
   const { token } = await params;
   const { given, err } = await searchParams;
 

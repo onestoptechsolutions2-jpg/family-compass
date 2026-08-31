@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AccessError, loadTreeContext } from "@/lib/rbac";
 import { NavTabs } from "@/components/NavTabs";
+import { chamaEnabled } from "@/lib/chama/plugin";
 
 export default async function TreeLayout({
   children,
@@ -35,7 +36,7 @@ export default async function TreeLayout({
     { href: `${base}/charts`, label: "Charts" },
     { href: `${base}/reports`, label: "Reports" },
     { href: `${base}/sharing`, label: "Sharing" },
-    { href: `${base}/chama`, label: "Chama" },
+    ...(chamaEnabled() ? [{ href: `${base}/chama`, label: "Chama" }] : []),
     { href: `${base}/claims`, label: "Claims" },
     { href: `${base}/updates`, label: "Updates" },
     { href: `${base}/import`, label: "Import" },

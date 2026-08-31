@@ -8,6 +8,7 @@ import { mapsHref } from "@/lib/geo";
 import { RecentMemorials } from "@/components/RecentMemorials";
 import { publicOrigin } from "@/lib/origin";
 import { templateTheme } from "@/lib/memorial-templates";
+import { chamaEnabled } from "@/lib/chama/plugin";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { Dialog } from "@/components/Dialog";
 import { SaveMemorial } from "@/components/SaveMemorial";
@@ -415,7 +416,7 @@ export default async function MemorialPage({
           </section>
         )}
 
-        {m.welfareFund && (
+        {chamaEnabled() && m.welfareFund && (
           <section className="p-4 text-sm" style={cardStyle}>
             <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Family welfare fund</h2>
             <p className="mt-1">

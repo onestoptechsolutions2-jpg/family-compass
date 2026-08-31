@@ -6,6 +6,7 @@ import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/memorial";
+import { chamaEnabled } from "@/lib/chama/plugin";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
@@ -983,7 +984,8 @@ export default async function MemorialEditorPage({
         )}
       </section>
 
-      {/* ---- Welfare fund (chama) ---- */}
+      {/* ---- Welfare fund (chama plugin) ---- */}
+      {chamaEnabled() && (
       <section
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
@@ -1102,6 +1104,7 @@ export default async function MemorialEditorPage({
           })()
         )}
       </section>
+      )}
 
       <form action={deleteMemorial.bind(null, treeId, memorial.id)}>
         <button className="text-xs text-red-600 hover:underline">Delete this memorial</button>

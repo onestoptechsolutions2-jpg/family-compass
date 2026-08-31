@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { loadTreeContext, canManageTree } from "@/lib/rbac";
+import { chamaEnabled } from "@/lib/chama/plugin";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { fetchCapitalPosition, fetchRecentContributions } from "@/lib/chama-api";
@@ -20,6 +21,7 @@ export default async function ChamaPage({
 }) {
   const { treeId } = await params;
   const { ok, err } = await searchParams;
+  if (!chamaEnabled()) notFound();
   const ctx = await loadTreeContext(treeId);
   if (!canManageTree(ctx.role)) notFound();
 
