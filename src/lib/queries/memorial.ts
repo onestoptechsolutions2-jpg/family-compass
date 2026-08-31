@@ -154,7 +154,19 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
       },
       guestbook: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, name: true, relation: true, message: true, status: true, createdAt: true },
+        select: {
+          id: true,
+          name: true,
+          relation: true,
+          message: true,
+          status: true,
+          createdAt: true,
+          replies: {
+            orderBy: { createdAt: "asc" },
+            select: { id: true, name: true, message: true, status: true, createdAt: true },
+          },
+          _count: { select: { reactions: true } },
+        },
       },
       flowers: {
         orderBy: { createdAt: "desc" },
@@ -240,7 +252,19 @@ export async function getPublicMemorial(slug: string) {
       guestbook: {
         where: { status: "APPROVED" },
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, relation: true, message: true, createdAt: true },
+        select: {
+          id: true,
+          name: true,
+          relation: true,
+          message: true,
+          createdAt: true,
+          replies: {
+            where: { status: "APPROVED" },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, name: true, message: true, createdAt: true },
+          },
+          reactions: { select: { emoji: true } },
+        },
       },
       flowers: {
         where: { hidden: false },

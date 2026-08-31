@@ -9,7 +9,7 @@ import { requireTreeEdit } from "@/lib/rbac";
 import { notifyTreeManagers } from "@/lib/notify";
 import { emitEvent, emitTreeEvent } from "@/lib/webhooks";
 import { resolveGuestRelationship } from "@/lib/queries/memorial";
-import { isFlowerKind } from "@/lib/memorial-flowers";
+import { isFlowerKind, isTributeReaction } from "@/lib/memorial-flowers";
 
 /** One-tap tribute (flower / candle / wreath / heart). No message, no review. */
 export async function layFlower(slug: string, formData: FormData) {
@@ -40,6 +40,99 @@ export async function layFlower(slug: string, formData: FormData) {
 
   revalidatePath(`/m/${slug}`);
   redirect(`/m/${slug}?flower=1#tributes`);
+}
+
+/** Reply in a tribute thread on the public memorial. Same moderation as the
+ *  guestbook: open memorials auto-approve, moderated ones queue. */
+export async function replyToTribute(slug: string, entryId: string, formData: FormData) {
+  const m = await db.memorial.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      published: true,
+      guestbookOpen: true,
+      guestbookModerated: true,
+      treeId: true,
+      personId: true,
+    },
+  });
+  if (!m || !m.published || !m.guestbookOpen) redirect(`/m/${slug}`);
+
+  const entry = await db.guestbookEntry.findFirst({
+    where: { id: entryId, memorialId: m.id },
+    select: { id: true, name: true },
+  });
+  if (!entry) redirect(`/m/${slug}#tributes`);
+
+  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
+  const message = String(formData.get("message") ?? "").trim().slice(0, 2000);
+  if (name.length < 2 || message.length < 2) redirect(`/m/${slug}?err=1#tributes`);
+
+  const h = await headers();
+  await db.guestbookReply.create({
+    data: {
+      entryId,
+      name,
+      message,
+      status: m.guestbookModerated ? "PENDING" : "APPROVED",
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    },
+  });
+
+  await notifyTreeManagers(m.treeId, {
+    kind: "guestbook.created",
+    title: m.guestbookModerated ? "Tribute reply awaiting approval" : "New tribute reply",
+    body: `${name} replied to ${entry.name}: "${message.slice(0, 120)}"`,
+    linkPath: `/trees/${m.treeId}/people/${m.personId}/memorial`,
+  });
+
+  revalidatePath(`/m/${slug}`);
+  redirect(`/m/${slug}?posted=${m.guestbookModerated ? "review" : "1"}#tributes`);
+}
+
+/** One-tap emoji reaction on a tribute message. Deduped per browser. */
+export async function reactToTribute(slug: string, entryId: string, formData: FormData) {
+  const emoji = String(formData.get("emoji") ?? "");
+  if (!isTributeReaction(emoji)) redirect(`/m/${slug}#tributes`);
+
+  const m = await db.memorial.findUnique({
+    where: { slug },
+    select: { id: true, published: true },
+  });
+  if (!m || !m.published) redirect(`/m/${slug}`);
+
+  const entry = await db.guestbookEntry.findFirst({
+    where: { id: entryId, memorialId: m.id },
+    select: { id: true },
+  });
+  if (!entry) redirect(`/m/${slug}#tributes`);
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  await db.tributeReaction.upsert({
+    where: { entryId_ip_emoji: { entryId, ip, emoji } },
+    create: { entryId, emoji, ip },
+    update: {},
+  });
+
+  revalidatePath(`/m/${slug}`);
+  redirect(`/m/${slug}#tributes`);
+}
+
+/** Manager approves / hides a tribute reply from the memorial editor. */
+export async function moderateReply(
+  treeId: string,
+  replyId: string,
+  status: "APPROVED" | "HIDDEN",
+) {
+  await requireTreeEdit(treeId);
+  const r = await db.guestbookReply.findFirst({
+    where: { id: replyId, entry: { memorial: { treeId } } },
+    select: { entry: { select: { memorial: { select: { personId: true } } } } },
+  });
+  if (!r) throw new Error("Not found");
+  await db.guestbookReply.update({ where: { id: replyId }, data: { status } });
+  revalidatePath(`/trees/${treeId}/people/${r.entry.memorial.personId}/memorial`);
 }
 
 /** Manager hides / restores a flower from the memorial editor. */

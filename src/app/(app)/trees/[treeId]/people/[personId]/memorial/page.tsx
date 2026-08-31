@@ -10,7 +10,7 @@ import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
 import { flowerEmoji } from "@/lib/memorial-flowers";
-import { moderateFlower } from "@/app/m/[slug]/actions";
+import { moderateFlower, moderateReply } from "@/app/m/[slug]/actions";
 import { mapsHref } from "@/lib/geo";
 import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { personMedia } from "@/lib/queries/media";
@@ -868,6 +868,11 @@ export default async function MemorialEditorPage({
                 <span style={{ color: "var(--muted)" }}>{g.status.toLowerCase()}</span>
               </div>
               <p className="whitespace-pre-wrap">{g.message}</p>
+              {g._count.reactions > 0 && (
+                <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                  {g._count.reactions} reaction{g._count.reactions === 1 ? "" : "s"}
+                </p>
+              )}
               <div className="mt-1 flex gap-2 text-xs">
                 {g.status !== "APPROVED" && (
                   <form action={moderateGuestbook.bind(null, treeId, memorial.id, g.id, "APPROVED")}>
@@ -880,6 +885,29 @@ export default async function MemorialEditorPage({
                   </form>
                 )}
               </div>
+              {g.replies.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1.5 border-l pl-3" style={{ borderColor: "var(--hairline)" }}>
+                  {g.replies.map((r) => (
+                    <li key={r.id}>
+                      <span className="font-medium">{r.name}</span>
+                      <span style={{ color: "var(--muted)" }}> · {r.status.toLowerCase()}</span>
+                      <p className="whitespace-pre-wrap">{r.message}</p>
+                      <div className="mt-0.5 flex gap-2 text-xs">
+                        {r.status !== "APPROVED" && (
+                          <form action={moderateReply.bind(null, treeId, r.id, "APPROVED")}>
+                            <button className="text-brand-600 hover:underline">approve</button>
+                          </form>
+                        )}
+                        {r.status !== "HIDDEN" && (
+                          <form action={moderateReply.bind(null, treeId, r.id, "HIDDEN")}>
+                            <button className="text-red-600 hover:underline">hide</button>
+                          </form>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
           {memorial.guestbook.length === 0 && (

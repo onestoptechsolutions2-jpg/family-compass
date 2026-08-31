@@ -223,9 +223,42 @@ model GuestbookEntry {
   ip         String?
   createdAt  DateTime        @default(now())
 
-  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  memorial  Memorial          @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  replies   GuestbookReply[]
+  reactions TributeReaction[]
 
   @@index([memorialId, status])
+}
+
+/// A threaded response to a guestbook message. Same moderation model as the
+/// parent entry (open memorials auto-approve, moderated ones queue).
+model GuestbookReply {
+  id        String          @id @default(cuid())
+  entryId   String
+  name      String
+  message   String          @db.Text
+  status    GuestbookStatus @default(PENDING)
+  ip        String?
+  createdAt DateTime        @default(now())
+
+  entry GuestbookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, status])
+}
+
+/// A one-tap emoji reaction on a guestbook message.
+model TributeReaction {
+  id        String   @id @default(cuid())
+  entryId   String
+  emoji     String
+  name      String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  entry GuestbookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, ip, emoji])
+  @@index([entryId])
 }
 
 /// A light one-tap tribute anyone can leave on a public memorial — a flower,

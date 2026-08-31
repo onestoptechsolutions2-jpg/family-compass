@@ -11,8 +11,8 @@ import { templateTheme } from "@/lib/memorial-templates";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { Dialog } from "@/components/Dialog";
 import { SaveMemorial } from "@/components/SaveMemorial";
-import { FLOWER_KINDS, flowerEmoji } from "@/lib/memorial-flowers";
-import { postGuestbook, layFlower } from "./actions";
+import { FLOWER_KINDS, flowerEmoji, TRIBUTE_REACTIONS } from "@/lib/memorial-flowers";
+import { postGuestbook, layFlower, reactToTribute, replyToTribute } from "./actions";
 
 export async function generateMetadata({
   params,
@@ -90,9 +90,19 @@ export default async function MemorialPage({
   const cardStyle = theme.card;
 
   // one combined tribute feed: laid flowers + guestbook messages, newest first
+  type Reply = { id: string; name: string; message: string; at: Date };
   type FeedItem =
     | { kind: "flower"; id: string; at: Date; name: string; emoji: string }
-    | { kind: "message"; id: string; at: Date; name: string; relation: string | null; message: string };
+    | {
+        kind: "message";
+        id: string;
+        at: Date;
+        name: string;
+        relation: string | null;
+        message: string;
+        replies: Reply[];
+        reactions: Record<string, number>;
+      };
   const feed: FeedItem[] = [
     ...m.flowers.map((f) => ({
       kind: "flower" as const,
@@ -101,14 +111,20 @@ export default async function MemorialPage({
       name: f.name ?? "In loving memory",
       emoji: flowerEmoji(f.kind),
     })),
-    ...m.guestbook.map((g) => ({
-      kind: "message" as const,
-      id: g.id,
-      at: g.createdAt,
-      name: g.name,
-      relation: g.relation,
-      message: g.message,
-    })),
+    ...m.guestbook.map((g) => {
+      const reactions: Record<string, number> = {};
+      for (const r of g.reactions) reactions[r.emoji] = (reactions[r.emoji] ?? 0) + 1;
+      return {
+        kind: "message" as const,
+        id: g.id,
+        at: g.createdAt,
+        name: g.name,
+        relation: g.relation,
+        message: g.message,
+        replies: g.replies.map((r) => ({ id: r.id, name: r.name, message: r.message, at: r.createdAt })),
+        reactions,
+      };
+    }),
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
   const tributeCount = m.guestbook.length + m._count.flowers;
   const flowerCounts: Record<string, number> = {};
@@ -475,36 +491,123 @@ export default async function MemorialPage({
           )}
           {err && <p className="mt-1 text-sm" style={{ color: "var(--danger)" }}>Please add your name and a message.</p>}
 
-          <ul className="mt-3 flex flex-col">
-            {feed.map((it) =>
-              it.kind === "flower" ? (
-                <li key={it.id} className="flex items-center gap-3 py-2 text-sm" style={{ borderTop: "1px solid var(--hairline)" }}>
-                  <span className="w-9 text-center text-lg">{it.emoji}</span>
-                  <span>
-                    <span className="font-medium">{it.name}</span>
-                    <span style={{ color: "var(--muted)" }}> laid a tribute · {timeAgo(it.at)}</span>
-                  </span>
-                </li>
-              ) : (
+          {(() => {
+            const flowerLine = (it: Extract<FeedItem, { kind: "flower" }>) => (
+              <li key={it.id} className="flex items-center gap-3 py-2 text-sm" style={{ borderTop: "1px solid var(--hairline)" }}>
+                <span className="w-9 text-center text-lg">{it.emoji}</span>
+                <span>
+                  <span className="font-medium">{it.name}</span>
+                  <span style={{ color: "var(--muted)" }}> laid a tribute · {timeAgo(it.at)}</span>
+                </span>
+              </li>
+            );
+
+            const messageCard = (
+              it: Extract<FeedItem, { kind: "message" }>,
+              interactive: boolean,
+            ) => {
+              const reactionTotal = Object.values(it.reactions).reduce((a, b) => a + b, 0);
+              return (
                 <li key={it.id} className="flex gap-3 py-3" style={{ borderTop: "1px solid var(--hairline)" }}>
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" style={{ background: theme.accent }}>
                     {monogram(it.name)}
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm">
                       <span className="font-semibold">{it.name}</span>
                       {it.relation ? <span style={{ color: "var(--muted)" }}> · {it.relation}</span> : null}
                       <span style={{ color: "var(--muted)" }}> · {timeAgo(it.at)}</span>
                     </p>
                     <p className="mt-0.5 whitespace-pre-wrap text-sm">{it.message}</p>
+
+                    {interactive ? (
+                      <form action={reactToTribute.bind(null, slug, it.id)} className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {TRIBUTE_REACTIONS.map((e) => (
+                          <button
+                            key={e}
+                            name="emoji"
+                            value={e}
+                            className="rounded-full border px-2 py-0.5 text-sm leading-none"
+                            style={{ borderColor: "var(--hairline)", background: "var(--surface)" }}
+                            title="React"
+                          >
+                            {e}
+                            {it.reactions[e] ? <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>{it.reactions[e]}</span> : null}
+                          </button>
+                        ))}
+                      </form>
+                    ) : (
+                      reactionTotal > 0 && (
+                        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                          {Object.entries(it.reactions).map(([e, n]) => `${e} ${n}`).join("  ")}
+                        </p>
+                      )
+                    )}
+
+                    {it.replies.length > 0 && (
+                      <ul className="mt-2 flex flex-col gap-1.5 border-l pl-3" style={{ borderColor: "var(--hairline)" }}>
+                        {it.replies.map((r) => (
+                          <li key={r.id} className="text-sm">
+                            <span className="font-medium">{r.name}</span>
+                            <span style={{ color: "var(--muted)" }}> · {timeAgo(r.at)}</span>
+                            <p className="whitespace-pre-wrap">{r.message}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {interactive && m.guestbookOpen && (
+                      <form action={replyToTribute.bind(null, slug, it.id)} className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          name="name"
+                          required
+                          placeholder="Your name"
+                          className="w-full rounded-lg border px-2.5 py-1.5 text-sm sm:w-40"
+                          style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                        />
+                        <input
+                          name="message"
+                          required
+                          placeholder="Reply…"
+                          className="w-full flex-1 rounded-lg border px-2.5 py-1.5 text-sm"
+                          style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                        />
+                        <button className="rounded-lg px-3 py-1.5 text-sm font-medium text-white" style={{ background: theme.accent }}>
+                          Reply
+                        </button>
+                      </form>
+                    )}
                   </div>
                 </li>
-              ),
-            )}
-            {feed.length === 0 && (
-              <li className="py-3 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a tribute.</li>
-            )}
-          </ul>
+              );
+            };
+
+            const preview = feed.slice(0, 8);
+            return (
+              <>
+                {feed.length > 0 && (
+                  <div className="mt-2">
+                    <Dialog wide title={`Tributes for ${m.name}`} label={`💬 Open the tribute wall · ${tributeCount}`} buttonClass="rounded-full border px-3 py-1.5 text-sm" >
+                      <ul className="flex flex-col">
+                        {feed.map((it) => (it.kind === "flower" ? flowerLine(it) : messageCard(it, true)))}
+                      </ul>
+                    </Dialog>
+                  </div>
+                )}
+                <ul className="mt-3 flex flex-col">
+                  {preview.map((it) => (it.kind === "flower" ? flowerLine(it) : messageCard(it, false)))}
+                  {feed.length === 0 && (
+                    <li className="py-3 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a tribute.</li>
+                  )}
+                  {feed.length > preview.length && (
+                    <li className="py-2 text-sm" style={{ color: "var(--muted)" }}>
+                      + {feed.length - preview.length} more — open the tribute wall to react and reply.
+                    </li>
+                  )}
+                </ul>
+              </>
+            );
+          })()}
         </section>
 
         <div className="mt-4 border-t pt-6" style={{ borderColor: "var(--hairline)" }}>

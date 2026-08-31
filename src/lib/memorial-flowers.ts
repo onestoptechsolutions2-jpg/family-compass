@@ -16,3 +16,10 @@ export function isFlowerKind(v: string): v is FlowerKind {
 export function flowerEmoji(kind: string): string {
   return BY_ID.get(kind as FlowerKind)?.emoji ?? "🌹";
 }
+
+/** Emoji reactions a visitor can leave on a guestbook message. */
+export const TRIBUTE_REACTIONS = ["🙏", "❤️", "🕊️", "🌷", "😢"] as const;
+export type TributeReactionEmoji = (typeof TRIBUTE_REACTIONS)[number];
+export function isTributeReaction(v: string): v is TributeReactionEmoji {
+  return (TRIBUTE_REACTIONS as readonly string[]).includes(v);
+}
