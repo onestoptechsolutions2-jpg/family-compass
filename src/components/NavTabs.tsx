@@ -60,7 +60,34 @@ export function NavTabs({ tabs }: { tabs: NavItem[] }) {
       <nav className="hidden flex-wrap items-end gap-1 pb-px text-sm sm:flex">
         {tabs.map((i) =>
           isGroup(i) ? (
-            <details key={i.label} className="group relative">
+            <details
+              key={i.label}
+              className="group relative"
+              onKeyDown={(e) => {
+                const d = e.currentTarget;
+                const items = Array.from(d.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]'));
+                const summary = d.querySelector<HTMLElement>("summary");
+                if (e.key === "Escape") {
+                  d.removeAttribute("open");
+                  summary?.focus();
+                  return;
+                }
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  if (!d.open) {
+                    d.setAttribute("open", "");
+                    items[0]?.focus();
+                    return;
+                  }
+                  const idx = items.indexOf(document.activeElement as HTMLAnchorElement);
+                  const next =
+                    e.key === "ArrowDown"
+                      ? items[(idx + 1 + items.length) % items.length]
+                      : items[(idx - 1 + items.length) % items.length];
+                  next?.focus();
+                }
+              }}
+            >
               <summary
                 className="flex cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-t-md px-3 py-2 [&::-webkit-details-marker]:hidden"
                 style={linkStyle(groupActive(i))}
@@ -69,6 +96,7 @@ export function NavTabs({ tabs }: { tabs: NavItem[] }) {
                 <span aria-hidden className="text-xs transition-transform group-open:rotate-180" style={{ color: "var(--muted)" }}>▾</span>
               </summary>
               <div
+                role="menu"
                 className="absolute left-0 top-full z-30 mt-1 flex min-w-40 flex-col rounded-lg border py-1 shadow-lg"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
@@ -76,6 +104,7 @@ export function NavTabs({ tabs }: { tabs: NavItem[] }) {
                   <Link
                     key={t.href}
                     href={t.href}
+                    role="menuitem"
                     onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}
                     className="px-3 py-1.5 hover:bg-[var(--surface-2)]"
                     style={{ color: active(t.href) ? "var(--fg)" : "var(--muted)", fontWeight: active(t.href) ? 600 : 400 }}
