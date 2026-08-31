@@ -25,6 +25,7 @@ export const EVENTS = {
   "chama.contribution_pledged": "A supporter recorded a contribution to a chama fund (awaiting the treasurer's confirmation).",
   "chama.contribution_confirmed": "The treasurer confirmed a chama contribution against the M-Pesa statement.",
   "chama.fund_closed": "A chama collection drive was closed; `data.confirmedKes` is the confirmed total.",
+  "chama.external_event": "A verified webhook arrived from a linked external Chama-platform group; `data.source` is that group's event name.",
   "claim.requested": "A relative asked to claim an existing profile as themselves.",
   "claim.approved": "A profile claim was approved and linked to an account.",
   "claim.rejected": "A profile claim was declined.",

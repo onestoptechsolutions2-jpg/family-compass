@@ -183,7 +183,7 @@ export async function confirmContribution(
 ): Promise<void> {
   const c = await db.chamaContribution.findFirst({
     where: { id: contributionId, chama: { treeId } },
-    select: { id: true, status: true, fundId: true, amountKes: true, contributorName: true },
+    select: { id: true, status: true, fundId: true, amountKes: true, contributorName: true, mpesaCode: true },
   });
   if (!c || c.status === "CONFIRMED") return;
   await db.chamaContribution.update({
@@ -201,6 +201,17 @@ export async function confirmContribution(
     name: c.contributorName,
     amountKes: c.amountKes,
   });
+
+  // mirror onto the linked external chama group, if any (best-effort)
+  const link = await db.chamaLink.findUnique({ where: { treeId } });
+  if (link?.pushWelfare) {
+    const { pushWelfareContribution } = await import("@/lib/chama-api");
+    await pushWelfareContribution(link, {
+      amount: c.amountKes,
+      reference: c.mpesaCode ?? c.id,
+      note: `${c.contributorName} · welfare`,
+    }).catch(() => {});
+  }
 }
 
 export async function voidContribution(treeId: string, contributionId: string): Promise<void> {

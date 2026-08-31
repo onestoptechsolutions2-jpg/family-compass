@@ -493,6 +493,7 @@ model Tree {
   memorials      Memorial[]
   anniversaryReminderLog AnniversaryReminder[]
   chamas         Chama[]
+  chamaLink      ChamaLink?
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -1489,6 +1490,30 @@ model ChamaFund {
   contributions ChamaContribution[]
 
   @@index([chamaId, status])
+}
+
+/// Bridge to an external chama group on the Chama platform (its Developer API
+/// v1 — bearer key `chama_live_…`). One per tree. When present, confirmed
+/// welfare contributions are also recorded on that group and its inbound
+/// webhooks (HMAC-signed) can update local mirrors.
+model ChamaLink {
+  id            String    @id @default(cuid())
+  treeId        String    @unique
+  baseUrl       String    @default("https://chama.laitor.co.ke")
+  apiKey        String
+  groupId       Int?
+  groupName     String?
+  groupType     String?
+  currency      String    @default("KES")
+  webhookSecret String?
+  pushWelfare   Boolean   @default(true)
+  lastSyncedAt  DateTime?
+  lastError     String?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
 }
 
 model ChamaContribution {

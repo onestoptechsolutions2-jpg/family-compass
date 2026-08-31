@@ -157,14 +157,24 @@ function verify(rawBody, headerSig, secret) {
       <H id="chama">Chama / welfare funds</H>
       <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
         A <strong>chama</strong> is a family welfare / savings group. Each tree gets one welfare
-        chama on demand; a memorial can open a <em>fund</em> (a collection drive) that is shared as a
-        public link — <code>{`${await publicOrigin()}/give/{token}`}</code>. Supporters record what
-        they send by M-Pesa (to the workspace Till / Paybill configured in Settings → Payments) and
-        the family treasurer confirms each entry against the statement. No aggregator is involved;
-        collection reuses the same <code>PaymentProvider</code> interface as paid exports (manual
-        M-Pesa now, Daraja STK when <code>MPESA_*</code> is configured). Loans, fines and
-        merry-go-round rotations from the standalone chama platform are not part of this integration.
-        React to activity via the <code>chama.*</code> webhook events above.
+        chama on demand; a memorial can open a <em>fund</em> (a collection drive) shared as a public
+        link — <code>{`${await publicOrigin()}/give/{token}`}</code>. Supporters record what they
+        send by M-Pesa (to the workspace Till / Paybill in Settings → Payments) and the family
+        treasurer confirms each entry against the statement. Collection reuses the same{" "}
+        <code>PaymentProvider</code> as paid exports (manual M-Pesa now, Daraja STK when{" "}
+        <code>MPESA_*</code> is set) — no aggregator.
+      </p>
+      <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+        <strong>External group link.</strong> A tree can also be linked to a real group on the Chama
+        platform (<code>chama.laitor.co.ke</code>) from <em>Tree → Chama</em> by pasting that
+        group&apos;s Developer API key (<code>chama_live_…</code>). We then read the group&apos;s
+        metadata, members, capital position and recent contributions, and — when
+        &ldquo;push welfare&rdquo; is on — record each confirmed welfare-fund contribution on the
+        group via <code>POST /api/v1/contributions</code> (<code>type: &quot;welfare&quot;</code>).
+        The group&apos;s outbound webhooks (HMAC-SHA256, <code>X-Chama-Signature</code>) are accepted
+        at <code>/api/webhooks/chama/{`{treeId}`}</code> and surface as the{" "}
+        <code>chama.external_event</code> event. Loans, fines and merry-go-round rotations stay on the
+        Chama platform; Family Compass only reads them.
       </p>
 
       <H id="notes">Notes</H>
