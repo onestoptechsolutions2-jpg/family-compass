@@ -3,10 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Gender, FamilyType } from "@prisma/client";
+import { Gender, FamilyType, Role } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { requireTreeEdit } from "@/lib/rbac";
+import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { notifyTreeManagers, notifyUser } from "@/lib/notify";
@@ -20,6 +20,7 @@ import {
   addChildRef,
 } from "@/lib/person-write";
 import { isPersonEventType } from "@/lib/event-types";
+import { linkPersonToUser, releaseClaimOnDeath } from "@/lib/claims";
 
 const personBits = {
   first: z.string().trim().max(200).optional().default(""),
@@ -230,6 +231,7 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
 
   await setVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);
   await db.person.update({ where: { id: personId }, data: { living: false } });
+  await releaseClaimOnDeath(personId);
 
   await logActivity({
     treeId,
@@ -283,6 +285,7 @@ export async function addEvent(treeId: string, personId: string, formData: FormD
   const isDeath = type === "Death" || type === "Burial";
   if (isDeath) {
     await db.person.update({ where: { id: personId }, data: { living: false } });
+    await releaseClaimOnDeath(personId);
   }
 
   await logActivity({
@@ -545,4 +548,40 @@ export async function resolveEventComment(
       : { resolvedAt: null, resolvedById: null },
   });
   redirect(`/trees/${treeId}/people/${personId}#tab=timeline`);
+}
+
+// ---- Direct claim (manager shortcut) --------------------------------------
+
+/** Manager binds a living, unclaimed profile straight to a workspace member
+ *  (themselves or someone already on the tree) — no invite / request. */
+export async function markProfileClaimed(
+  treeId: string,
+  personId: string,
+  formData: FormData,
+) {
+  const ctx = await requireTreeManage(treeId);
+  const who = String(formData.get("who") ?? "").trim();
+  const roleRaw = String(formData.get("role") ?? "CONTRIBUTOR");
+  const role = (Object.values(Role) as string[]).includes(roleRaw)
+    ? (roleRaw as Role)
+    : Role.CONTRIBUTOR;
+  const userId = who === "me" ? ctx.user.id : who;
+  if (!userId) redirect(`/trees/${treeId}/people/${personId}?err=who`);
+
+  // only members of this tree's workspace can be linked here
+  const member = await db.membership.findFirst({
+    where: { userId, workspace: { trees: { some: { id: treeId } } } },
+    select: { userId: true },
+  });
+  if (!member) redirect(`/trees/${treeId}/people/${personId}?err=notmember`);
+
+  await linkPersonToUser({ treeId, personId, userId, role, actorId: ctx.user.id });
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+/** Manager unlinks a claimed profile (does not delete the account). */
+export async function unlinkProfileClaim(treeId: string, personId: string) {
+  await requireTreeManage(treeId);
+  await db.person.updateMany({ where: { id: personId, treeId }, data: { claimedByUserId: null } });
+  redirect(`/trees/${treeId}/people/${personId}`);
 }

@@ -232,6 +232,161 @@ export async function rejectClaim(
   });
 }
 
+/** True when a person has a recorded Death or Burial event. */
+async function isDeceased(personId: string): Promise<boolean> {
+  const n = await db.eventRef.count({
+    where: { personId, event: { type: { in: ["Death", "Burial"] } } },
+  });
+  return n > 0;
+}
+
+/** Find or create the WhatsApp-identity user for a phone number. */
+export async function resolveOrCreateWaUser(
+  phoneRaw: string,
+  name: string,
+): Promise<{ id: string; created: boolean }> {
+  if (!isValidPhone(phoneRaw)) throw new Error("Enter a valid WhatsApp number");
+  const phone = normalizePhone(phoneRaw);
+  const synthEmail = `${phone}@wa.local`;
+  const existing = await db.user.findFirst({
+    where: { OR: [{ phone }, { email: synthEmail }] },
+    select: { id: true },
+  });
+  if (existing) return { id: existing.id, created: false };
+  const created = await db.user.create({
+    data: { name: name.trim() || phone, email: synthEmail, phone },
+    select: { id: true },
+  });
+  return { id: created.id, created: true };
+}
+
+/**
+ * Bind a person's profile directly to a user account — the manager / admin
+ * shortcut that skips the invite → request → approve flow. Runs the same
+ * provisioning tail as `approveClaim`: workspace membership, phone, and an
+ * optional one-time WhatsApp sign-in link. Refuses deceased people and
+ * double-claims.
+ */
+export async function linkPersonToUser(input: {
+  treeId: string;
+  personId: string;
+  userId: string;
+  role?: Role;
+  actorId: string;
+  issueSignIn?: boolean;
+}): Promise<{ signInUrl: string | null; alreadyLinked: boolean }> {
+  const role = input.role ?? Role.CONTRIBUTOR;
+
+  const person = await db.person.findFirst({
+    where: { id: input.personId, treeId: input.treeId },
+    select: { id: true, phone: true, claimedByUserId: true },
+  });
+  if (!person) throw new Error("Person not found in this tree");
+  if (person.claimedByUserId === input.userId) {
+    return { signInUrl: null, alreadyLinked: true };
+  }
+  if (person.claimedByUserId) throw new Error("This profile is already claimed by someone else");
+  if (await isDeceased(input.personId)) throw new Error("A deceased person's profile can't be claimed");
+
+  const tree = await db.tree.findUniqueOrThrow({
+    where: { id: input.treeId },
+    select: { workspaceId: true, name: true },
+  });
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: input.userId },
+    select: { id: true, name: true, phone: true, claimedPerson: { select: { id: true } } },
+  });
+  if (user.claimedPerson && user.claimedPerson.id !== input.personId) {
+    throw new Error("That account already claims another profile");
+  }
+
+  let signInToken: string | null = null;
+  await db.$transaction(async (tx) => {
+    const fresh = await tx.person.findUnique({
+      where: { id: input.personId },
+      select: { claimedByUserId: true },
+    });
+    if (fresh?.claimedByUserId && fresh.claimedByUserId !== input.userId) {
+      throw new Error("That profile was claimed by someone else in the meantime");
+    }
+    await tx.membership.upsert({
+      where: { workspaceId_userId: { workspaceId: tree.workspaceId, userId: user.id } },
+      update: {},
+      create: { workspaceId: tree.workspaceId, userId: user.id, role },
+    });
+    await tx.person.update({
+      where: { id: input.personId },
+      data: { claimedByUserId: user.id, phone: person.phone ?? user.phone ?? undefined },
+    });
+    if (input.issueSignIn && user.phone) {
+      signInToken = randomBytes(24).toString("hex");
+      await tx.personClaim.create({
+        data: {
+          treeId: input.treeId,
+          personId: input.personId,
+          claimantName: user.name ?? user.phone,
+          phone: user.phone,
+          code: claimCode(null),
+          status: ClaimStatus.APPROVED,
+          decidedById: input.actorId,
+          decidedAt: new Date(),
+          createdUserId: user.id,
+          signInToken,
+          signInTokenExpiresAt: new Date(Date.now() + SIGNIN_TOKEN_DAYS * 864e5),
+        },
+      });
+    }
+  });
+
+  await ensurePersonalWorkspace(user.id, user.name ?? "My");
+  await logActivity({
+    treeId: input.treeId,
+    actorId: input.actorId,
+    verb: "linked",
+    objectType: "claim",
+    objectId: input.personId,
+    summary: `linked a profile to ${user.name ?? user.phone ?? "an account"}`,
+  });
+
+  return {
+    signInUrl: signInToken ? `${await publicOrigin()}/api/auth/wa/${signInToken}` : null,
+    alreadyLinked: false,
+  };
+}
+
+/**
+ * Release any account claim on a person who has just been recorded as dead:
+ * a deceased profile must never be a claimable account. The user account
+ * itself is untouched.
+ */
+export async function releaseClaimOnDeath(personId: string): Promise<void> {
+  const person = await db.person.findUnique({
+    where: { id: personId },
+    select: { id: true, treeId: true, claimedByUserId: true },
+  });
+  if (!person) return;
+
+  await db.claimInvite.updateMany({
+    where: { personId, revokedAt: null, usedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  await db.personClaim.updateMany({
+    where: { personId, status: ClaimStatus.PENDING },
+    data: { status: ClaimStatus.REJECTED, rejectionReason: "Person recorded as deceased" },
+  });
+
+  if (person.claimedByUserId) {
+    await db.person.update({ where: { id: personId }, data: { claimedByUserId: null } });
+    await logActivity({
+      treeId: person.treeId,
+      verb: "updated",
+      objectType: "claim",
+      objectId: personId,
+      summary: "released the profile claim — person recorded as deceased",
+    });
+  }
+}
+
 /** Validate a one-time WhatsApp sign-in token; returns the userId or null. */
 export async function consumeSignInToken(token: string): Promise<string | null> {
   const claim = await db.personClaim.findUnique({

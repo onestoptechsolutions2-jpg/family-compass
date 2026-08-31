@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { loadTreeContext, canEdit } from "@/lib/rbac";
+import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions } from "@/lib/queries/people";
@@ -33,6 +33,8 @@ import {
   revokeClaimInvite,
   addEventComment,
   resolveEventComment,
+  markProfileClaimed,
+  unlinkProfileClaim,
 } from "./quick-actions";
 import { PERSON_EVENT_TYPES } from "@/lib/event-types";
 
@@ -98,7 +100,15 @@ export default async function PersonDetailPage({
   ].filter(Boolean);
   const avatarId = media.find((r) => r.media.mimeType.startsWith("image/"))?.media.id ?? null;
 
+  const manages = canManageTree(ctx.role);
   const claimable = editable && !deceased && !person.claimedByUserId;
+  const treeMembers = manages && claimable
+    ? await db.membership.findMany({
+        where: { workspace: { trees: { some: { id: treeId } } } },
+        select: { role: true, user: { select: { id: true, name: true, email: true } } },
+        orderBy: { user: { name: "asc" } },
+      })
+    : [];
   const claimInvite = claimable
     ? await db.claimInvite.findFirst({
         where: { personId, revokedAt: null, usedAt: null },
@@ -292,10 +302,19 @@ export default async function PersonDetailPage({
         </div>
       </div>
 
-      {person.claimedByUserId && person.claimedByUserId !== ctx.user.id && (
-        <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)", color: "var(--muted)" }}>
-          Claimed by {person.claimedBy?.name ?? "a relative"}.
-        </p>
+      {person.claimedByUserId && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)", color: "var(--muted)" }}>
+          <span>
+            {person.claimedByUserId === ctx.user.id
+              ? "You have claimed this profile."
+              : `Claimed by ${person.claimedBy?.name ?? "a relative"}.`}
+          </span>
+          {manages && !deceased && (
+            <form action={unlinkProfileClaim.bind(null, treeId, personId)}>
+              <button className="hover:underline" style={{ color: "var(--danger)" }}>unlink</button>
+            </form>
+          )}
+        </div>
       )}
 
       {claimable && (
@@ -305,32 +324,73 @@ export default async function PersonDetailPage({
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="font-medium">Claim link</h3>
+              <h3 className="font-medium">This is a living person&apos;s profile</h3>
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                Send this person a private link so they can confirm the profile is theirs and keep it
-                updated. You approve every claim.
+                Send them a private link to claim it themselves, or — if they&apos;re already on this
+                tree — a manager can mark it claimed directly. A profile can only be claimed while
+                the person is living.
               </p>
             </div>
-            {!claimInvite && (
-              <Dialog
-                title={`Send ${displayName(person.names)} a claim link`}
-                label="Create claim link"
-                buttonClass="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
-              >
-                <form action={createClaimInvite.bind(null, treeId, personId)} className="flex flex-col gap-3">
-                  <p className="text-sm" style={{ color: "var(--muted)" }}>
-                    Generates a one-person link valid for 30 days. Share it from your own phone.
-                  </p>
-                  <label className="text-sm">
-                    <span style={{ color: "var(--muted)" }}>Note for them (optional)</span>
-                    <textarea name="note" rows={2} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
-                  </label>
-                  <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                    Create link
-                  </button>
-                </form>
-              </Dialog>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {manages && (
+                <Dialog
+                  title={`Mark ${displayName(person.names)}'s profile as claimed`}
+                  label="Mark as claimed"
+                  buttonClass="rounded-lg border px-3 py-1.5 text-sm"
+                >
+                  <form action={markProfileClaimed.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                    <p className="text-sm" style={{ color: "var(--muted)" }}>
+                      Links this profile straight to an account already on the tree — no invite or
+                      approval. Use only when you know it&apos;s really them.
+                    </p>
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Account</span>
+                      <select name="who" defaultValue="me" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                        <option value="me">This is me ({ctx.user.name ?? ctx.user.email})</option>
+                        {treeMembers
+                          .filter((m) => m.user.id !== ctx.user.id)
+                          .map((m) => (
+                            <option key={m.user.id} value={m.user.id}>
+                              {m.user.name ?? m.user.email} · {m.role.toLowerCase()}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Role on this tree</span>
+                      <select name="role" defaultValue="CONTRIBUTOR" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                        <option value="VIEWER">Viewer</option>
+                        <option value="CONTRIBUTOR">Contributor</option>
+                        <option value="EDITOR">Editor</option>
+                      </select>
+                    </label>
+                    <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                      Link profile
+                    </button>
+                  </form>
+                </Dialog>
+              )}
+              {!claimInvite && (
+                <Dialog
+                  title={`Send ${displayName(person.names)} a claim link`}
+                  label="Create claim link"
+                  buttonClass="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+                >
+                  <form action={createClaimInvite.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                    <p className="text-sm" style={{ color: "var(--muted)" }}>
+                      Generates a one-person link valid for 30 days. Share it from your own phone.
+                    </p>
+                    <label className="text-sm">
+                      <span style={{ color: "var(--muted)" }}>Note for them (optional)</span>
+                      <textarea name="note" rows={2} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                    </label>
+                    <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                      Create link
+                    </button>
+                  </form>
+                </Dialog>
+              )}
+            </div>
           </div>
 
           {claimInvite && claimUrl && (

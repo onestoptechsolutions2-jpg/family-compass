@@ -6,6 +6,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const tabs = [
     { href: "/admin", label: "Overview" },
     { href: "/admin/payments", label: "Payments" },
+    { href: "/admin/claims", label: "Claims" },
     { href: "/admin/research", label: "Research" },
     { href: "/admin/system", label: "System" },
     { href: "/admin/settings", label: "Settings" },
