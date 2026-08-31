@@ -8,27 +8,34 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { linkPersonToUser, resolveOrCreateWaUser } from "@/lib/claims";
 import { writeAudit } from "@/lib/audit";
+import { flashOk, flashErr } from "@/lib/flash";
 
 const PATH = "/admin/claims";
 
-async function personTree(personId: string) {
-  const p = await db.person.findUnique({ where: { id: personId }, select: { treeId: true } });
-  if (!p) redirect(`${PATH}?err=noperson`);
-  return p.treeId;
+/** flashErr then bounce back to the page — used for every guard failure. */
+async function fail(message: string): Promise<never> {
+  await flashErr(message);
+  redirect(PATH);
 }
 
 const role = (raw: string): Role =>
   (Object.values(Role) as string[]).includes(raw) ? (raw as Role) : Role.CONTRIBUTOR;
+
+async function personTree(personId: string): Promise<string> {
+  const p = await db.person.findUnique({ where: { id: personId }, select: { treeId: true } });
+  if (!p) return fail("No person with that id.");
+  return p.treeId;
+}
 
 /** Link a profile to an existing account by email. */
 export async function adminLinkByEmail(formData: FormData) {
   const admin = await requirePlatformAdmin();
   const personId = String(formData.get("personId") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!personId || !email) redirect(`${PATH}?err=missing`);
+  if (!personId || !email) return fail("Person id and email are both required.");
 
   const user = await db.user.findFirst({ where: { email }, select: { id: true } });
-  if (!user) redirect(`${PATH}?err=nouser`);
+  if (!user) return fail("No account with that email.");
 
   const treeId = await personTree(personId);
   try {
@@ -40,11 +47,12 @@ export async function adminLinkByEmail(formData: FormData) {
       actorId: admin.id,
     });
   } catch (e) {
-    redirect(`${PATH}?err=${encodeURIComponent(e instanceof Error ? e.message : "failed")}`);
+    return fail(e instanceof Error ? e.message : "Link failed.");
   }
   await writeAudit({ actorId: admin.id, action: "claim.admin_link_email", targetType: "claim", targetId: personId, meta: { email } });
+  await flashOk("Profile linked.");
   revalidatePath(PATH);
-  redirect(`${PATH}?ok=linked`);
+  redirect(PATH);
 }
 
 /** Link a profile to a WhatsApp identity by phone (creating the account if
@@ -54,9 +62,10 @@ export async function adminLinkByPhone(formData: FormData) {
   const personId = String(formData.get("personId") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  if (!personId || !phone) redirect(`${PATH}?err=missing`);
+  if (!personId || !phone) return fail("Person id and phone are both required.");
 
   const treeId = await personTree(personId);
+  let signInUrl: string | null = null;
   try {
     const u = await resolveOrCreateWaUser(phone, name);
     const res = await linkPersonToUser({
@@ -67,6 +76,7 @@ export async function adminLinkByPhone(formData: FormData) {
       actorId: admin.id,
       issueSignIn: true,
     });
+    signInUrl = res.signInUrl ?? null;
     await writeAudit({
       actorId: admin.id,
       action: "claim.admin_link_phone",
@@ -74,11 +84,12 @@ export async function adminLinkByPhone(formData: FormData) {
       targetId: personId,
       meta: { phone, createdUser: u.created },
     });
-    revalidatePath(PATH);
-    redirect(`${PATH}?ok=linked${res.signInUrl ? `&signin=${encodeURIComponent(res.signInUrl)}` : ""}`);
   } catch (e) {
-    redirect(`${PATH}?err=${encodeURIComponent(e instanceof Error ? e.message : "failed")}`);
+    return fail(e instanceof Error ? e.message : "Link failed.");
   }
+  await flashOk("Profile linked — send them the sign-in link below.");
+  revalidatePath(PATH);
+  redirect(signInUrl ? `${PATH}?signin=${encodeURIComponent(signInUrl)}` : PATH);
 }
 
 export async function adminUnlink(formData: FormData) {
@@ -87,6 +98,7 @@ export async function adminUnlink(formData: FormData) {
   if (!personId) redirect(PATH);
   await db.person.updateMany({ where: { id: personId }, data: { claimedByUserId: null } });
   await writeAudit({ actorId: admin.id, action: "claim.admin_unlink", targetType: "claim", targetId: personId });
+  await flashOk("Profile unlinked.");
   revalidatePath(PATH);
-  redirect(`${PATH}?ok=unlinked`);
+  redirect(PATH);
 }

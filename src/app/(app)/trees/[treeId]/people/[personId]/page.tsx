@@ -64,10 +64,10 @@ export default async function PersonDetailPage({
   searchParams,
 }: {
   params: Promise<{ treeId: string; personId: string }>;
-  searchParams: Promise<{ invited?: string; err?: string; welcome?: string }>;
+  searchParams: Promise<{ invited?: string; welcome?: string }>;
 }) {
   const { treeId, personId } = await params;
-  const { invited, err, welcome } = await searchParams;
+  const { invited, welcome } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   const person = await getPersonDetail(treeId, personId);
   if (!person) notFound();
@@ -535,12 +535,6 @@ export default async function PersonDetailPage({
             </div>
           )}
         </div>
-      )}
-
-      {err && (
-        <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
-          {decodeURIComponent(err)}
-        </p>
       )}
 
       {invitedLink && (

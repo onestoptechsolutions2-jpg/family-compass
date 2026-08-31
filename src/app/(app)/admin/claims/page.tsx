@@ -14,10 +14,10 @@ const fs = { borderColor: "var(--border)", background: "var(--bg)" };
 export default async function AdminClaimsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; err?: string; signin?: string }>;
+  searchParams: Promise<{ signin?: string }>;
 }) {
   await requirePlatformAdmin();
-  const { ok, err, signin } = await searchParams;
+  const { signin } = await searchParams;
 
   const [claimed, pending] = await Promise.all([
     db.person.findMany({
@@ -50,17 +50,11 @@ export default async function AdminClaimsPage({
         </p>
       </div>
 
-      {ok && (
-        <p className="rounded-lg border p-3 text-sm text-green-700" style={{ borderColor: "var(--border)" }}>
-          {ok === "unlinked" ? "Profile unlinked." : "Profile linked."}
-          {signin && (
-            <>
-              {" "}Sign-in link: <code className="break-all">{signin}</code>
-            </>
-          )}
+      {signin && (
+        <p className="rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)" }}>
+          Sign-in link: <code className="break-all">{signin}</code>
         </p>
       )}
-      {err && <p className="rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>{decodeURIComponent(err)}</p>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <form action={adminLinkByEmail} className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>

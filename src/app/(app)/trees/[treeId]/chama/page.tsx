@@ -14,13 +14,10 @@ const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 
 export default async function ChamaPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ treeId: string }>;
-  searchParams: Promise<{ ok?: string; err?: string }>;
 }) {
   const { treeId } = await params;
-  const { ok, err } = await searchParams;
   if (!chamaEnabled()) notFound();
   const ctx = await loadTreeContext(treeId);
   if (!canManageTree(ctx.role)) notFound();
@@ -44,11 +41,6 @@ export default async function ChamaPage({
           contributions on memorials are then also recorded on that group.
         </p>
       </div>
-
-      {ok === "linked" && <p className="rounded-lg border p-3 text-sm text-green-700" style={{ borderColor: "var(--border)" }}>Group linked.</p>}
-      {ok === "unlinked" && <p className="rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>Group unlinked.</p>}
-      {err === "key" && <p className="rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>That doesn&apos;t look like a Chama API key (starts with <code>chama_live_</code>).</p>}
-      {err === "validate" && <p className="rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>Couldn&apos;t validate the key against the group API. Check the key and base URL.</p>}
 
       {!link ? (
         <form action={linkChama.bind(null, treeId)} className="rounded-xl border p-4" style={card}>

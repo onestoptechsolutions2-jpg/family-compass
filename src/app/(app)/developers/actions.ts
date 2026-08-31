@@ -12,6 +12,7 @@ import { generateApiKey, API_SCOPES } from "@/lib/api/keys";
 import { newWebhookSecret, emitEvent } from "@/lib/webhooks";
 import { EVENT_NAMES, isEventName } from "@/lib/events-catalog";
 import { enqueue, QUEUE } from "@/lib/queue";
+import { flashOk, flashErr } from "@/lib/flash";
 
 const NEW_KEY_COOKIE = "fc_new_api_key";
 
@@ -43,8 +44,9 @@ export async function createApiKey(formData: FormData) {
 
   const jar = await cookies();
   jar.set(NEW_KEY_COOKIE, key, { httpOnly: true, sameSite: "strict", maxAge: 120, path: "/developers" });
+  await flashOk("API key created — copy it now, it isn't shown again.");
   revalidatePath("/developers");
-  redirect("/developers?created=1");
+  redirect("/developers");
 }
 
 export async function revokeApiKey(id: string) {
@@ -72,7 +74,10 @@ export async function createWebhook(formData: FormData) {
     url: formData.get("url"),
     description: formData.get("description") || undefined,
   });
-  if (!parsed.success) redirect("/developers?err=url");
+  if (!parsed.success) {
+    await flashErr("Enter a valid https URL.");
+    redirect("/developers");
+  }
 
   const all = formData.get("allEvents") === "on";
   const picked = EVENT_NAMES.filter((e) => formData.get(`ev_${e}`) === "on");
@@ -88,8 +93,9 @@ export async function createWebhook(formData: FormData) {
       createdById: user.id,
     },
   });
+  await flashOk("Webhook endpoint added.");
   revalidatePath("/developers");
-  redirect("/developers?hook=1");
+  redirect("/developers");
 }
 
 export async function setWebhookActive(id: string, active: boolean) {

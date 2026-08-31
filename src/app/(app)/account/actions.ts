@@ -8,11 +8,14 @@ import { requireUser } from "@/lib/rbac";
 import { hashPassword, verifyPassword, passwordProblem } from "@/lib/password";
 import { setResearchConsent } from "@/lib/consent";
 import { sessionCookieName } from "@/lib/session";
+import { flashOk, flashErr } from "@/lib/flash";
 
 export async function toggleResearchConsent(formData: FormData) {
   const me = await requireUser();
-  await setResearchConsent(me.id, formData.get("on") === "1");
-  redirect("/account?ok=research");
+  const on = formData.get("on") === "1";
+  await setResearchConsent(me.id, on);
+  await flashOk(on ? "Research consent on." : "Research consent off.");
+  redirect("/account");
 }
 
 export async function setMyPassword(formData: FormData) {
@@ -27,20 +30,29 @@ export async function setMyPassword(formData: FormData) {
   });
 
   if (user.passwordHash && !(await verifyPassword(current, user.passwordHash))) {
-    redirect("/account?error=current");
+    await flashErr("Your current password is wrong.");
+    redirect("/account");
   }
-  if (next !== confirm) redirect("/account?error=mismatch");
+  if (next !== confirm) {
+    await flashErr("The new passwords don't match.");
+    redirect("/account");
+  }
   const problem = passwordProblem(next);
-  if (problem) redirect(`/account?error=${encodeURIComponent(problem)}`);
+  if (problem) {
+    await flashErr(problem);
+    redirect("/account");
+  }
 
   await db.user.update({ where: { id: me.id }, data: { passwordHash: await hashPassword(next) } });
-  redirect("/account?ok=1");
+  await flashOk("Password updated.");
+  redirect("/account");
 }
 
 export async function removeMyPassword() {
   const me = await requireUser();
   await db.user.update({ where: { id: me.id }, data: { passwordHash: null } });
-  redirect("/account?ok=removed");
+  await flashOk("Password sign-in removed.");
+  redirect("/account");
 }
 
 /** Sign one device out. Revoking the current one logs you out here too. */
@@ -53,15 +65,19 @@ export async function revokeSession(sessionId: string) {
     where: { id: sessionId, userId: me.id },
     select: { id: true, sessionToken: true },
   });
-  if (!row) redirect("/account?error=Session not found");
+  if (!row) {
+    await flashErr("That session was not found.");
+    redirect("/account");
+  }
 
-  await db.session.delete({ where: { id: row.id } });
+  await db.session.delete({ where: { id: row!.id } });
 
-  if (currentToken && row.sessionToken === currentToken) {
+  if (currentToken && row!.sessionToken === currentToken) {
     jar.delete(sessionCookieName());
     redirect("/login");
   }
-  redirect("/account?ok=device");
+  await flashOk("Device signed out.");
+  redirect("/account");
 }
 
 /** Sign out every other device. */
@@ -72,5 +88,6 @@ export async function revokeOtherSessions() {
   await db.session.deleteMany({
     where: { userId: me.id, NOT: currentToken ? { sessionToken: currentToken } : undefined },
   });
-  redirect("/account?ok=device");
+  await flashOk("Signed out everywhere else.");
+  redirect("/account");
 }

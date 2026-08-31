@@ -23,14 +23,9 @@ const box = { borderColor: "var(--border)", background: "var(--card)" } as const
 const input = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 const inStyle = { borderColor: "var(--border)", background: "var(--bg)" } as const;
 
-export default async function DevelopersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ created?: string; hook?: string; err?: string }>;
-}) {
+export default async function DevelopersPage() {
   const user = await requireUser();
   const workspaceId = await personalWorkspaceId(user.id, user.name ?? user.email);
-  const { created, err } = await searchParams;
 
   const [keys, hooks, newKey] = await Promise.all([
     db.apiKey.findMany({
@@ -51,7 +46,7 @@ export default async function DevelopersPage({
         },
       },
     }),
-    created ? consumeNewKeyCookie() : Promise.resolve(null),
+    consumeNewKeyCookie(),
   ]);
 
   return (
@@ -124,7 +119,6 @@ export default async function DevelopersPage({
       {/* ---- Webhooks ---- */}
       <section className="flex flex-col gap-3">
         <h2 className="font-medium">Webhook endpoints</h2>
-        {err === "url" && <p className="text-sm text-red-600">Enter a valid https URL.</p>}
 
         <div className="flex flex-col gap-3">
           {hooks.length === 0 && (

@@ -26,13 +26,8 @@ export const metadata = { title: "Account" };
 
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 
-export default async function AccountPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
-}) {
+export default async function AccountPage() {
   const me = await requireUser();
-  const { ok, error } = await searchParams;
   const user = await db.user.findUniqueOrThrow({
     where: { id: me.id },
     select: {
@@ -71,27 +66,6 @@ export default async function AccountPage({
           {user.isPlatformAdmin ? " · platform admin" : ""}
         </p>
       </div>
-
-      {ok && (
-        <p className="rounded-lg border p-3 text-sm text-green-700" style={{ borderColor: "var(--border)" }}>
-          {ok === "removed"
-          ? "Password removed."
-          : ok === "research"
-            ? "Research choice saved."
-            : ok === "device"
-              ? "Device signed out."
-              : "Password saved."}
-        </p>
-      )}
-      {error && (
-        <p className="rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>
-          {error === "current"
-            ? "Current password is wrong."
-            : error === "mismatch"
-              ? "New passwords don't match."
-              : error}
-        </p>
-      )}
 
       <section
         className="rounded-xl border p-4"

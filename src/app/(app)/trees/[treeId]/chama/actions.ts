@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireTreeManage } from "@/lib/rbac";
 import { fetchChamaGroup } from "@/lib/chama-api";
+import { flashOk, flashErr } from "@/lib/flash";
 
 const P = (treeId: string) => `/trees/${treeId}/chama`;
 
@@ -16,10 +17,16 @@ export async function linkChama(treeId: string, formData: FormData) {
   const ctx = await requireTreeManage(treeId);
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   const baseUrl = (String(formData.get("baseUrl") ?? "").trim() || "https://chama.laitor.co.ke").replace(/\/$/, "");
-  if (!apiKey.startsWith("chama_")) redirect(`${P(treeId)}?err=key`);
+  if (!apiKey.startsWith("chama_")) {
+    await flashErr("That doesn't look like a Chama API key (starts with chama_live_).");
+    redirect(P(treeId));
+  }
 
   const group = await fetchChamaGroup({ baseUrl, apiKey });
-  if (!group) redirect(`${P(treeId)}?err=validate`);
+  if (!group) {
+    await flashErr("Couldn't validate the key against the group API. Check the key and base URL.");
+    redirect(P(treeId));
+  }
 
   await db.chamaLink.upsert({
     where: { treeId },
@@ -46,8 +53,9 @@ export async function linkChama(treeId: string, formData: FormData) {
       lastError: null,
     },
   });
+  await flashOk("Group linked.");
   revalidatePath(P(treeId));
-  redirect(`${P(treeId)}?ok=linked`);
+  redirect(P(treeId));
 }
 
 export async function refreshChama(treeId: string) {
@@ -83,6 +91,7 @@ export async function setChamaPushWelfare(treeId: string, formData: FormData) {
 export async function unlinkChama(treeId: string) {
   await requireTreeManage(treeId);
   await db.chamaLink.deleteMany({ where: { treeId } });
+  await flashOk("Group unlinked.");
   revalidatePath(P(treeId));
-  redirect(`${P(treeId)}?ok=unlinked`);
+  redirect(P(treeId));
 }

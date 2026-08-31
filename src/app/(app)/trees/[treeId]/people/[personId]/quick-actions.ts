@@ -11,6 +11,7 @@ import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { notifyTreeManagers, notifyUser } from "@/lib/notify";
 import { emitTreeEvent } from "@/lib/webhooks";
+import { flashErr } from "@/lib/flash";
 import {
   createBarePerson,
   setVitalEvent,
@@ -414,11 +415,8 @@ export async function inviteRelativeToClaim(
   try {
     await issueClaimInvite(treeId, relativeId, null, ctx.user.id);
   } catch (e) {
-    redirect(
-      `/trees/${treeId}/people/${hubPersonId}?err=${encodeURIComponent(
-        e instanceof Error ? e.message : "failed",
-      )}`,
-    );
+    await flashErr(e instanceof Error ? e.message : "Could not create a claim link.");
+    redirect(`/trees/${treeId}/people/${hubPersonId}`);
   }
   redirect(`/trees/${treeId}/people/${hubPersonId}?invited=${relativeId}`);
 }
@@ -561,14 +559,20 @@ export async function markProfileClaimed(
     ? (roleRaw as Role)
     : Role.CONTRIBUTOR;
   const userId = who === "me" ? ctx.user.id : who;
-  if (!userId) redirect(`/trees/${treeId}/people/${personId}?err=who`);
+  if (!userId) {
+    await flashErr("Choose who to link this profile to.");
+    redirect(`/trees/${treeId}/people/${personId}`);
+  }
 
   // only members of this tree's workspace can be linked here
   const member = await db.membership.findFirst({
     where: { userId, workspace: { trees: { some: { id: treeId } } } },
     select: { userId: true },
   });
-  if (!member) redirect(`/trees/${treeId}/people/${personId}?err=notmember`);
+  if (!member) {
+    await flashErr("That person isn't a member of this tree.");
+    redirect(`/trees/${treeId}/people/${personId}`);
+  }
 
   await linkPersonToUser({ treeId, personId, userId, role, actorId: ctx.user.id });
   redirect(`/trees/${treeId}/people/${personId}`);
