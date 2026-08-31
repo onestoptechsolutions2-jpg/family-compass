@@ -43,8 +43,12 @@ export function ActionMenu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="rounded-lg border px-3 py-1.5 text-sm"
-        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium"
+        style={{
+          borderColor: "var(--color-brand-600)",
+          color: "var(--color-brand-700)",
+          background: open ? "var(--surface-2)" : "var(--surface)",
+        }}
       >
         {label} <span aria-hidden>▾</span>
       </button>
@@ -53,7 +57,7 @@ export function ActionMenu({
         role="menu"
         hidden={!open}
         onClick={() => setOpen(false)}
-        className="absolute right-0 z-20 mt-1 flex min-w-44 flex-col overflow-hidden rounded-lg border py-1 text-sm shadow-lg"
+        className="absolute right-0 z-20 mt-1 flex min-w-44 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border py-1 text-sm shadow-lg"
         style={{ borderColor: "var(--border)", background: "var(--surface)" }}
       >
         {children}
