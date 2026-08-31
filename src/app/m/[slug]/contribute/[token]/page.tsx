@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { normaliseOrder } from "@/lib/queries/memorial";
 import { CONTRIBUTION_SECTIONS, sectionLabel } from "@/lib/memorial-sections";
+import { ViewBeacon } from "@/components/ViewBeacon";
 import { submitContribution } from "./actions";
 
 export const metadata: Metadata = { title: "Contribute to a memorial", robots: { index: false } };
@@ -99,6 +100,7 @@ export default async function ContributePage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 py-8">
+      <ViewBeacon kind="contribute" target={token} />
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
         {m.published && (

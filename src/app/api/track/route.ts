@@ -49,6 +49,12 @@ export async function POST(req: Request) {
           .treeId ?? null;
     } else if (kind === "claim") {
       treeId = (await db.claimInvite.findUnique({ where: { token: target }, select: { treeId: true } }))?.treeId ?? null;
+    } else if (kind === "contribute") {
+      treeId =
+        (await db.memorialContributor.findUnique({ where: { token: target }, select: { memorial: { select: { treeId: true } } } }))
+          ?.memorial.treeId ??
+        (await db.memorial.findFirst({ where: { groupContribToken: target }, select: { treeId: true } }))?.treeId ??
+        null;
     }
   } catch {
     /* best effort */

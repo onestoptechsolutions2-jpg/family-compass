@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const VIEW_KINDS = ["share", "memorial", "give", "claim"] as const;
+export const VIEW_KINDS = ["share", "memorial", "give", "claim", "contribute"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
 export function isViewKind(v: string): v is ViewKind {
