@@ -99,6 +99,21 @@ export async function notifyWorkspaceOwners(
   }
 }
 
+/** Notify every platform admin (isPlatformAdmin). Used for system alerts. */
+export async function notifyPlatformAdmins(
+  n: Omit<NotifyInput, "workspaceId" | "treeId">,
+): Promise<void> {
+  try {
+    const admins = await db.user.findMany({
+      where: { isPlatformAdmin: true },
+      select: { id: true },
+    });
+    await fanOut(admins.map((a) => a.id), n);
+  } catch (err) {
+    console.error("[notify] notifyPlatformAdmins failed", err);
+  }
+}
+
 export async function unreadNotificationCount(userId: string): Promise<number> {
   try {
     return await db.notification.count({ where: { userId, readAt: null } });

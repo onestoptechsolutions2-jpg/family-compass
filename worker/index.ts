@@ -7,6 +7,7 @@ import { handleRenderPreview, handleRenderOutput } from "./jobs/generation";
 import { handleSendEmail } from "./jobs/email";
 import { handleWebhookDeliver } from "./jobs/webhook";
 import { handleAnniversaryScan } from "./jobs/anniversary";
+import { handleSystemHealth } from "./jobs/system";
 
 async function main() {
   const boss = new PgBoss({
@@ -29,9 +30,12 @@ async function main() {
   await boss.work(QUEUE.sendEmail, handleSendEmail);
   await boss.work(QUEUE.webhookDeliver, handleWebhookDeliver);
   await boss.work(QUEUE.anniversaryScan, handleAnniversaryScan);
+  await boss.work(QUEUE.systemHealth, handleSystemHealth);
 
   // daily sweep for upcoming birthdays / death & wedding anniversaries
   await boss.schedule(QUEUE.anniversaryScan, "0 6 * * *", {}, { tz: "Africa/Nairobi" });
+  // daily server health check → alerts platform admins
+  await boss.schedule(QUEUE.systemHealth, "0 7 * * *", {}, { tz: "Africa/Nairobi" });
 
   console.log("[worker] ready — listening on", Object.values(QUEUE).join(", "));
 

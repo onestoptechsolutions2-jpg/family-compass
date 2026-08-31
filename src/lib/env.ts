@@ -78,6 +78,15 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v !== "false" && v !== "0"),
+  // Alert platform admins when the database grows past this many GB.
+  SYSTEM_DB_ALERT_GB: z
+    .string()
+    .optional()
+    .default("5")
+    .transform((v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : 5;
+    }),
   ALLOWED_SIGNUP_EMAILS: z.string().optional().default("").transform(csvLower),
   ALLOWED_SIGNUP_DOMAINS: z
     .string()

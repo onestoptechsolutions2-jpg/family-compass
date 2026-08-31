@@ -7,6 +7,7 @@ import { PaymentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { fulfilPayment } from "@/lib/payments/fulfil";
+import { writeAudit } from "@/lib/audit";
 
 export async function approvePayment(paymentId: string) {
   const admin = await requirePlatformAdmin();
@@ -24,11 +25,12 @@ export async function approvePayment(paymentId: string) {
   }
 
   await fulfilPayment(paymentId, { verifiedById: admin.id, note: "verified by admin" });
+  await writeAudit({ actorId: admin.id, action: "payment.approve", targetType: "payment", targetId: paymentId });
   revalidatePath("/admin/payments");
 }
 
 export async function rejectPayment(paymentId: string, formData: FormData) {
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
   const reason = z.string().trim().min(1).max(300).parse(formData.get("reason"));
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
@@ -41,5 +43,6 @@ export async function rejectPayment(paymentId: string, formData: FormData) {
     where: { id: paymentId },
     data: { status: PaymentStatus.REJECTED, rejectionReason: reason },
   });
+  await writeAudit({ actorId: admin.id, action: "payment.reject", targetType: "payment", targetId: paymentId, meta: { reason } });
   revalidatePath("/admin/payments");
 }

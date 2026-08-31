@@ -11,6 +11,7 @@ export const QUEUE = {
   sendEmail: "email.send",
   webhookDeliver: "webhook.deliver",
   anniversaryScan: "anniversary.scan",
+  systemHealth: "system.health",
 } as const;
 
 export type QueueName = (typeof QUEUE)[keyof typeof QUEUE];
@@ -28,6 +29,7 @@ export type JobPayloads = {
   };
   [QUEUE.webhookDeliver]: { deliveryId: string };
   [QUEUE.anniversaryScan]: Record<string, never>;
+  [QUEUE.systemHealth]: Record<string, never>;
 };
 
 const globalForBoss = globalThis as unknown as { boss?: PgBoss; bossStarted?: Promise<PgBoss> };

@@ -6,6 +6,7 @@ import { VerificationMode } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
+import { writeAudit } from "@/lib/audit";
 
 const schema = z.object({
   provider: z.string().trim().min(1).default("manual_mpesa"),
@@ -30,7 +31,7 @@ const schema = z.object({
 });
 
 export async function updatePaymentSettings(formData: FormData) {
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
   const d = schema.parse(Object.fromEntries(formData));
   const data = {
     provider: d.provider,
@@ -57,6 +58,12 @@ export async function updatePaymentSettings(formData: FormData) {
     where: { scope: "global" },
     update: data,
     create: { scope: "global", ...data },
+  });
+  await writeAudit({
+    actorId: admin.id,
+    action: "settings.payment.update",
+    targetType: "system",
+    meta: { provider: d.provider, verificationMode: d.verificationMode },
   });
   revalidatePath("/admin/settings");
 }

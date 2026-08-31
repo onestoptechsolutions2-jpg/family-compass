@@ -3,6 +3,7 @@ import Link from "next/link";
 import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { collectAnniversaries } from "@/lib/queries/anniversaries";
+import { ACTIVITY_KINDS, activityKind, type ActivityKind } from "@/lib/activity";
 
 export const metadata = { title: "Updates" };
 
@@ -84,23 +85,37 @@ export default async function UpdatesPage({
           Nothing yet. Edits, imports and shared links will show up here.
         </p>
       ) : (
-        <ul className="flex flex-col">
-          {events.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-0"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <span>
-                <span className="font-medium">{e.actor?.name ?? e.actor?.email ?? "Someone"}</span>{" "}
-                <span style={{ color: "var(--muted)" }}>{e.summary}</span>
-              </span>
-              <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>
-                {ago(e.createdAt)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-4">
+          {ACTIVITY_KINDS.map((kind) => {
+            const group = events.filter((e) => activityKind(e.objectType) === (kind.id as ActivityKind));
+            if (group.length === 0) return null;
+            return (
+              <div key={kind.id}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                  <span className="mr-1">{kind.emoji}</span>{kind.label}
+                  <span className="ml-1.5 font-normal">({group.length})</span>
+                </h3>
+                <ul className="mt-1 flex flex-col">
+                  {group.map((e) => (
+                    <li
+                      key={e.id}
+                      className="flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-0"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <span>
+                        <span className="font-medium">{e.actor?.name ?? e.actor?.email ?? "Someone"}</span>{" "}
+                        <span style={{ color: "var(--muted)" }}>{e.summary}</span>
+                      </span>
+                      <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>
+                        {ago(e.createdAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       )}
       </section>
     </div>
