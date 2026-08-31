@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { consumeSignInToken } from "@/lib/claims";
 import { startDbSession } from "@/lib/session";
 import { getSessionUser } from "@/lib/rbac";
+import { publicOrigin } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,9 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const origin = new URL(_req.url).origin;
+  // Behind a reverse proxy `req.url` is the internal http://localhost URL —
+  // resolve the public origin from the forwarded headers instead.
+  const origin = await publicOrigin();
 
   const current = await getSessionUser();
   if (current) return NextResponse.redirect(new URL("/app", origin));

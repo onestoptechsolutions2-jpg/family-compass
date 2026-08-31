@@ -3,16 +3,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { consumeLoginToken } from "@/lib/login-token";
 import { startDbSession } from "@/lib/session";
 import { getSessionUser } from "@/lib/rbac";
+import { publicOrigin } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
 /** One-time passwordless sign-in link (super-admin bootstrap etc.). */
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-  const origin = new URL(req.url).origin;
+  // `req.url` is the internal URL behind a proxy — use the forwarded origin.
+  const origin = await publicOrigin();
 
   if (await getSessionUser()) return NextResponse.redirect(new URL("/app", origin));
 
