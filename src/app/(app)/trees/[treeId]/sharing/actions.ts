@@ -37,7 +37,7 @@ export async function inviteMember(treeId: string, formData: FormData) {
   });
   if (existing) throw new Error("That person is already a member");
 
-  const token = randomToken(24);
+  const token = randomToken(16);
   await db.invitation.upsert({
     where: { workspaceId_email: { workspaceId: ctx.workspace.id, email: normalized } },
     update: { role, token, expiresAt: new Date(Date.now() + 14 * 864e5), acceptedAt: null },

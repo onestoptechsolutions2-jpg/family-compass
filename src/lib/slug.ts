@@ -25,3 +25,13 @@ export function randomToken(length = 10): string {
 export function paymentReference(): string {
   return `FC-${randomToken(8).toUpperCase()}`;
 }
+
+/**
+ * One-time link token for claim invites and WhatsApp sign-in links. Kept short
+ * on purpose — these links are pasted into WhatsApp messages. 14 chars of the
+ * unambiguous alphabet ≈ 70 bits; every use is single-shot, revocable and
+ * time-limited, so this is ample.
+ */
+export function linkToken(): string {
+  return randomToken(14);
+}

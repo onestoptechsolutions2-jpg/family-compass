@@ -9,7 +9,7 @@ import {
   dailyIpHash,
   referrerHost,
 } from "@/lib/view-tracking";
-import { clientIp } from "@/lib/user-agent";
+import { clientIpFromHeaders } from "@/lib/user-agent";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
           lang: typeof body.lang === "string" ? body.lang.slice(0, 20) : null,
           referrerHost: referrerHost(typeof body.ref === "string" ? body.ref : null),
           deviceKind: dev,
-          ipHash: dailyIpHash(clientIp(h.get("x-forwarded-for")) ?? h.get("x-real-ip")),
+          ipHash: dailyIpHash(clientIpFromHeaders(h)),
         },
       })
       .catch(() => {});

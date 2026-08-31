@@ -3,7 +3,7 @@ import { cookies, headers } from "next/headers";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { describeDevice, clientIp } from "@/lib/user-agent";
+import { describeDevice, clientIpFromHeaders } from "@/lib/user-agent";
 
 const SESSION_DAYS = 30;
 const TOUCH_EVERY_MS = 60 * 60 * 1000; // refresh "last seen" at most hourly
@@ -13,7 +13,6 @@ export function sessionCookieName(): string {
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
 }
-const cookieName = sessionCookieName;
 
 /**
  * Create a database-backed Auth.js session for `userId` and set the session
@@ -29,7 +28,7 @@ export async function startDbSession(userId: string): Promise<void> {
   try {
     const h = await headers();
     userAgent = h.get("user-agent")?.slice(0, 400) ?? null;
-    ip = clientIp(h.get("x-forwarded-for")) ?? h.get("x-real-ip") ?? null;
+    ip = clientIpFromHeaders(h);
   } catch {
     // headers() unavailable in some contexts — device details are best-effort
   }
@@ -47,7 +46,7 @@ export async function startDbSession(userId: string): Promise<void> {
   });
 
   const jar = await cookies();
-  jar.set(cookieName(), sessionToken, {
+  jar.set(sessionCookieName(), sessionToken, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -64,7 +63,7 @@ export async function startDbSession(userId: string): Promise<void> {
 export async function touchSession(): Promise<void> {
   try {
     const jar = await cookies();
-    const token = jar.get(cookieName())?.value;
+    const token = jar.get(sessionCookieName())?.value;
     if (!token) return;
 
     const row = await db.session.findUnique({
@@ -79,7 +78,7 @@ export async function touchSession(): Promise<void> {
     try {
       const h = await headers();
       ua = h.get("user-agent")?.slice(0, 400) ?? null;
-      ip = clientIp(h.get("x-forwarded-for")) ?? h.get("x-real-ip") ?? null;
+      ip = clientIpFromHeaders(h);
     } catch {
       /* headers unavailable */
     }

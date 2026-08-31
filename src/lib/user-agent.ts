@@ -39,3 +39,23 @@ export function clientIp(fwd: string | null | undefined): string | null {
   const first = fwd?.split(",")[0]?.trim();
   return first || null;
 }
+
+/** Best-effort client IP from a request's headers (X-Forwarded-For, then X-Real-IP). */
+export function clientIpFromHeaders(h: Headers): string | null {
+  return clientIp(h.get("x-forwarded-for")) ?? h.get("x-real-ip") ?? null;
+}
+
+/**
+ * Coarse device bucket for analytics + bot filtering: "bot" | "mobile" |
+ * "tablet" | "desktop" | "unknown". Distinct from describeDevice(), which
+ * produces a fine-grained human label ("Chrome on Android") for the sign-ins
+ * list — this one is deliberately lossy so it aggregates well.
+ */
+export function deviceKind(ua: string | null | undefined): string {
+  const s = ua ?? "";
+  if (/bot|crawl|spider|slurp|facebookexternalhit|WhatsApp|Twitterbot|Preview/i.test(s)) return "bot";
+  if (/iPad|Tablet/i.test(s)) return "tablet";
+  if (/Mobi|Android|iPhone/i.test(s)) return "mobile";
+  if (!s) return "unknown";
+  return "desktop";
+}

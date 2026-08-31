@@ -29,14 +29,7 @@ export function countryFromHeaders(h: Headers): string | null {
   return /^[A-Z]{2}$/.test(c) && c !== "XX" && c !== "T1" ? c : null;
 }
 
-export function deviceKind(ua: string | null | undefined): string {
-  const s = ua ?? "";
-  if (/bot|crawl|spider|slurp|facebookexternalhit|WhatsApp|Twitterbot|Preview/i.test(s)) return "bot";
-  if (/iPad|Tablet/i.test(s)) return "tablet";
-  if (/Mobi|Android|iPhone/i.test(s)) return "mobile";
-  if (!s) return "unknown";
-  return "desktop";
-}
+export { deviceKind } from "@/lib/user-agent";
 
 /** Non-reversible per-day visitor hash — lets us count uniques without
  *  storing the address. Rotates automatically each UTC day. */

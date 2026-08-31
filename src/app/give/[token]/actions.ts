@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
 import { recordPledge } from "@/lib/chama";
-import { clientIp } from "@/lib/user-agent";
+import { clientIpFromHeaders } from "@/lib/user-agent";
 
 export async function submitContribution(token: string, formData: FormData) {
   // light per-browser cap so a form can't be spammed
@@ -31,7 +31,7 @@ export async function submitContribution(token: string, formData: FormData) {
     method,
     mpesaCode,
     note,
-    ip: clientIp(h.get("x-forwarded-for")) ?? h.get("x-real-ip") ?? null,
+    ip: clientIpFromHeaders(h),
   });
 
   if (!res.ok) redirect(`/give/${token}?err=${res.error}`);

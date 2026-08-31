@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { linkToken } from "@/lib/slug";
 import { ClaimStatus, Role } from "@prisma/client";
 
 import { db } from "@/lib/db";
@@ -40,7 +40,7 @@ export async function issueClaimInvite(
     where: { personId, revokedAt: null, usedAt: null },
     data: { revokedAt: new Date() },
   });
-  const token = randomBytes(18).toString("hex");
+  const token = linkToken();
   await db.claimInvite.create({
     data: {
       treeId,
@@ -226,7 +226,7 @@ export async function approveClaim(
       });
     }
 
-    const signInToken = randomBytes(24).toString("hex");
+    const signInToken = linkToken();
     await tx.personClaim.update({
       where: { id: claim.id },
       data: {
@@ -371,7 +371,7 @@ export async function linkPersonToUser(input: {
       data: { claimedByUserId: user.id, phone: person.phone ?? user.phone ?? undefined },
     });
     if (input.issueSignIn && user.phone) {
-      signInToken = randomBytes(24).toString("hex");
+      signInToken = linkToken();
       await tx.personClaim.create({
         data: {
           treeId: input.treeId,
