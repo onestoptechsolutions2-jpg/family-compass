@@ -270,40 +270,6 @@ export default async function MemorialPage({
 
         <Hero />
 
-        {/* reactions + guestbook — one-tap tributes, right under the name */}
-        <div className="flex flex-wrap items-center gap-2">
-          <form action={layFlower.bind(null, slug)} className="flex flex-wrap items-center gap-2">
-            {FLOWER_KINDS.map((k) => {
-              const n = flowerCounts[k.id] ?? 0;
-              return (
-                <button
-                  key={k.id}
-                  name="kind"
-                  value={k.id}
-                  title={k.label}
-                  className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm"
-                  style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-                >
-                  <span className="text-base leading-none">{k.emoji}</span>
-                  {n > 0 && <span style={{ color: "var(--muted)" }}>{n}</span>}
-                </button>
-              );
-            })}
-          </form>
-          {m.guestbookOpen && (
-            <Dialog
-              title={`Leave a message for ${m.name}`}
-              label={`📖 Guestbook · ${m.guestbook.length}`}
-              buttonClass="flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm"
-            >
-              {messageForm}
-            </Dialog>
-          )}
-          <Link href="#tributes" className="ml-auto text-xs hover:underline" style={{ color: "var(--link)" }}>
-            all tributes →
-          </Link>
-        </div>
-
         {eulogyParas.length > 0 && (
           <section className="flex flex-col gap-3 text-[15px] leading-relaxed">
             <h2 className="text-lg" style={{ fontFamily: theme.headingFont }}>Eulogy</h2>
@@ -439,8 +405,8 @@ export default async function MemorialPage({
           </section>
         )}
 
-        {/* Tributes — flowers + messages, one feed */}
-        <section id="tributes">
+        {/* ── Tributes — the one place to leave a flower or a message ── */}
+        <section id="tributes" className="p-4" style={cardStyle}>
           <div className="flex items-baseline justify-between">
             <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Tributes</h2>
             <span className="text-xs" style={{ color: "var(--muted)" }}>
@@ -448,18 +414,36 @@ export default async function MemorialPage({
             </span>
           </div>
 
-          {/* quick actions live under the name; this repeats the guestbook opener for readers who scrolled */}
-          {m.guestbookOpen && (
-            <div className="mt-3">
+          {/* quick tribute: a flower, or a message — one row */}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <form action={layFlower.bind(null, slug)} className="flex flex-wrap items-center gap-1.5">
+              {FLOWER_KINDS.map((k) => {
+                const n = flowerCounts[k.id] ?? 0;
+                return (
+                  <button
+                    key={k.id}
+                    name="kind"
+                    value={k.id}
+                    title={k.label}
+                    className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm"
+                    style={{ borderColor: "var(--hairline)", background: "var(--surface)" }}
+                  >
+                    <span className="text-base leading-none">{k.emoji}</span>
+                    {n > 0 && <span className="text-xs" style={{ color: "var(--muted)" }}>{n}</span>}
+                  </button>
+                );
+              })}
+            </form>
+            {m.guestbookOpen && (
               <Dialog
                 title={`Leave a message for ${m.name}`}
                 label="✍️ Write a message"
-                buttonClass="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+                buttonClass="rounded-full bg-brand-600 px-4 py-1 text-sm font-medium text-white hover:bg-brand-700"
               >
                 {messageForm}
               </Dialog>
-            </div>
-          )}
+            )}
+          </div>
 
           {flower === "1" && (
             <p className="mt-2 text-sm" style={{ color: "var(--success)" }}>Thank you — your tribute has been laid.</p>
@@ -583,30 +567,38 @@ export default async function MemorialPage({
               );
             };
 
-            const preview = feed.slice(0, 8);
+            const preview = feed.slice(0, 6);
             return (
-              <>
-                {feed.length > 0 && (
-                  <div className="mt-2">
-                    <Dialog wide title={`Tributes for ${m.name}`} label={`💬 Open the tribute wall · ${tributeCount}`} buttonClass="rounded-full border px-3 py-1.5 text-sm" >
+              <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                    {feed.length === 0 ? "No tributes yet" : "Recent"}
+                  </span>
+                  {feed.length > 0 && (
+                    <Dialog
+                      wide
+                      title={`Tributes for ${m.name}`}
+                      label="See all · react & reply"
+                      buttonClass="text-xs hover:underline"
+                    >
                       <ul className="flex flex-col">
                         {feed.map((it) => (it.kind === "flower" ? flowerLine(it) : messageCard(it, true)))}
                       </ul>
                     </Dialog>
-                  </div>
-                )}
-                <ul className="mt-3 flex flex-col">
+                  )}
+                </div>
+                <ul className="mt-1 flex flex-col">
                   {preview.map((it) => (it.kind === "flower" ? flowerLine(it) : messageCard(it, false)))}
                   {feed.length === 0 && (
-                    <li className="py-3 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a tribute.</li>
+                    <li className="py-2 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a tribute.</li>
                   )}
                   {feed.length > preview.length && (
-                    <li className="py-2 text-sm" style={{ color: "var(--muted)" }}>
-                      + {feed.length - preview.length} more — open the tribute wall to react and reply.
+                    <li className="py-2 text-xs" style={{ color: "var(--muted)" }}>
+                      + {feed.length - preview.length} more
                     </li>
                   )}
                 </ul>
-              </>
+              </div>
             );
           })()}
         </section>
