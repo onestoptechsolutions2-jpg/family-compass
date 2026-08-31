@@ -53,8 +53,10 @@ export default async function AccountPage() {
       ip: true,
       createdAt: true,
       lastSeenAt: true,
+      standalone: true,
     },
   });
+  const installCount = sessions.filter((s) => s.standalone).length;
 
   return (
     <div className="flex max-w-md flex-col gap-6">
@@ -139,6 +141,14 @@ export default async function AccountPage() {
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
           Where your account is currently signed in. If you don&apos;t recognise a device, sign it
           out and change your password.
+          {installCount > 0 && (
+            <>
+              {" "}
+              <span style={{ color: "var(--fg)" }}>
+                Installed as an app on {installCount} device{installCount === 1 ? "" : "s"}.
+              </span>
+            </>
+          )}
         </p>
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {sessions.map((s) => {
@@ -158,6 +168,15 @@ export default async function AccountPage() {
                         style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
                       >
                         this device
+                      </span>
+                    )}
+                    {s.standalone && (
+                      <span
+                        className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{ background: "var(--surface-2)", color: "var(--muted)" }}
+                        title="Signed in from the installed app"
+                      >
+                        📲 installed
                       </span>
                     )}
                   </div>

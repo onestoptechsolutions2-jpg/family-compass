@@ -377,9 +377,14 @@ model Session {
   userAgent    String?
   /// short human label, e.g. "Chrome on Windows"
   device       String?
+  /// this session has been seen running as an installed PWA (standalone display mode)
+  standalone   Boolean   @default(false)
+  /// first time this session reported itself installed / caught `appinstalled`
+  installedAt  DateTime?
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([standalone])
 }
 
 model VerificationToken {

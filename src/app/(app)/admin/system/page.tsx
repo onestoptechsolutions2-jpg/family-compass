@@ -98,6 +98,11 @@ export default async function AdminSystemPage() {
         <Stat label="Media storage" value={humanBytes(s.rows.mediaBytes)} sub={`${s.rows.mediaCount} files`} />
         <Stat label="Records" value={`${s.rows.people.toLocaleString()} people`} sub={`${s.rows.users} users · ${s.rows.trees} trees`} />
         <Stat label="Housekeeping" value={`${s.rows.notifications.toLocaleString()} notifications`} sub={`${s.rows.activity.toLocaleString()} activity · ${s.rows.sessions} sessions`} />
+        <Stat
+          label="App installs"
+          value={`${s.rows.installedDevices.toLocaleString()} device${s.rows.installedDevices === 1 ? "" : "s"}`}
+          sub={`${s.rows.installUsers} user${s.rows.installUsers === 1 ? "" : "s"} have added it to a home screen`}
+        />
       </div>
 
       {s.dbTables.length > 0 && (

@@ -39,6 +39,10 @@ export type SystemStats = {
     notifications: number;
     activity: number;
     sessions: number;
+    /** sessions running as an installed PWA (≈ installs per device) */
+    installedDevices: number;
+    /** distinct users with at least one installed session */
+    installUsers: number;
   };
 };
 
@@ -96,15 +100,18 @@ export async function getSystemStats(): Promise<SystemStats> {
     /* worker never started — no pgboss schema yet */
   }
 
-  const [users, trees, people, media, notifications, activity, sessions] = await Promise.all([
-    db.user.count(),
-    db.tree.count(),
-    db.person.count(),
-    db.mediaObject.aggregate({ _sum: { byteSize: true }, _count: true }),
-    db.notification.count(),
-    db.activityEvent.count(),
-    db.session.count(),
-  ]);
+  const [users, trees, people, media, notifications, activity, sessions, installedDevices, installUserGroups] =
+    await Promise.all([
+      db.user.count(),
+      db.tree.count(),
+      db.person.count(),
+      db.mediaObject.aggregate({ _sum: { byteSize: true }, _count: true }),
+      db.notification.count(),
+      db.activityEvent.count(),
+      db.session.count(),
+      db.session.count({ where: { standalone: true } }),
+      db.session.groupBy({ by: ["userId"], where: { standalone: true } }),
+    ]);
 
   return {
     at: new Date().toISOString(),
@@ -139,6 +146,8 @@ export async function getSystemStats(): Promise<SystemStats> {
       notifications,
       activity,
       sessions,
+      installedDevices,
+      installUsers: installUserGroups.length,
     },
   };
 }

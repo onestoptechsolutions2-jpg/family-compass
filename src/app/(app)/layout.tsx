@@ -8,6 +8,7 @@ import { unreadNotificationCount } from "@/lib/notify";
 import { readFlash } from "@/lib/flash";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Toaster } from "@/components/Toaster";
+import { InstallReporter } from "@/components/InstallReporter";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh">
       <Toaster flash={flash} />
+      <InstallReporter />
       <header
         className="sticky top-0 z-10 border-b backdrop-blur"
         style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--bg) 85%, transparent)" }}
