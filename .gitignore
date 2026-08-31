@@ -40,3 +40,6 @@ yarn-error.log*
 # uploads / scratch
 /tmp
 /scratch
+
+# storybook
+storybook-static/

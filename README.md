@@ -208,3 +208,22 @@ seed/family-compass.gramps original database, for importing
 | `npm run db:seed` | seed global payment settings |
 | `npm run db:studio` | Prisma Studio |
 | `npm run typecheck` / `lint` | checks |
+| `npm test` / `test:watch` | vitest |
+| `npm run storybook` | component workshop at http://localhost:6006 |
+| `npm run build-storybook` | static Storybook → `storybook-static/` |
+
+## UI conventions
+
+- **Overlays over pages.** Create / edit flows open in `<Dialog>` (`src/components/Dialog.tsx`)
+  rather than a dedicated route where practical. `<ActionMenu>` groups per-row actions.
+- **Tabs over long pages.** Config screens with many sections use `<Tabs>`
+  (`src/components/Tabs.tsx`) — accessible, arrow-key nav, the active tab is kept in the URL hash.
+  The memorial editor is the reference (Content / Service / People helping / Tributes & fund).
+- **Design tokens.** Colours come from CSS variables (`--surface`, `--accent`, `--muted`, …); never
+  hard-code hex. Stories live next to components as `*.stories.tsx`.
+
+## Plugins
+
+- **Chama** (`src/lib/chama/plugin.ts`) — family welfare funds on memorials + linking an external
+  [Chama-platform](https://chama.laitor.co.ke) group via its Developer API. Independent app; the
+  only shared concerns are payments and communication. Disable entirely with `CHAMA_ENABLED=false`.
