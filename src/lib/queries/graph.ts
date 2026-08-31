@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, primaryName } from "@/lib/person";
+import { displayName, NAME_SELECT, primaryName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 
 export type GraphPerson = {
@@ -28,18 +28,6 @@ export type TreeGraph = {
   total: number;
   truncated: boolean;
 };
-
-const NAME_SELECT = {
-  type: true,
-  preferred: true,
-  order: true,
-  title: true,
-  first: true,
-  nick: true,
-  surnamePrefix: true,
-  surname: true,
-  suffix: true,
-} as const;
 
 const MAX_NODES = 4000;
 

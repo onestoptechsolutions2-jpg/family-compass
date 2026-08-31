@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName } from "@/lib/person";
+import { displayName, NAME_SELECT } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 
 export type GalleryItem = {
@@ -17,11 +17,6 @@ export type GalleryGroup = {
   href: string | null;
   items: GalleryItem[];
 };
-
-const NAME_SELECT = {
-  first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true,
-  preferred: true, type: true, order: true,
-} as const;
 
 const EVENT_DATE_SELECT = {
   id: true,

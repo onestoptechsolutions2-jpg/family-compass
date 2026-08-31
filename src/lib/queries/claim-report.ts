@@ -1,10 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName } from "@/lib/person";
-
-const NAME_SELECT = {
-  first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true,
-  preferred: true, type: true, order: true,
-} as const;
+import { displayName, NAME_SELECT } from "@/lib/person";
 
 /**
  * Every profile in a tree, bucketed by account-claim status.

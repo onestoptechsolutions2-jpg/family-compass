@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { NAME_SELECT } from "@/lib/person";
 import { notifyUser } from "@/lib/notify";
 
 type EventFacts = {
@@ -12,11 +13,6 @@ type EventFacts = {
   /** don't notify the person who registered it */
   actorUserId?: string | null;
 };
-
-const NAME_SELECT = {
-  first: true, surname: true, surnamePrefix: true, suffix: true,
-  nick: true, title: true, preferred: true, type: true, order: true,
-} as const;
 
 const VERB: Record<string, string> = {
   Death: "has died",

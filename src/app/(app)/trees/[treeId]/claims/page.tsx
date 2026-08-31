@@ -5,25 +5,13 @@ import { Role } from "@prisma/client";
 import { loadTreeContext, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
-import { displayName, genderColor, genderSymbol } from "@/lib/person";
+import { displayName, genderColor, genderSymbol, NAME_SELECT } from "@/lib/person";
 import { displayPhone, waLink } from "@/lib/wa";
 import { claimStatusReport, CLAIM_CATEGORIES } from "@/lib/queries/claim-report";
 import { CopyButton } from "@/components/CopyButton";
 import { approveClaimAction, rejectClaimAction, sendClaimLink } from "./actions";
 
 export const metadata = { title: "Claims" };
-
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} as const;
 
 export default async function ClaimsPage({
   params,

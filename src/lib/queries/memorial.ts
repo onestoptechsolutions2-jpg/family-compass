@@ -1,21 +1,10 @@
 import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { displayName, presumedLiving } from "@/lib/person";
+import { displayName, NAME_SELECT, presumedLiving } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { buildEulogyDraft, type EulogyFacts } from "@/lib/eulogy";
 
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} as const;
 const MINI = {
   id: true,
   living: true,

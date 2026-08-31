@@ -4,24 +4,12 @@ import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getTreeGraph } from "@/lib/queries/graph";
 import { personOptions } from "@/lib/queries/people";
-import { displayName } from "@/lib/person";
+import { displayName, NAME_SELECT } from "@/lib/person";
 import { bloodRelationship } from "@/lib/kinship";
 import { affinalRelationship } from "@/lib/affinity";
 import { PersonSelect } from "@/components/PersonSelect";
 
 export const metadata = { title: "Relationship check" };
-
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} as const;
 
 export default async function RelationshipPage({
   params,

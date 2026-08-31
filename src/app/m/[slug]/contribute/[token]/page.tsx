@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { db } from "@/lib/db";
-import { displayName } from "@/lib/person";
+import { displayName, NAME_SELECT } from "@/lib/person";
 import { normaliseOrder } from "@/lib/queries/memorial";
 import { CONTRIBUTION_SECTIONS, sectionLabel } from "@/lib/memorial-sections";
 import { ViewBeacon } from "@/components/ViewBeacon";
@@ -11,11 +11,6 @@ import { submitContribution } from "./actions";
 
 export const metadata: Metadata = { title: "Contribute to a memorial", robots: { index: false } };
 export const dynamic = "force-dynamic";
-
-const NAME_SELECT = {
-  first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true,
-  preferred: true, type: true, order: true,
-} as const;
 
 const STATUS_LABEL: Record<string, { label: string; note: string }> = {
   DRAFT: {

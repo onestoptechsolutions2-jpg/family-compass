@@ -2,16 +2,11 @@ import Link from "next/link";
 
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { displayName } from "@/lib/person";
+import { displayName, NAME_SELECT } from "@/lib/person";
 import { adminLinkByEmail, adminLinkByPhone, adminUnlink } from "./actions";
 
 export const metadata = { title: "Claims" };
 export const dynamic = "force-dynamic";
-
-const NAME_SELECT = {
-  first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true,
-  preferred: true, type: true, order: true,
-} as const;
 
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 const fs = { borderColor: "var(--border)", background: "var(--bg)" };

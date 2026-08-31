@@ -1,17 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName } from "@/lib/person";
-
-const NAME_SELECT = {
-  type: true,
-  preferred: true,
-  order: true,
-  title: true,
-  first: true,
-  nick: true,
-  surnamePrefix: true,
-  surname: true,
-  suffix: true,
-} as const;
+import { displayName, NAME_SELECT } from "@/lib/person";
 
 const PERSON_MINI = { id: true, gender: true, living: true, names: { select: NAME_SELECT } } as const;
 

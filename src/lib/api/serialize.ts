@@ -1,19 +1,7 @@
 import { Prisma } from "@prisma/client";
 
-import { displayName } from "@/lib/person";
+import { displayName, NAME_SELECT } from "@/lib/person";
 import { formatDate } from "@/lib/date";
-
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} satisfies Prisma.NameSelect;
 
 export const API_PERSON_SELECT = {
   id: true,

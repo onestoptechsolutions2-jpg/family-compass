@@ -1,18 +1,6 @@
 import { db } from "@/lib/db";
 import { formatDate, dateSortKey } from "@/lib/date";
-import { displayName } from "@/lib/person";
-
-const NAME_SELECT = {
-  type: true,
-  preferred: true,
-  order: true,
-  title: true,
-  first: true,
-  nick: true,
-  surnamePrefix: true,
-  surname: true,
-  suffix: true,
-} as const;
+import { displayName, NAME_SELECT } from "@/lib/person";
 
 export async function listEvents(treeId: string) {
   const events = await db.event.findMany({

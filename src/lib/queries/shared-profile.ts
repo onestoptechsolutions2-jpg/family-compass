@@ -1,18 +1,6 @@
 import { db } from "@/lib/db";
-import { displayName, primaryName, presumedLiving } from "@/lib/person";
+import { displayName, NAME_SELECT, presumedLiving, primaryName } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
-
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} as const;
 
 export type SharedProfile =
   | { redacted: true; name: string }

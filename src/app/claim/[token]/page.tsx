@@ -3,18 +3,13 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { db } from "@/lib/db";
-import { displayName } from "@/lib/person";
+import { displayName, NAME_SELECT } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 import { ViewBeacon } from "@/components/ViewBeacon";
 import { submitClaimInvite } from "./actions";
 
 export const metadata: Metadata = { title: "Claim your profile", robots: { index: false } };
 export const dynamic = "force-dynamic";
-
-const NAME_SELECT = {
-  first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true,
-  preferred: true, type: true, order: true,
-} as const;
 
 const ERR: Record<string, string> = {
   gone: "This link is not valid.",

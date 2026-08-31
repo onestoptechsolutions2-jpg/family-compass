@@ -1,17 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, presumedLiving, genderSymbol } from "@/lib/person";
-
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} as const;
+import { displayName, genderSymbol, NAME_SELECT, presumedLiving } from "@/lib/person";
 
 export type TreeStatistics = Awaited<ReturnType<typeof getTreeStatistics>>;
 

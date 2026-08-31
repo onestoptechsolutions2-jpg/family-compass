@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, presumedLiving } from "@/lib/person";
+import { displayName, NAME_SELECT, presumedLiving } from "@/lib/person";
 import { normalizeClan } from "@/lib/clan";
 
 export type DirectoryQuery = {
@@ -24,18 +24,6 @@ export type Candidate = {
   treeName: string;
   ownerWhatsapp: string | null;
 };
-
-const NAME_SELECT = {
-  first: true,
-  surname: true,
-  surnamePrefix: true,
-  suffix: true,
-  nick: true,
-  title: true,
-  preferred: true,
-  type: true,
-  order: true,
-} as const;
 
 /** Search PRIVATE-excluded people across trees that opted into the directory. */
 export async function searchDirectory(q: DirectoryQuery): Promise<Candidate[]> {
