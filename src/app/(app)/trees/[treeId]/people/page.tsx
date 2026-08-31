@@ -2,8 +2,13 @@ import Link from "next/link";
 
 import { loadTreeContext } from "@/lib/rbac";
 import { canEdit } from "@/lib/rbac";
+import { db } from "@/lib/db";
 import { listPeople } from "@/lib/queries/people";
+import { locationHints } from "@/lib/queries/locations";
 import { genderSymbol, genderColor, genderLabel } from "@/lib/person";
+import { Dialog } from "@/components/Dialog";
+import { PersonForm } from "@/components/PersonForm";
+import { createPerson } from "./actions";
 
 export const metadata = { title: "People" };
 
@@ -17,7 +22,14 @@ export default async function PeoplePage({
   const { treeId } = await params;
   const { q } = await searchParams;
   const ctx = await loadTreeContext(treeId);
-  const people = await listPeople(treeId, q?.trim() || undefined);
+  const editable = canEdit(ctx.role);
+  const [people, clans, hints] = await Promise.all([
+    listPeople(treeId, q?.trim() || undefined),
+    editable
+      ? db.clan.findMany({ where: { treeId }, orderBy: { name: "asc" }, select: { id: true, name: true } })
+      : Promise.resolve([] as { id: string; name: string }[]),
+    editable ? locationHints() : Promise.resolve([] as string[]),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -34,13 +46,20 @@ export default async function PeoplePage({
             Search
           </button>
         </form>
-        {canEdit(ctx.role) && (
-          <Link
-            href={`/trees/${treeId}/people/new`}
-            className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+        {editable && (
+          <Dialog
+            title="Add a person"
+            label="＋ Add person"
+            wide
+            buttonClass="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Add person
-          </Link>
+            <PersonForm
+              action={createPerson.bind(null, treeId)}
+              submitLabel="Create person"
+              clans={clans}
+              locationHints={hints}
+            />
+          </Dialog>
         )}
       </div>
 
