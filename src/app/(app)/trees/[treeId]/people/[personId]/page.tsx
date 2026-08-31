@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions } from "@/lib/queries/people";
 import { personMedia } from "@/lib/queries/media";
-import { displayName, genderSymbol, genderColor } from "@/lib/person";
+import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
 import { MediaThumb } from "@/components/media/MediaThumb";
@@ -31,6 +31,24 @@ import {
   revokeClaimInvite,
 } from "./quick-actions";
 import { PERSON_EVENT_TYPES } from "@/lib/event-types";
+
+const monogram = (name: string) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "•";
+
+function Pill({ children, accent }: { children: React.ReactNode; accent?: boolean }) {
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-xs font-medium"
+      style={
+        accent
+          ? { background: "var(--accent-soft)", color: "var(--accent)" }
+          : { background: "var(--surface-2)", color: "var(--muted)" }
+      }
+    >
+      {children}
+    </span>
+  );
+}
 
 export default async function PersonDetailPage({
   params,
@@ -59,6 +77,20 @@ export default async function PersonDetailPage({
   const deceased = events.some((e) => e.type === "Death" || e.type === "Burial");
   const fieldStyle = { borderColor: "var(--border)", background: "var(--surface-2)" };
 
+  const birthEv = events.find((e) => e.type === "Birth");
+  const deathEv = events.find((e) => e.type === "Death") ?? events.find((e) => e.type === "Burial");
+  const vitals = [
+    genderLabel(person.gender),
+    birthEv ? `b. ${[formatDate(birthEv), birthEv.place?.title].filter(Boolean).join(", ")}` : null,
+    deathEv
+      ? `d. ${[formatDate(deathEv), deathEv.place?.title].filter(Boolean).join(", ")}`
+      : !deceased && person.living
+        ? "living"
+        : null,
+    person.clan ? `${person.clan.name} clan${person.subClan ? ` (${person.subClan})` : ""}` : null,
+  ].filter(Boolean);
+  const avatarId = media.find((r) => r.media.mimeType.startsWith("image/"))?.media.id ?? null;
+
   const claimable = editable && !deceased && !person.claimedByUserId;
   const claimInvite = claimable
     ? await db.claimInvite.findFirst({
@@ -85,41 +117,44 @@ export default async function PersonDetailPage({
           ← People
         </Link>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold">
-            {genderSymbol(person.gender) && (
-              <span className="mr-1.5 align-middle text-xl" title={person.gender.toLowerCase()} style={{ color: genderColor(person.gender) }}>
-                {genderSymbol(person.gender)}
-              </span>
-            )}
-            {displayName(person.names)}
-            {deceased && (
-              <span className="ml-2 align-middle" title="Deceased" style={{ color: "var(--muted)" }}>
-                †
-              </span>
-            )}
-            {person.claimedByUserId === ctx.user.id && (
-              <span className="ml-2 align-middle rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
-                This is you
-              </span>
-            )}
-          </h2>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            {person.gender.toLowerCase()}
-            {deceased ? " · deceased" : person.living ? " · living" : ""}
-            {person.privacy === "PRIVATE"
-              ? " · hidden from public"
-              : person.privacy === "REDACTED"
-                ? " · limited on public"
-                : ""}
-            {person.clan ? ` · ${person.clan.name} clan` : ""}
-            {person.subClan ? ` (${person.subClan})` : ""}
-            {person.phone ? ` · ${person.phone}` : ""}
-            {person.claimedByUserId && person.claimedByUserId !== ctx.user.id
-              ? ` · claimed by ${person.claimedBy?.name ?? "a relative"}`
-              : ""}
-          </p>
-        </div>
+          <div className="flex items-start gap-3">
+            <span
+              className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full text-lg font-semibold text-white"
+              style={{ background: genderColor(person.gender) || "var(--accent)" }}
+            >
+              {avatarId ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/api/media/${avatarId}?v=thumb`} alt="" className="h-full w-full object-cover" />
+              ) : (
+                monogram(displayName(person.names))
+              )}
+            </span>
+            <div>
+              <h2 className="text-2xl font-semibold leading-tight">
+                {genderSymbol(person.gender) && (
+                  <span className="mr-1.5 align-middle text-lg" title={genderLabel(person.gender)} style={{ color: genderColor(person.gender) }}>
+                    {genderSymbol(person.gender)}
+                  </span>
+                )}
+                {displayName(person.names)}
+              </h2>
+              {vitals.length > 0 && (
+                <p className="mt-0.5 text-sm" style={{ color: "var(--muted)" }}>
+                  {vitals.join("  ·  ")}
+                </p>
+              )}
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {deceased && <Pill>† deceased</Pill>}
+                {person.claimedByUserId === ctx.user.id && <Pill accent>This is you</Pill>}
+                {person.privacy === "PRIVATE" && <Pill>hidden from public</Pill>}
+                {person.privacy === "REDACTED" && <Pill>limited on public</Pill>}
+                {person.claimedByUserId && person.claimedByUserId !== ctx.user.id && (
+                  <Pill>claimed by {person.claimedBy?.name ?? "a relative"}</Pill>
+                )}
+                {person.phone && <Pill>{person.phone}</Pill>}
+              </div>
+            </div>
+          </div>
         {editable && (
           <div className="flex flex-wrap items-start gap-2">
             {deceased && (
