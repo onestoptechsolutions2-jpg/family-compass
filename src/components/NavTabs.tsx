@@ -57,19 +57,19 @@ export function NavTabs({ tabs }: { tabs: NavItem[] }) {
       </div>
 
       {/* desktop: tabs + grouped dropdowns */}
-      <nav className="hidden items-end gap-1 overflow-x-auto pb-px text-sm sm:flex" style={{ scrollbarWidth: "none" }}>
+      <nav className="hidden flex-wrap items-end gap-1 pb-px text-sm sm:flex">
         {tabs.map((i) =>
           isGroup(i) ? (
-            <details key={i.label} className="group relative shrink-0">
+            <details key={i.label} className="group relative">
               <summary
-                className="flex cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-t-md px-3 py-2"
+                className="flex cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-t-md px-3 py-2 [&::-webkit-details-marker]:hidden"
                 style={linkStyle(groupActive(i))}
               >
                 {i.label}
-                <span aria-hidden style={{ color: "var(--muted)" }}>▾</span>
+                <span aria-hidden className="text-xs transition-transform group-open:rotate-180" style={{ color: "var(--muted)" }}>▾</span>
               </summary>
               <div
-                className="absolute left-0 z-20 mt-1 flex min-w-40 flex-col rounded-lg border py-1 shadow-lg"
+                className="absolute left-0 top-full z-30 mt-1 flex min-w-40 flex-col rounded-lg border py-1 shadow-lg"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
                 {i.tabs.map((t) => (
@@ -89,7 +89,7 @@ export function NavTabs({ tabs }: { tabs: NavItem[] }) {
             <Link
               key={i.href}
               href={i.href}
-              className="shrink-0 whitespace-nowrap rounded-t-md px-3 py-2"
+              className="whitespace-nowrap rounded-t-md px-3 py-2"
               style={linkStyle(active(i.href))}
             >
               {i.label}

@@ -67,7 +67,7 @@ export default async function ChartsPage({
     <div className="flex flex-col gap-8">
       {/* plan / credits banner */}
       <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
+        className="flex flex-wrap items-start justify-between gap-4 rounded-xl border p-4"
         style={{
           borderColor: keeperActive ? "var(--color-brand-600)" : "var(--border)",
           background: "var(--card)",
@@ -102,36 +102,41 @@ export default async function ChartsPage({
           )}
         </div>
         {canBuy && (
-          <div className="flex flex-wrap gap-2">
-            <form action={startKeeperPurchase.bind(null, treeId)}>
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2 lg:grid-cols-4">
+            <form action={startKeeperPurchase.bind(null, treeId)} className="contents">
               <button
-                className="rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: "var(--color-brand-600)" }}
+                className="flex h-full min-w-44 flex-col rounded-lg border p-3 text-left text-sm transition-shadow hover:shadow-sm"
+                style={{ borderColor: "var(--color-brand-600)", background: "var(--surface)" }}
               >
-                <div className="font-medium">
-                  {keeperActive ? "Extend Family plan" : "Family plan"}
-                </div>
-                <div style={{ color: "var(--muted)" }}>
-                  {settings.currency} {keeperPrice.toLocaleString()} / year · unlimited downloads
-                </div>
+                <span className="font-medium">{keeperActive ? "Extend Family plan" : "Family plan"}</span>
+                <span className="mt-0.5 text-base font-semibold">
+                  {settings.currency} {keeperPrice.toLocaleString()}
+                </span>
+                <span className="mt-auto pt-1 text-xs" style={{ color: "var(--muted)" }}>
+                  per year · unlimited downloads
+                </span>
               </button>
             </form>
-            {(Object.keys(BUNDLES) as (keyof typeof BUNDLES)[]).map((k) => (
-              <form key={k} action={startCreditPurchase.bind(null, treeId)}>
-                <input type="hidden" name="kind" value={k} />
-                <button
-                  className="rounded-lg border px-3 py-2 text-sm"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <div className="font-medium">{BUNDLES[k].label}</div>
-                  <div style={{ color: "var(--muted)" }}>
-                    {settings.currency}{" "}
-                    {(k === "SINGLE" ? settings.defaultPriceKes : BUNDLES[k].priceKes).toLocaleString()} ·{" "}
-                    {BUNDLES[k].blurb}
-                  </div>
-                </button>
-              </form>
-            ))}
+            {(Object.keys(BUNDLES) as (keyof typeof BUNDLES)[]).map((k) => {
+              const price = k === "SINGLE" ? settings.defaultPriceKes : BUNDLES[k].priceKes;
+              return (
+                <form key={k} action={startCreditPurchase.bind(null, treeId)} className="contents">
+                  <input type="hidden" name="kind" value={k} />
+                  <button
+                    className="flex h-full min-w-44 flex-col rounded-lg border p-3 text-left text-sm transition-shadow hover:shadow-sm"
+                    style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                  >
+                    <span className="font-medium">{BUNDLES[k].label}</span>
+                    <span className="mt-0.5 text-base font-semibold">
+                      {settings.currency} {price.toLocaleString()}
+                    </span>
+                    <span className="mt-auto pt-1 text-xs" style={{ color: "var(--muted)" }}>
+                      {BUNDLES[k].blurb}
+                    </span>
+                  </button>
+                </form>
+              );
+            })}
           </div>
         )}
       </div>
