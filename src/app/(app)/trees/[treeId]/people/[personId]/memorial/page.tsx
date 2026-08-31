@@ -57,6 +57,20 @@ export const metadata = { title: "Memorial" };
 
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 
+/** Consistent divider that starts each group of cards. */
+function GroupHeading({ id, children, hint }: { id: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <div id={id} className="scroll-mt-4 border-t pt-5" style={{ borderColor: "var(--hairline)" }}>
+      <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+        {children}
+      </h2>
+      {hint && (
+        <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>{hint}</p>
+      )}
+    </div>
+  );
+}
+
 export default async function MemorialEditorPage({
   params,
 }: {
@@ -165,6 +179,17 @@ export default async function MemorialEditorPage({
         />
       </div>
 
+      <nav className="flex flex-wrap gap-x-4 gap-y-1 border-y py-2 text-xs" style={{ borderColor: "var(--hairline)", color: "var(--muted)" }}>
+        {[
+          ["content", "Content"],
+          ["service", "Service"],
+          ["people", "People helping"],
+          ["tributes", "Tributes & fund"],
+        ].map(([h, l]) => (
+          <a key={h} href={`#${h}`} className="hover:underline">{l}</a>
+        ))}
+      </nav>
+
       {/* ---- Workflow ---- */}
       <div
         className="flex flex-wrap items-center gap-3 rounded-xl border p-4"
@@ -231,6 +256,10 @@ export default async function MemorialEditorPage({
           tree manager unlocks it.
         </p>
       )}
+
+      <GroupHeading id="content" hint="How the page looks and what it says.">
+        Content
+      </GroupHeading>
 
       {/* ---- Template ---- */}
       <form
@@ -408,6 +437,10 @@ export default async function MemorialEditorPage({
           </button>
         </form>
       )}
+
+      <GroupHeading id="service" hint="Order of service, venue and days.">
+        Service
+      </GroupHeading>
 
       {/* ---- Funeral programme (audited) ---- */}
       <section
@@ -647,6 +680,10 @@ export default async function MemorialEditorPage({
 
       </fieldset>
 
+      <GroupHeading id="people" hint="Invite relatives to contribute and review what they send.">
+        People helping
+      </GroupHeading>
+
       {/* ---- Collaboration ---- */}
       <section
         className="rounded-xl border p-4"
@@ -841,6 +878,10 @@ export default async function MemorialEditorPage({
           ))}
         </ul>
       </section>
+
+      <GroupHeading id="tributes" hint="Public messages, flowers, and the welfare fund.">
+        Tributes &amp; fund
+      </GroupHeading>
 
       {/* ---- Tributes (messages + flowers — the same thing) ---- */}
       <section
