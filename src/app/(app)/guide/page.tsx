@@ -83,7 +83,9 @@ export default async function GuidePage({
         { text: "Open the tree view, pan and zoom, click a card to re-centre, and use “Set as home”.", href: "/tree", label: "Tree view" },
         "Turn on the timeline (⏱) to watch the family grow and thin year by year.",
         { text: "Create a read-only shared link centred on one person. Living people are redacted unless you opt in; add a password or expiry if you want.", href: "/sharing", label: "Sharing" },
-        "Send a specific relative a claim link from their profile so they can confirm it's them and keep it updated — you approve every claim.",
+        "Send a living relative a claim link from their profile so they can confirm it's them and keep it updated — you approve every claim. If they're already on the tree, a manager can use “Mark as claimed → This is me / another member” instead.",
+        "Claiming only applies to living people. Recording a death releases any account link — the profile becomes a memorial, and “This is you” / “Mark as claimed” no longer appear on it.",
+        { text: "The tree Report groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there.", href: "/reports", label: "Reports" },
       ],
     },
     {

@@ -190,7 +190,7 @@ export default async function PersonDetailPage({
               )}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {deceased && <Pill>† deceased</Pill>}
-                {person.claimedByUserId === ctx.user.id && <Pill accent>This is you</Pill>}
+                {!deceased && person.claimedByUserId === ctx.user.id && <Pill accent>This is you</Pill>}
                 {person.privacy === "PRIVATE" && <Pill>hidden from public</Pill>}
                 {person.privacy === "REDACTED" && <Pill>limited on public</Pill>}
                 {person.privacy !== "PRIVATE" && person.privacy !== "REDACTED" &&
@@ -368,11 +368,13 @@ export default async function PersonDetailPage({
       {person.claimedByUserId && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)", color: "var(--muted)" }}>
           <span>
-            {person.claimedByUserId === ctx.user.id
-              ? "You have claimed this profile."
-              : `Claimed by ${person.claimedBy?.name ?? "a relative"}.`}
+            {deceased
+              ? `This profile was linked to ${person.claimedBy?.name ?? "an account"} before the death was recorded.`
+              : person.claimedByUserId === ctx.user.id
+                ? "You have claimed this profile."
+                : `Claimed by ${person.claimedBy?.name ?? "a relative"}.`}
           </span>
-          {manages && !deceased && (
+          {manages && (
             <form action={unlinkProfileClaim.bind(null, treeId, personId)}>
               <button className="hover:underline" style={{ color: "var(--danger)" }}>unlink</button>
             </form>
