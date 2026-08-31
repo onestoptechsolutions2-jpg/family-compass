@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
+import { ViewBeacon } from "@/components/ViewBeacon";
 import { submitClaimInvite } from "./actions";
 
 export const metadata: Metadata = { title: "Claim your profile", robots: { index: false } };
@@ -71,6 +72,7 @@ export default async function ClaimInvitePage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 py-10">
+      <ViewBeacon kind="claim" target={token} />
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
       </header>

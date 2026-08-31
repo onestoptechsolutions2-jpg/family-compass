@@ -5,6 +5,7 @@ import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { getWorkspaceCollab, listSharedViews } from "@/lib/queries/members";
+import { reachByTarget } from "@/lib/queries/view-analytics";
 import { personOptions } from "@/lib/queries/people";
 import { formatName } from "@/lib/person";
 import { displayPhone } from "@/lib/wa";
@@ -35,7 +36,7 @@ export default async function SharingPage({
   if (!canManageTree(ctx.role)) notFound();
 
   const origin = await publicOrigin();
-  const [collab, shares, options, treeRow] = await Promise.all([
+  const [collab, shares, options, treeRow, shareReach] = await Promise.all([
     getWorkspaceCollab(ctx.workspace.id, ctx.user.id),
     listSharedViews(treeId),
     personOptions(treeId),
@@ -43,6 +44,7 @@ export default async function SharingPage({
       where: { id: treeId },
       select: { contactWhatsapp: true, claimPinHash: true },
     }),
+    reachByTarget(treeId, "share"),
   ]);
   const isOwner = canManageWorkspace(ctx.role);
   const roleValues = Object.values(Role);
@@ -304,6 +306,7 @@ export default async function SharingPage({
         <ul className="mt-4 flex flex-col gap-2">
           {shares.map((s) => {
             const url = `${origin}/s/${s.slug}`;
+            const reach = shareReach.get(s.slug);
             const central = formatName(
               s.centralPerson.names.find((n) => n.preferred) ??
                 s.centralPerson.names.find((n) => n.type === "BIRTH") ??
@@ -326,6 +329,13 @@ export default async function SharingPage({
                     {s.expiresAt && s.expiresAt.getTime() < Date.now() ? " · expired" : ""}
                   </span>
                 </div>
+                {reach && reach.views > 0 && (
+                  <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>
+                    {reach.visitors} visitor{reach.visitors === 1 ? "" : "s"} in 30 days
+                    {reach.last7 ? ` · ${reach.last7} this week` : ""}
+                    {reach.topRegion ? ` · mostly ${reach.topRegion}` : ""}
+                  </p>
+                )}
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <code className="truncate rounded bg-black/5 px-1.5 py-0.5 text-xs">{url}</code>
                   <CopyButton value={url} />

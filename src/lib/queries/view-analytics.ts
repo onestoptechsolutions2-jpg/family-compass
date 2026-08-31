@@ -71,3 +71,40 @@ export function viewSummary(kind: string, targetId: string): Promise<ViewSummary
 export function treeViewSummary(treeId: string): Promise<ViewSummary> {
   return summarise({ treeId });
 }
+
+export type MiniReach = { views: number; visitors: number; last7: number; topRegion: string | null };
+
+/** Compact per-target reach for a whole kind within a tree, in one query. */
+export async function reachByTarget(treeId: string, kind: string): Promise<Map<string, MiniReach>> {
+  const since = new Date(Date.now() - 30 * 864e5);
+  const wk = new Date(Date.now() - 7 * 864e5);
+  const rows = await db.viewEvent.findMany({
+    where: { treeId, kind, createdAt: { gte: since } },
+    select: { targetId: true, ipHash: true, region: true, createdAt: true },
+    take: 20000,
+  });
+
+  const acc = new Map<
+    string,
+    { views: number; last7: number; ips: Set<string>; regions: Map<string, number> }
+  >();
+  for (const r of rows) {
+    let e = acc.get(r.targetId);
+    if (!e) {
+      e = { views: 0, last7: 0, ips: new Set(), regions: new Map() };
+      acc.set(r.targetId, e);
+    }
+    e.views += 1;
+    if (r.createdAt >= wk) e.last7 += 1;
+    if (r.ipHash) e.ips.add(r.ipHash);
+    const rg = r.region?.trim();
+    if (rg) e.regions.set(rg, (e.regions.get(rg) ?? 0) + 1);
+  }
+
+  const out = new Map<string, MiniReach>();
+  for (const [target, e] of acc) {
+    const topRegion = [...e.regions.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    out.set(target, { views: e.views, visitors: e.ips.size, last7: e.last7, topRegion });
+  }
+  return out;
+}

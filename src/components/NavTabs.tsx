@@ -76,6 +76,7 @@ export function NavTabs({ tabs }: { tabs: NavItem[] }) {
                   <Link
                     key={t.href}
                     href={t.href}
+                    onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}
                     className="px-3 py-1.5 hover:bg-[var(--surface-2)]"
                     style={{ color: active(t.href) ? "var(--fg)" : "var(--muted)", fontWeight: active(t.href) ? 600 : 400 }}
                   >
