@@ -58,7 +58,7 @@ export async function purgeStaleClaimInvites() {
  *  generation preview/output). Reports bytes reclaimed. */
 export async function purgeOrphanMedia() {
   const me = await requirePlatformAdmin();
-  const orphans = await db.mediaObject.findMany({
+  const candidates = await db.mediaObject.findMany({
     where: {
       refs: { none: {} },
       noteRefs: { none: {} },
@@ -68,11 +68,27 @@ export async function purgeOrphanMedia() {
     },
     select: { id: true, byteSize: true },
   });
+  // Contribution photos are held by an id array on MemorialContribution, not a
+  // relation — they must not be swept before the family reviews them.
+  const held = new Set(
+    (await db.memorialContribution.findMany({ select: { photoMediaIds: true } })).flatMap(
+      (c) => c.photoMediaIds,
+    ),
+  );
+  const orphans = candidates.filter((m) => !held.has(m.id));
   const bytes = orphans.reduce((s, m) => s + m.byteSize, 0);
   if (orphans.length > 0) {
     await db.mediaObject.deleteMany({ where: { id: { in: orphans.map((o) => o.id) } } });
   }
   await done("maintenance.media.purge_orphans", { deleted: orphans.length, bytes }, me.id);
+}
+
+/** Trim view-analytics events older than `days`. */
+export async function purgeOldViewEvents(days: number) {
+  const me = await requirePlatformAdmin();
+  const cutoff = new Date(Date.now() - days * 864e5);
+  const r = await db.viewEvent.deleteMany({ where: { createdAt: { lt: cutoff } } });
+  await done("maintenance.views.purge", { days, deleted: r.count }, me.id);
 }
 
 /** Archive/remove completed & cancelled pg-boss jobs older than 7 days. */

@@ -11,6 +11,7 @@ import {
   purgeStaleClaimInvites,
   purgeOrphanMedia,
   purgeCompletedJobs,
+  purgeOldViewEvents,
   runHealthCheck,
 } from "./actions";
 
@@ -150,6 +151,7 @@ export default async function AdminSystemPage() {
       {job("Clear stale claim links", "Used / revoked claim invites older than 30 days", purgeStaleClaimInvites)}
       {job("Delete orphaned media", "Media rows with no references, cover or export use", purgeOrphanMedia, true)}
       {job("Archive finished jobs", "Completed / failed pg-boss jobs older than 7 days", purgeCompletedJobs)}
+      {job("Trim view analytics", "Public-link view events older than 180 days", purgeOldViewEvents.bind(null, 180))}
     </div>
   );
 

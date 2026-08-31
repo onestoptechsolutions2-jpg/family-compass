@@ -42,6 +42,9 @@ export async function GET(req: Request) {
     );
   }
 
+  // if the client goes away mid-download, don't leave pg_dump running
+  req.signal.addEventListener("abort", () => child.kill("SIGTERM"));
+
   let stderr = "";
   child.stderr.on("data", (d) => {
     stderr += String(d);

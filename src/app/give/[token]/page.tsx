@@ -146,7 +146,7 @@ export default async function GivePage({
           </label>
           {err && (
             <p className="text-sm" style={{ color: "var(--danger)" }}>
-              {err === "amount" ? "Enter a valid amount." : err === "name" ? "Add your name." : err === "closed" ? "This fund is closed." : "Something went wrong — try again."}
+              {err === "amount" ? "Enter a valid amount." : err === "name" ? "Add your name." : err === "closed" ? "This fund is closed." : err === "cap" ? "You've recorded plenty for now — thank you." : "Something went wrong — try again."}
             </p>
           )}
           <button className="self-start rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">

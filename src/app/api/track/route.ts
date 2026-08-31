@@ -35,7 +35,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, deduped: true });
   }
 
-  // resolve the tree so tree-level analytics can roll up
+  // Resolve the tree so tree-level analytics roll up — and so we only record
+  // views of links that actually exist (ignore probes / junk targets).
   let treeId: string | null = null;
   try {
     if (kind === "memorial") {
@@ -51,6 +52,9 @@ export async function POST(req: Request) {
     }
   } catch {
     /* best effort */
+  }
+  if (!treeId) {
+    return NextResponse.json({ ok: true, unresolved: true });
   }
 
   const h = req.headers;
