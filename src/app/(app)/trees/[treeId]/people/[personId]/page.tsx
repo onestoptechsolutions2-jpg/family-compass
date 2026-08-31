@@ -13,6 +13,7 @@ import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
 import { Dialog } from "@/components/Dialog";
+import { Tabs } from "@/components/Tabs";
 import { ActionMenu, actionItemClass } from "@/components/ActionMenu";
 import { CopyButton } from "@/components/CopyButton";
 import { QrShare } from "@/components/QrShare";
@@ -359,31 +360,13 @@ export default async function PersonDetailPage({
         </div>
       )}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-          <h3 className="font-medium">Timeline</h3>
-          {events.length === 0 && (
-            <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-              No events recorded.
-            </p>
-          )}
-          <ul className="mt-3 flex flex-col gap-2 text-sm">
-            {events.map((e) => (
-              <li key={e.id} className="flex gap-3">
-                <span className="w-28 shrink-0" style={{ color: "var(--muted)" }}>
-                  {formatDate(e) || "—"}
-                </span>
-                <span>
-                  <span className="font-medium">{e.type}</span>
-                  {e.place ? ` · ${e.place.title}` : ""}
-                  {e.description ? ` — ${e.description}` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="flex flex-col gap-4">
+      <Tabs
+        items={[
+          {
+            id: "family",
+            label: "Family",
+            panel: (
+              <>
           <div
             className="rounded-xl border p-4"
             style={{ borderColor: "var(--border)", background: "var(--card)" }}
@@ -475,9 +458,39 @@ export default async function PersonDetailPage({
                 </div>
               )}
           </div>
-        </div>
-      </section>
-
+              </>
+            ),
+          },
+          {
+            id: "timeline",
+            label: "Timeline",
+            badge: events.length || undefined,
+            panel: (
+              <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                <h3 className="font-medium">Timeline</h3>
+                {events.length === 0 && (
+                  <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>No events recorded.</p>
+                )}
+                <ul className="mt-3 flex flex-col gap-2 text-sm">
+                  {events.map((e) => (
+                    <li key={e.id} className="flex gap-3">
+                      <span className="w-28 shrink-0" style={{ color: "var(--muted)" }}>{formatDate(e) || "—"}</span>
+                      <span>
+                        <span className="font-medium">{e.type}</span>
+                        {e.place ? ` · ${e.place.title}` : ""}
+                        {e.description ? ` — ${e.description}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ),
+          },
+          {
+            id: "photos",
+            label: "Photos",
+            badge: media.length || undefined,
+            panel: (
       <section
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
@@ -531,6 +544,10 @@ export default async function PersonDetailPage({
           </p>
         )}
       </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

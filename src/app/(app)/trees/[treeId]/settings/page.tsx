@@ -4,6 +4,7 @@ import { loadTreeContext, canManageTree, canManageWorkspace } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { personOptions } from "@/lib/queries/people";
 import { PersonSelect } from "@/components/PersonSelect";
+import { Tabs } from "@/components/Tabs";
 import {
   renameTree,
   setHomePerson,
@@ -37,8 +38,8 @@ export default async function TreeSettingsPage({
   });
   const options = await personOptions(treeId);
 
-  return (
-    <div className="flex max-w-xl flex-col gap-6">
+  const general = (
+    <>
       <section
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
@@ -89,7 +90,11 @@ export default async function TreeSettingsPage({
           </button>
         </form>
       </section>
+    </>
+  );
 
+  const discovery = (
+    <>
       <section
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
@@ -154,20 +159,34 @@ export default async function TreeSettingsPage({
           </button>
         </form>
       </section>
+    </>
+  );
 
-      {canManageWorkspace(ctx.role) && (
-        <section className="rounded-xl border p-4" style={{ borderColor: "#ef4444" }}>
-          <h3 className="font-medium text-red-600">Danger zone</h3>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-            Deleting a tree permanently removes all its people, families, media and shares.
-          </p>
-          <form action={deleteTree.bind(null, treeId)} className="mt-3">
-            <button className="rounded-lg border border-red-500 px-3 py-1.5 text-sm text-red-600">
-              Delete this tree
-            </button>
-          </form>
-        </section>
-      )}
+  const danger = (
+    <section className="rounded-xl border p-4" style={{ borderColor: "#ef4444" }}>
+      <h3 className="font-medium text-red-600">Danger zone</h3>
+      <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+        Deleting a tree permanently removes all its people, families, media and shares.
+      </p>
+      <form action={deleteTree.bind(null, treeId)} className="mt-3">
+        <button className="rounded-lg border border-red-500 px-3 py-1.5 text-sm text-red-600">
+          Delete this tree
+        </button>
+      </form>
+    </section>
+  );
+
+  return (
+    <div className="max-w-xl">
+      <Tabs
+        items={[
+          { id: "general", label: "General", panel: general },
+          { id: "discovery", label: "Discovery & reminders", panel: discovery },
+          ...(canManageWorkspace(ctx.role)
+            ? [{ id: "danger", label: "Advanced", panel: danger }]
+            : []),
+        ]}
+      />
     </div>
   );
 }
