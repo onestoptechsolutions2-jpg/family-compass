@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { db } from "@/lib/db";
-import { getPublicMemorial, groupByDay } from "@/lib/queries/memorial";
+import { getPublicMemorial, getMemorialBookData, groupByDay } from "@/lib/queries/memorial";
 import { mapsHref } from "@/lib/geo";
 import { RecentMemorials } from "@/components/RecentMemorials";
 import { publicOrigin } from "@/lib/origin";
@@ -12,6 +12,7 @@ import { chamaEnabled } from "@/lib/chama/plugin";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { Dialog } from "@/components/Dialog";
 import { SaveMemorial } from "@/components/SaveMemorial";
+import { FlipBook, type BookPage } from "@/components/FlipBook";
 import { FLOWER_KINDS, flowerEmoji, TRIBUTE_REACTIONS } from "@/lib/memorial-flowers";
 import { postGuestbook, layFlower, reactToTribute, replyToTribute } from "./actions";
 
@@ -131,6 +132,159 @@ export default async function MemorialPage({
   const flowerCounts: Record<string, number> = {};
   for (const f of m.flowers) flowerCounts[f.kind] = (flowerCounts[f.kind] ?? 0) + 1;
   const coverSrc = m.coverMediaId ? `/api/media/${m.coverMediaId}?v=thumb&m=${slug}` : null;
+
+  // ── Memorial book: page-turning viewer built from the same data as the PDF ──
+  const book = await getMemorialBookData(m.treeId, m.person.id);
+  const pageH = (t: string) => (
+    <h3 className="text-lg font-semibold" style={{ fontFamily: theme.headingFont }}>{t}</h3>
+  );
+  const bookPages: BookPage[] = [];
+  if (book) {
+    bookPages.push({
+      id: "cover",
+      node: (
+        <div className="flex h-full flex-col items-center justify-center text-center">
+          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--muted)" }}>In loving memory of</p>
+          <h2 className="mt-2 text-2xl font-bold" style={{ fontFamily: theme.headingFont }}>{book.name}</h2>
+          {book.headline && <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{book.headline}</p>}
+          {(book.born || book.died) && (
+            <p className="mt-4 text-sm">{[book.born, book.died].filter(Boolean).join("  —  ")}</p>
+          )}
+        </div>
+      ),
+    });
+    if (book.eulogy?.trim()) {
+      bookPages.push({
+        id: "life",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("A life")}
+            {book.eulogy.split(/\n{2,}/).map((p, i) => <p key={i}>{p.trim()}</p>)}
+          </div>
+        ),
+      });
+    }
+    const famRows = (
+      [
+        ["Parents", book.parents],
+        ["Married", book.spouses],
+        ["Children", book.children],
+        ["Survived by", book.survivors],
+        ["Preceded in death by", book.preceded],
+      ] as [string, string[]][]
+    ).filter((row) => row[1].length > 0);
+    if (famRows.length > 0) {
+      bookPages.push({
+        id: "family",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("Family")}
+            {famRows.map((row) => (
+              <p key={row[0]}><strong>{row[0]}:</strong> {row[1].join(", ")}</p>
+            ))}
+          </div>
+        ),
+      });
+    }
+    if (book.timeline.length > 0) {
+      bookPages.push({
+        id: "milestones",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("Milestones")}
+            <ul className="flex flex-col gap-2">
+              {book.timeline.map((t, i) => (
+                <li key={i}>
+                  <span style={{ color: "var(--muted)" }}>{t.date || "—"}</span>{" "}
+                  <span className="font-medium">{t.type}</span>
+                  {t.place ? ` · ${t.place}` : ""}
+                  {t.note ? ` — ${t.note}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      });
+    }
+    if (book.clan || book.community || book.clanOrigin) {
+      bookPages.push({
+        id: "roots",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("Roots")}
+            {book.clan && <p><strong>Clan:</strong> {book.clan}{book.subClan ? ` (${book.subClan})` : ""}</p>}
+            {book.community && <p><strong>Community:</strong> {book.community}</p>}
+            {book.clanOrigin && <p className="whitespace-pre-wrap">{book.clanOrigin}</p>}
+          </div>
+        ),
+      });
+    }
+    if (book.photos.length > 0) {
+      bookPages.push({
+        id: "photos",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("Photographs")}
+            <div className="grid grid-cols-2 gap-2">
+              {book.photos.slice(0, 8).map((ph) => (
+                <div key={ph.id} className="aspect-square overflow-hidden rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                  <MediaThumb mediaId={ph.id} mimeType={ph.mime} alt={ph.caption ?? ""} share={undefined} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ),
+      });
+    }
+    if (book.program && book.program.order.length > 0) {
+      bookPages.push({
+        id: "service",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("Order of service")}
+            {book.program.venue && <p><strong>Venue:</strong> {book.program.venue}</p>}
+            {groupByDay(book.program.order).map((g) => (
+              <div key={g.day}>
+                <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>{g.day}</div>
+                <ol className="mt-1 list-decimal pl-5">
+                  {g.items.map((it) => (
+                    <li key={it.id}>{it.title}{it.detail ? ` — ${it.detail}` : ""}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        ),
+      });
+    }
+    if (book.guestbook.length > 0) {
+      bookPages.push({
+        id: "tributes",
+        node: (
+          <div className="flex flex-col gap-3">
+            {pageH("Tributes")}
+            <ul className="flex flex-col gap-3">
+              {book.guestbook.slice(0, 12).map((t, i) => (
+                <li key={i}>
+                  <p className="text-sm"><span className="font-semibold">{t.name}</span>{t.relation ? <span style={{ color: "var(--muted)" }}> · {t.relation}</span> : null}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap">{t.message}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      });
+    }
+    bookPages.push({
+      id: "colophon",
+      node: (
+        <div className="flex h-full flex-col items-center justify-center text-center text-sm" style={{ color: "var(--muted)" }}>
+          <p>Compiled with love</p>
+          <p className="mt-1">on Family Compass · {new Date().toISOString().slice(0, 10)}</p>
+        </div>
+      ),
+    });
+  }
 
   const messageForm = (
     <form action={postGuestbook.bind(null, slug)} className="flex flex-col gap-3">
@@ -604,6 +758,13 @@ export default async function MemorialPage({
         </section>
 
         <div className="mt-4 border-t pt-6" style={{ borderColor: "var(--hairline)" }}>
+          {bookPages.length > 1 && (
+            <div className="mb-4">
+              <Dialog wide title={`Memorial book — ${m.name}`} label="📖 Read the memorial book" buttonClass="rounded-full border px-4 py-2 text-sm font-medium">
+                <FlipBook pages={bookPages} />
+              </Dialog>
+            </div>
+          )}
           <SaveMemorial url={url} pdfUrl={`${url}/pdf`} name={m.name} />
         </div>
       </article>
