@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
-import { getPersonDetail, getPersonRelations, personOptions } from "@/lib/queries/people";
+import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
 import { personMedia } from "@/lib/queries/media";
 import { commentsForEvents } from "@/lib/discussions";
 import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
@@ -35,6 +35,7 @@ import {
   resolveEventComment,
   markProfileClaimed,
   unlinkProfileClaim,
+  inviteRelativeToClaim,
 } from "./quick-actions";
 import { PERSON_EVENT_TYPES } from "@/lib/event-types";
 
@@ -58,10 +59,13 @@ function Pill({ children, accent }: { children: React.ReactNode; accent?: boolea
 
 export default async function PersonDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ treeId: string; personId: string }>;
+  searchParams: Promise<{ invited?: string; err?: string }>;
 }) {
   const { treeId, personId } = await params;
+  const { invited, err } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   const person = await getPersonDetail(treeId, personId);
   if (!person) notFound();
@@ -116,7 +120,31 @@ export default async function PersonDetailPage({
         select: { id: true, token: true, expiresAt: true },
       })
     : null;
-  const claimUrl = claimInvite ? `${await publicOrigin()}/claim/${claimInvite.token}` : null;
+  const origin = await publicOrigin();
+  const claimUrl = claimInvite ? `${origin}/claim/${claimInvite.token}` : null;
+
+  const kinToInvite = editable ? claimableRelatives(relations) : [];
+  const invitedRelative =
+    editable && invited
+      ? await db.person.findFirst({
+          where: { id: invited, treeId },
+          select: {
+            names: { select: { first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true, preferred: true, type: true, order: true } },
+            claimInvites: {
+              where: { revokedAt: null, usedAt: null },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { token: true },
+            },
+          },
+        })
+      : null;
+  const invitedLink = invitedRelative?.claimInvites[0]
+    ? {
+        name: displayName(invitedRelative.names),
+        url: `${origin}/claim/${invitedRelative.claimInvites[0].token}`,
+      }
+    : null;
   const claimWa = claimUrl
     ? `https://wa.me/?text=${encodeURIComponent(
         `Hi — this is your profile on our family tree. Confirm it's you here: ${claimUrl}`,
@@ -423,6 +451,63 @@ export default async function PersonDetailPage({
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {err && (
+        <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
+          {decodeURIComponent(err)}
+        </p>
+      )}
+
+      {invitedLink && (
+        <div className="rounded-xl border p-4" style={{ borderColor: "var(--color-brand-600)", background: "var(--card)" }}>
+          <h3 className="font-medium">Claim link for {invitedLink.name}</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <code className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-xs">{invitedLink.url}</code>
+            <CopyButton value={invitedLink.url} label="Copy link" />
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`Hi ${invitedLink.name} — this is your profile on our family tree. Confirm it's you here: ${invitedLink.url}`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+              style={{ background: "#25D366" }}
+            >
+              WhatsApp
+            </a>
+            <QrShare value={invitedLink.url} title={`Claim link — ${invitedLink.name}`} label="QR" caption={`${invitedLink.name} scans to claim the profile.`} buttonClass="rounded-md border px-2 py-1 text-xs" />
+          </div>
+        </div>
+      )}
+
+      {editable && kinToInvite.length > 0 && (
+        <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="font-medium">Invite family to claim their profiles</h3>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>
+                Living relatives on this page who don&apos;t yet have an account. Send each a private
+                link — they confirm and a manager approves.
+              </p>
+            </div>
+            <Dialog title="Invite family to claim" label="Send claim links" buttonClass="rounded-lg border px-3 py-1.5 text-sm">
+              <ul className="flex flex-col gap-2">
+                {kinToInvite.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between gap-3 rounded-lg border p-2 text-sm" style={{ borderColor: "var(--hairline)" }}>
+                    <span>
+                      <Link href={`/trees/${treeId}/people/${r.id}`} className="font-medium hover:underline">{r.name}</Link>
+                      <span style={{ color: "var(--muted)" }}> · {r.tie}</span>
+                    </span>
+                    <form action={inviteRelativeToClaim.bind(null, treeId, personId, r.id)}>
+                      <button className="rounded-md bg-brand-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700">
+                        Create link
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            </Dialog>
+          </div>
         </div>
       )}
 

@@ -387,8 +387,14 @@ export async function setPersonPrivacy(treeId: string, personId: string, formDat
 
 /** Editor generates a "claim your profile" link for a specific living,
  *  unclaimed person, to send to that relative (e.g. over WhatsApp). */
-export async function createClaimInvite(treeId: string, personId: string, formData: FormData) {
-  const ctx = await requireTreeEdit(treeId);
+/** Create a fresh single-use claim link for `personId`, superseding any live
+ *  one. Guards: person in tree, living, unclaimed. Returns the new token. */
+async function issueClaimInvite(
+  treeId: string,
+  personId: string,
+  note: string | null,
+  actorId: string,
+): Promise<string> {
   const person = await db.person.findFirst({
     where: { id: personId, treeId },
     select: {
@@ -400,32 +406,58 @@ export async function createClaimInvite(treeId: string, personId: string, formDa
   if (person.claimedByUserId) throw new Error("This profile is already claimed");
   if (person.eventRefs.length > 0) throw new Error("This person is recorded as deceased");
 
-  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
-
-  // keep a single live invite per person
   await db.claimInvite.updateMany({
     where: { personId, revokedAt: null, usedAt: null },
     data: { revokedAt: new Date() },
   });
+  const token = randomToken(24);
   await db.claimInvite.create({
     data: {
       treeId,
       personId,
-      token: randomToken(24),
+      token,
       note,
-      createdById: ctx.user.id,
+      createdById: actorId,
       expiresAt: new Date(Date.now() + 30 * 864e5),
     },
   });
   await logActivity({
     treeId,
-    actorId: ctx.user.id,
+    actorId,
     verb: "invited",
     objectType: "person",
     objectId: personId,
     summary: "sent a profile claim link",
   });
+  return token;
+}
+
+export async function createClaimInvite(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
+  await issueClaimInvite(treeId, personId, note, ctx.user.id);
   revalidatePath(`/trees/${treeId}/people/${personId}`);
+}
+
+/** Send a claim link to one of the profile's living, unclaimed relatives,
+ *  then come back to the current profile with the fresh link shown. */
+export async function inviteRelativeToClaim(
+  treeId: string,
+  hubPersonId: string,
+  relativeId: string,
+  _formData: FormData,
+) {
+  const ctx = await requireTreeEdit(treeId);
+  try {
+    await issueClaimInvite(treeId, relativeId, null, ctx.user.id);
+  } catch (e) {
+    redirect(
+      `/trees/${treeId}/people/${hubPersonId}?err=${encodeURIComponent(
+        e instanceof Error ? e.message : "failed",
+      )}`,
+    );
+  }
+  redirect(`/trees/${treeId}/people/${hubPersonId}?invited=${relativeId}`);
 }
 
 export async function revokeClaimInvite(treeId: string, personId: string, inviteId: string) {

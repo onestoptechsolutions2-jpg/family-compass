@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 import { db } from "@/lib/db";
 import { displayName, sortableName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
@@ -217,8 +219,44 @@ const PERSON_MINI = {
   id: true,
   gender: true,
   living: true,
+  claimedByUserId: true,
   names: { select: NAME_SELECT },
-} as const;
+  eventRefs: {
+    where: { event: { is: { type: { in: ["Death", "Burial"] } } } },
+    select: { id: true },
+  },
+} satisfies Prisma.PersonSelect;
+
+type MiniPerson = {
+  id: string;
+  living: boolean;
+  claimedByUserId: string | null;
+  eventRefs: { id: string }[];
+  names: Parameters<typeof displayName>[0];
+};
+
+/** Living, unclaimed relatives from a getPersonRelations() result — the ones
+ *  a claim link can still be sent to. Deduped by id. */
+export function claimableRelatives(
+  relations: Awaited<ReturnType<typeof getPersonRelations>>,
+): { id: string; name: string; tie: string }[] {
+  if (!relations) return [];
+  const seen = new Set<string>();
+  const out: { id: string; name: string; tie: string }[] = [];
+  const add = (p: MiniPerson | null | undefined, tie: string) => {
+    if (!p || seen.has(p.id)) return;
+    if (!p.living || p.claimedByUserId || p.eventRefs.length > 0) return;
+    seen.add(p.id);
+    out.push({ id: p.id, name: displayName(p.names), tie });
+  };
+  relations.parents.forEach((p) => add(p as MiniPerson, "parent"));
+  relations.siblings.forEach((p) => add(p as MiniPerson, "sibling"));
+  relations.families.forEach((f) => {
+    add(f.spouse as MiniPerson | null, "spouse");
+    f.children.forEach((c) => add(c as MiniPerson, "child"));
+  });
+  return out;
+}
 
 /** Parents, siblings, partners and children for the person detail view. */
 export async function getPersonRelations(treeId: string, personId: string) {
