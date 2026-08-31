@@ -5,13 +5,16 @@ import { requireUser } from "@/lib/rbac";
 import { signOut } from "@/lib/auth";
 import { userConsentState } from "@/lib/consent";
 import { unreadNotificationCount } from "@/lib/notify";
+import { readFlash } from "@/lib/flash";
 import { CommandPalette } from "@/components/CommandPalette";
+import { Toaster } from "@/components/Toaster";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const consent = await userConsentState(user.id);
   if (consent.stale) redirect("/consent");
   const unread = await unreadNotificationCount(user.id);
+  const flash = await readFlash();
 
   const doSignOut = async () => {
     "use server";
@@ -20,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-dvh">
+      <Toaster flash={flash} />
       <header
         className="sticky top-0 z-10 border-b backdrop-blur"
         style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--bg) 85%, transparent)" }}

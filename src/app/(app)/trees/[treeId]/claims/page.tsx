@@ -27,13 +27,10 @@ const NAME_SELECT = {
 
 export default async function ClaimsPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ treeId: string }>;
-  searchParams: Promise<{ claimOk?: string; claimErr?: string }>;
 }) {
   const { treeId } = await params;
-  const { claimOk, claimErr } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   if (!canManageTree(ctx.role)) notFound();
 
@@ -210,12 +207,6 @@ export default async function ClaimsPage({
           </p>
         </div>
 
-        {claimErr && (
-          <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "#dc2626", color: "#dc2626" }}>
-            {decodeURIComponent(claimErr)}
-          </p>
-        )}
-
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {CLAIM_CATEGORIES.map((c) => (
             <a
@@ -271,7 +262,6 @@ export default async function ClaimsPage({
                     <form action={sendClaimLink.bind(null, treeId, r.id)}>
                       <button className="rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border)" }}>
                         {r.category === "invited" ? "New link" : "Send claim link"}
-                        {claimOk === r.id ? " ✓" : ""}
                       </button>
                     </form>
                   )}

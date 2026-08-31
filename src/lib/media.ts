@@ -89,8 +89,4 @@ export async function makeThumbnail(buf: Buffer, mime: string): Promise<ThumbRes
   }
 }
 
-export function humanBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
+export { humanBytes } from "@/lib/format";

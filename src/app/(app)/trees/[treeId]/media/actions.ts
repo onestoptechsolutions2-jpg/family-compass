@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
+import { flashOk } from "@/lib/flash";
 import { treeMediaUsage } from "@/lib/queries/media";
 import { displayName } from "@/lib/person";
 import {
@@ -81,6 +82,7 @@ export async function uploadMedia(treeId: string, formData: FormData) {
     usage += buf.length;
   }
 
+  await flashOk(files.length === 1 ? "Photo uploaded." : `${files.length} photos uploaded.`);
   revalidatePath(`/trees/${treeId}/media`);
 }
 
@@ -89,6 +91,7 @@ export async function deleteMedia(treeId: string, mediaId: string) {
   const owned = await db.mediaObject.findFirst({ where: { id: mediaId, treeId }, select: { id: true } });
   if (!owned) throw new Error("Media not found");
   await db.mediaObject.delete({ where: { id: mediaId } });
+  await flashOk("Photo deleted.");
   revalidatePath(`/trees/${treeId}/media`);
 }
 
@@ -98,6 +101,7 @@ export async function renameMedia(treeId: string, mediaId: string, formData: For
   const owned = await db.mediaObject.findFirst({ where: { id: mediaId, treeId }, select: { id: true } });
   if (!owned) throw new Error("Media not found");
   await db.mediaObject.update({ where: { id: mediaId }, data: { title: title || null } });
+  await flashOk("Renamed.");
   revalidatePath(`/trees/${treeId}/media`);
 }
 

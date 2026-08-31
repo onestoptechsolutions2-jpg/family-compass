@@ -168,8 +168,4 @@ export function systemAlerts(s: SystemStats, opts: { dbAlertGB: number }): { key
   return out;
 }
 
-export function humanBytes(n: number): string {
-  if (n >= GB) return `${round(n / GB)} GB`;
-  if (n >= MB) return `${round(n / MB)} MB`;
-  return `${round(n / 1024)} KB`;
-}
+export { humanBytes } from "@/lib/format";
