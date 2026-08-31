@@ -177,6 +177,8 @@ export async function getPersonDetail(treeId: string, personId: string) {
       gender: true,
       living: true,
       privacy: true,
+      publicDatePrecision: true,
+      hidePhotosPublic: true,
       phone: true,
       claimedByUserId: true,
       claimedBy: { select: { name: true } },

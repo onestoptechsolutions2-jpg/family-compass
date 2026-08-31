@@ -353,6 +353,8 @@ export async function setPersonPrivacy(treeId: string, personId: string, formDat
   const d = z
     .object({
       privacy: z.enum(PRIVACY_VALUES),
+      datePrecision: z.enum(["FULL", "YEAR", "NONE"]).optional().default("FULL"),
+      hidePhotos: z.coerce.boolean().optional().default(false),
       cascade: z.coerce.boolean().optional().default(false),
     })
     .parse(Object.fromEntries(formData));
@@ -361,7 +363,14 @@ export async function setPersonPrivacy(treeId: string, personId: string, formDat
   if (!person) throw new Error("Person not found in this tree");
 
   const ids = d.cascade ? await descendantIds(treeId, personId) : [personId];
-  await db.person.updateMany({ where: { id: { in: ids }, treeId }, data: { privacy: d.privacy } });
+  await db.person.updateMany({
+    where: { id: { in: ids }, treeId },
+    data: {
+      privacy: d.privacy,
+      publicDatePrecision: d.datePrecision,
+      hidePhotosPublic: d.hidePhotos,
+    },
+  });
 
   await emitTreeEvent(treeId, "person.privacy_changed", {
     personId,

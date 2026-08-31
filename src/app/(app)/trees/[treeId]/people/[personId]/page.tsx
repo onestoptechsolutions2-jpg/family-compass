@@ -193,6 +193,19 @@ export default async function PersonDetailPage({
                 {person.claimedByUserId === ctx.user.id && <Pill accent>This is you</Pill>}
                 {person.privacy === "PRIVATE" && <Pill>hidden from public</Pill>}
                 {person.privacy === "REDACTED" && <Pill>limited on public</Pill>}
+                {person.privacy !== "PRIVATE" && person.privacy !== "REDACTED" &&
+                  (person.publicDatePrecision !== "FULL" || person.hidePhotosPublic) && (
+                    <Pill>
+                      public:{" "}
+                      {[
+                        person.publicDatePrecision === "YEAR" && "years only",
+                        person.publicDatePrecision === "NONE" && "no dates",
+                        person.hidePhotosPublic && "no photos",
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </Pill>
+                  )}
                 {person.claimedByUserId && person.claimedByUserId !== ctx.user.id && (
                   <Pill>claimed by {person.claimedBy?.name ?? "a relative"}</Pill>
                 )}
@@ -311,6 +324,28 @@ export default async function PersonDetailPage({
                       </span>
                     </label>
                   ))}
+                  <div className="border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
+                    <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+                      When shown publicly
+                    </p>
+                    <label className="mt-2 block text-sm">
+                      <span style={{ color: "var(--muted)" }}>Dates</span>
+                      <select
+                        name="datePrecision"
+                        defaultValue={person.publicDatePrecision ?? "FULL"}
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                        style={fieldStyle}
+                      >
+                        <option value="FULL">Full dates</option>
+                        <option value="YEAR">Year only</option>
+                        <option value="NONE">No dates</option>
+                      </select>
+                    </label>
+                    <label className="mt-2 flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="hidePhotos" value="true" defaultChecked={person.hidePhotosPublic} />
+                      Hide this person&apos;s photos on public shares
+                    </label>
+                  </div>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="cascade" value="true" />
                     Also apply to everyone descended from this person

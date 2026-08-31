@@ -50,9 +50,10 @@ export async function getRedactedGraph(
 
   const privacyRows = await db.person.findMany({
     where: { treeId },
-    select: { id: true, privacy: true },
+    select: { id: true, privacy: true, publicDatePrecision: true },
   });
   const privacy = new Map(privacyRows.map((r) => [r.id, r.privacy]));
+  const datePrec = new Map(privacyRows.map((r) => [r.id, r.publicDatePrecision]));
 
   const persons: Record<string, GraphPerson> = {};
   for (const [id, p] of Object.entries(full.persons)) {
@@ -75,7 +76,13 @@ export async function getRedactedGraph(
         given: "",
       };
     } else {
-      persons[id] = p;
+      const prec = datePrec.get(id);
+      persons[id] =
+        prec === "NONE"
+          ? { ...p, birth: "", death: "", birthYear: null, deathYear: null }
+          : prec === "YEAR"
+            ? { ...p, birth: "", death: "" }
+            : p;
     }
   }
 

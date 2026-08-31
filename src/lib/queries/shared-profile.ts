@@ -48,6 +48,8 @@ export async function getSharedCentralProfile(
       gender: true,
       living: true,
       privacy: true,
+      publicDatePrecision: true,
+      hidePhotosPublic: true,
       subClan: true,
       clan: { select: { name: true, community: true } },
       names: { select: NAME_SELECT },
@@ -96,14 +98,20 @@ export async function getSharedCentralProfile(
     return { redacted: true, name: n?.surname ? `Living ${n.surname}` : "Living family member" };
   }
 
-  const born = birth ? formatDate(birth) : "";
-  const died = death ? formatDate(death) : "";
+  // Public-surface date precision. Members view this profile through the app,
+  // not here, so this only ever narrows what a public link shows.
+  const prec = p.publicDatePrecision;
+  const pd = (e: { dateYear: number | null } & Record<string, unknown>): string =>
+    prec === "NONE" ? "" : prec === "YEAR" ? (e.dateYear ? String(e.dateYear) : "") : formatDate(e as never);
+
+  const born = birth ? pd(birth) : "";
+  const died = death ? pd(death) : "";
   const bornPlace = birth?.place?.title ?? null;
   const diedPlace = death?.place?.title ?? null;
   const burial = events.find((e) => e.type === "Burial");
   const restingPlace = burial?.place?.title ?? null;
   const years =
-    birth?.dateYear || death?.dateYear
+    prec !== "NONE" && (birth?.dateYear || death?.dateYear)
       ? `${birth?.dateYear ?? "?"} – ${death?.dateYear ?? (living ? "present" : "?")}`
       : null;
 
@@ -135,7 +143,7 @@ export async function getSharedCentralProfile(
     .filter((e) => e.dateYear || e.dateText || e.place)
     .map((e) => ({
       type: e.type,
-      date: formatDate(e),
+      date: pd(e),
       place: e.place?.title ?? null,
       note: e.description ?? null,
       _k: dateSortKey(e),
@@ -162,7 +170,9 @@ export async function getSharedCentralProfile(
     years,
     about,
     events: timeline,
-    photos: p.mediaRefs.map((r) => r.media).filter((m) => m.mimeType.startsWith("image/")),
+    photos: p.hidePhotosPublic
+      ? []
+      : p.mediaRefs.map((r) => r.media).filter((m) => m.mimeType.startsWith("image/")),
     memorialSlug: p.memorial?.published ? p.memorial.slug : null,
   };
 }

@@ -560,6 +560,14 @@ enum Privacy {
   PRIVATE
 }
 
+/// How precisely dates for a person are shown on PUBLIC surfaces (shared
+/// trees and shared profile links). Signed-in members always see FULL.
+enum DatePrecision {
+  FULL
+  YEAR
+  NONE
+}
+
 enum DateModifier {
   NONE
   EXACT
@@ -583,6 +591,9 @@ model Person {
   gender          Gender   @default(UNKNOWN)
   living          Boolean  @default(false)
   privacy         Privacy  @default(INHERIT)
+  /// public-surface date precision + photo suppression (member views unaffected)
+  publicDatePrecision DatePrecision @default(FULL)
+  hidePhotosPublic    Boolean       @default(false)
   phone           String?
   claimedByUserId String?  @unique
   clanId          String?
