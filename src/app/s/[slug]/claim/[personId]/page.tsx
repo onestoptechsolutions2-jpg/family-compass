@@ -38,7 +38,7 @@ export default async function ClaimPage({
       names: {
         select: { first: true, surname: true, surnamePrefix: true, suffix: true, nick: true, title: true, preferred: true, type: true, order: true },
       },
-      eventRefs: { where: { event: { type: "Death" } }, select: { id: true } },
+      eventRefs: { where: { event: { type: { in: ["Death", "Burial"] } } }, select: { id: true } },
     },
   });
   if (!person) notFound();

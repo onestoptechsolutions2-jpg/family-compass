@@ -5,6 +5,7 @@ import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
+import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { personMedia } from "@/lib/queries/media";
 import { commentsForEvents } from "@/lib/discussions";
 import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
@@ -105,7 +106,8 @@ export default async function PersonDetailPage({
   const avatarId = media.find((r) => r.media.mimeType.startsWith("image/"))?.media.id ?? null;
 
   const manages = canManageTree(ctx.role);
-  const claimable = editable && !deceased && !person.claimedByUserId;
+  const claimable =
+    editable && isProfileClaimable({ claimedByUserId: person.claimedByUserId, deceased });
   const treeMembers = manages && claimable
     ? await db.membership.findMany({
         where: { workspace: { trees: { some: { id: treeId } } } },

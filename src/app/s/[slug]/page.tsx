@@ -5,6 +5,7 @@ import { ShareMode } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getRedactedGraph, shareCookieToken } from "@/lib/share";
+import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { getSharedCentralProfile } from "@/lib/queries/shared-profile";
 import { TreeExplorer } from "@/components/tree/TreeExplorer";
 import { ProfileHero } from "@/components/profile/ProfileHero";
@@ -249,7 +250,8 @@ export default async function SharedViewPage({
                   View memorial
                 </Link>
               )}
-              {share.allowClaims && !displayName.startsWith("Living ") && (
+              {share.allowClaims &&
+                isProfileClaimable({ deceased: gp?.deceased, redactedName: displayName }) && (
                 <Link
                   href={`/s/${slug}/claim/${subjectId}`}
                   className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"

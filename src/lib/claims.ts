@@ -113,7 +113,7 @@ export async function requestClaim(input: RequestClaimInput): Promise<RequestCla
         living: true,
         claimedByUserId: true,
         names: { select: { surname: true, preferred: true, type: true, order: true } },
-        eventRefs: { where: { event: { type: "Death" } }, select: { id: true } },
+        eventRefs: { where: { event: { type: { in: ["Death", "Burial"] } } }, select: { id: true } },
       },
     });
     if (!person) throw new Error("That person is not in this tree");

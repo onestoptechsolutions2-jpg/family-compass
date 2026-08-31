@@ -13,6 +13,7 @@ import "d3-transition"; // augments Selection with .transition()
 import { zoom, zoomIdentity, type ZoomBehavior } from "d3-zoom";
 
 import type { TreeGraph } from "@/lib/queries/graph";
+import { isProfileClaimable } from "@/lib/claim-eligibility";
 import {
   CARD_W,
   CARD_H,
@@ -560,7 +561,11 @@ export function TreeExplorer({
             const p = pid ? graph.persons[pid] : null;
             if (!p || !pid) return null;
             const claimable =
-              readOnly && allowClaims && shareSlug && pid && !p.name.startsWith("Living ");
+              readOnly &&
+              allowClaims &&
+              !!shareSlug &&
+              !!pid &&
+              isProfileClaimable({ deceased: p.deceased, redactedName: p.name });
 
             const nameOf = (id: string) => graph.persons[id]?.name ?? null;
             const parents = (graph.up[pid] ?? []).map(nameOf).filter(Boolean) as string[];
