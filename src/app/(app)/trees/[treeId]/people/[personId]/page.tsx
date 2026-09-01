@@ -8,8 +8,10 @@ import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives 
 import { personCircle, personMemories, RELATION_ROLES, RELATION_CONTEXTS } from "@/lib/relationships";
 import { friendLinksForPerson, pendingFriendInvites } from "@/lib/friends";
 import { personLifeNow, personLifeReel, LIFE_CATEGORIES, lifeCategoryMeta } from "@/lib/life";
+import { getSelfNode, SELF_QUESTIONS } from "@/lib/self-node";
 import { addMemoryAction, addToCircleAction, inviteFriendAction } from "./relationship-actions";
 import { addLifeUpdateAction, endLifeUpdateAction } from "./life-actions";
+import { saveSelfNodeAction } from "./self-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { analyzeProfile } from "@/lib/profile-analyzer";
 import { bereavementSteps } from "@/lib/bereavement";
@@ -131,6 +133,9 @@ export default async function PersonDetailPage({
           .map((l) => `${lifeCategoryMeta(l.category).emoji} ${l.body}`)),
   ].filter(Boolean);
   const canPostLife = !deceased && (canEdit(ctx.role) || person.claimedByUserId === ctx.user.id);
+  const isOwner = person.claimedByUserId === ctx.user.id;
+  const selfNode = (isOwner || canManageTree(ctx.role)) && !deceased ? await getSelfNode(personId) : null;
+  const showAbout = (isOwner || (canManageTree(ctx.role) && !!selfNode)) && !deceased;
   const avatarId = media.find((r) => r.media.mimeType.startsWith("image/"))?.media.id ?? null;
 
   const manages = canManageTree(ctx.role);
@@ -212,6 +217,12 @@ export default async function PersonDetailPage({
               label: "Add a photo of yourself",
               href: `/trees/${treeId}/people/${personId}#tab=photos`,
               cta: "Add photo",
+            },
+            {
+              done: !!selfNode?.familyMeans,
+              label: "Tell us about you — the “About me” questions",
+              href: `/trees/${treeId}/people/${personId}#tab=about`,
+              cta: "About me",
             },
             {
               done: false,
@@ -1296,6 +1307,104 @@ export default async function PersonDetailPage({
               </section>
             ),
           },
+          ...(showAbout
+            ? [
+                {
+                  id: "about",
+                  label: "About me",
+                  panel: (
+                    <section
+                      className="flex flex-col gap-4 rounded-xl border p-4"
+                      style={{ borderColor: "var(--border)", background: "var(--card)" }}
+                    >
+                      <div>
+                        <h3 className="font-medium">{isOwner ? "About you" : "About me"}</h3>
+                        <p className="text-sm" style={{ color: "var(--muted)" }}>
+                          {isOwner
+                            ? "A short, reflective self-portrait. Private by default — it feeds the research only with your consent."
+                            : "This person's own words. Only they can edit it."}
+                        </p>
+                      </div>
+                      {isOwner ? (
+                        <form action={saveSelfNodeAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                          {SELF_QUESTIONS.map((q) => (
+                            <label key={q.field} className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>{q.label}</span>
+                              {q.kind === "long" ? (
+                                <textarea
+                                  name={q.field}
+                                  rows={3}
+                                  defaultValue={(selfNode?.[q.field as keyof typeof selfNode] as string) ?? ""}
+                                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                                  style={fieldStyle}
+                                />
+                              ) : (
+                                <input
+                                  name={q.field}
+                                  defaultValue={(selfNode?.[q.field as keyof typeof selfNode] as string) ?? ""}
+                                  placeholder={"hint" in q ? q.hint : undefined}
+                                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                                  style={fieldStyle}
+                                />
+                              )}
+                            </label>
+                          ))}
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>How do you feel about your family right now? (1–5)</span>
+                              <input
+                                name="familyFeeling"
+                                type="number"
+                                min={1}
+                                max={5}
+                                defaultValue={selfNode?.familyFeeling ?? ""}
+                                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                                style={fieldStyle}
+                              />
+                            </label>
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>…in one word</span>
+                              <input
+                                name="familyFeelingWord"
+                                defaultValue={selfNode?.familyFeelingWord ?? ""}
+                                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                                style={fieldStyle}
+                              />
+                            </label>
+                          </div>
+                          <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                            Save
+                          </button>
+                        </form>
+                      ) : selfNode ? (
+                        <dl className="flex flex-col gap-3 text-sm">
+                          {SELF_QUESTIONS.map((q) => {
+                            const v = selfNode[q.field as keyof typeof selfNode] as string | null;
+                            return v ? (
+                              <div key={q.field}>
+                                <dt style={{ color: "var(--muted)" }}>{q.label}</dt>
+                                <dd className="mt-0.5 whitespace-pre-wrap">{v}</dd>
+                              </div>
+                            ) : null;
+                          })}
+                          {selfNode.familyFeeling != null && (
+                            <div>
+                              <dt style={{ color: "var(--muted)" }}>Feeling about family now</dt>
+                              <dd className="mt-0.5">
+                                {selfNode.familyFeeling}/5
+                                {selfNode.familyFeelingWord ? ` · “${selfNode.familyFeelingWord}”` : ""}
+                              </dd>
+                            </div>
+                          )}
+                        </dl>
+                      ) : (
+                        <p className="text-sm" style={{ color: "var(--muted)" }}>Not filled in yet.</p>
+                      )}
+                    </section>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
     </div>

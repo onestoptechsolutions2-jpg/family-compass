@@ -646,6 +646,7 @@ model Person {
   claims                  PersonClaim[]
   claimInvites            ClaimInvite[]
   memorial                Memorial?
+  selfNode                SelfNode?
   chamaMemberships        ChamaMember[]   @relation("PersonChamaMemberships")
 
   memoryParticipations MemoryParticipant[]
@@ -2103,4 +2104,25 @@ model LifeUpdate {
 
   @@index([treeId, createdAt])
   @@index([personId, current])
+}
+
+/// "About me" — a fixed, reflective self-portrait a claimed person fills in.
+/// The research payload for "family you make vs family you come from". One per
+/// person; only the claimed owner writes it. Aggregated (with consent) it
+/// answers the project's questions.
+model SelfNode {
+  id                String   @id @default(cuid())
+  personId          String   @unique
+  familyMeans       String?  @db.Text
+  belonging         String?
+  strongestTie      String?  @db.Text
+  forDescendant     String?  @db.Text
+  familyFeeling     Int?
+  familyFeelingWord String?
+  gaveAndCost       String?  @db.Text
+  updatedById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 }

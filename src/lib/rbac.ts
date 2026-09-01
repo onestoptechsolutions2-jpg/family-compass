@@ -92,31 +92,42 @@ export const loadTreeContext = cache(async function loadTreeContext(
 ): Promise<TreeContext> {
   const user = await requireUser();
 
-  const tree = await db.tree.findUnique({
-    where: { id: treeId },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      homePersonId: true,
-      adminUserId: true,
-      workspace: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          memberships: {
-            where: { userId: user.id },
-            select: { role: true },
-          },
+  const baseSelect = {
+    id: true,
+    name: true,
+    slug: true,
+    homePersonId: true,
+    workspace: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        memberships: {
+          where: { userId: user.id },
+          select: { role: true },
         },
       },
     },
-  });
+  } as const;
+
+  // `adminUserId` (migration …032). If the deploy hasn't run migrations yet,
+  // don't take every tree page down — just run without the family-admin bit.
+  const load = async () => {
+    try {
+      return await db.tree.findUnique({
+        where: { id: treeId },
+        select: { ...baseSelect, adminUserId: true },
+      });
+    } catch {
+      const b = await db.tree.findUnique({ where: { id: treeId }, select: baseSelect });
+      return b ? { ...b, adminUserId: null as string | null } : null;
+    }
+  };
+  const tree = await load();
 
   if (!tree) throw new AccessError(404, "Tree not found");
   const membership = tree.workspace.memberships[0];
-  const isFamilyAdmin = tree.adminUserId === user.id;
+  const isFamilyAdmin = (tree.adminUserId ?? null) === user.id;
   if (!membership && !isFamilyAdmin && !user.isPlatformAdmin) {
     throw new AccessError(403, "No access to this tree");
   }
@@ -138,7 +149,7 @@ export const loadTreeContext = cache(async function loadTreeContext(
       name: tree.name,
       slug: tree.slug,
       homePersonId: tree.homePersonId,
-      familyAdminId: tree.adminUserId,
+      familyAdminId: tree.adminUserId ?? null,
     },
     isFamilyAdmin,
     role,
