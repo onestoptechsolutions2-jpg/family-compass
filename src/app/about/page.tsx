@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SiteFooter } from "@/components/SiteFooter";
+
 export const metadata = { title: "About the project" };
 
 export default function AboutPage() {
@@ -59,6 +61,7 @@ export default function AboutPage() {
           <Link href="/policies/research" className="text-brand-600 hover:underline">Research &amp; Ethics policy</Link>.
         </p>
       </div>
+      <SiteFooter />
     </main>
   );
 }

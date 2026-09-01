@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { SiteFooter } from "@/components/SiteFooter";
+
 export const metadata = { title: "Pricing" };
 
 const PAID = [
@@ -92,6 +94,7 @@ export default function PricingPage() {
       >
         Start your tree
       </Link>
+      <SiteFooter />
     </main>
   );
 }

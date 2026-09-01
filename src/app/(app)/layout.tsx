@@ -9,6 +9,7 @@ import { readFlash } from "@/lib/flash";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Toaster } from "@/components/Toaster";
 import { InstallReporter } from "@/components/InstallReporter";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -101,6 +102,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+      <div className="mx-auto max-w-6xl px-6 pb-8">
+        <SiteFooter />
+      </div>
     </div>
   );
 }

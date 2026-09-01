@@ -5,6 +5,7 @@ import { homePathForUser } from "@/lib/home";
 import { publicShowcase } from "@/lib/queries/showcase";
 import { PeanutArt } from "@/components/GradientArt";
 import { ProofCarousel } from "@/components/ProofCarousel";
+import { SiteFooter } from "@/components/SiteFooter";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
 export const metadata = {
@@ -190,11 +191,15 @@ export default async function LandingPage() {
         ))}
       </section>
 
-      <footer className="mt-16 border-t pt-6 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-        Building &amp; sharing free · print charts, deep search &amp; commissioned research paid ·{" "}
-        <Link href="/policies" className="hover:underline">Policies</Link> ·{" "}
-        <Link href="/docs" className="hover:underline">API &amp; webhooks</Link>
-      </footer>
+      <SiteFooter
+        links={
+          <>
+            Building &amp; sharing free · print charts, deep search &amp; commissioned research paid ·{" "}
+            <Link href="/policies" className="hover:underline">Policies</Link> ·{" "}
+            <Link href="/docs" className="hover:underline">API &amp; webhooks</Link>
+          </>
+        }
+      />
 
       <InstallPrompt />
     </main>
