@@ -61,7 +61,7 @@ export default async function GuidePage({
         { text: "In the Families section you can build a couple directly: search for each partner (husband / wife), or type a name and choose “＋ Add …” to create them on the spot. Same for adding children.", href: "/families", label: "Families" },
         "Fill in birth, death and marriage dates and places. Charts, reports and the memorial book all read these.",
         "Each profile has a “Complete this profile” panel: it checks what's missing and asks the questions — who were the parents? where were they born? — working toward four generations (self, parents, grandparents, great-grandparents). Hide it and it stays reachable from a small link.",
-        "Mark a person deceased with “Record a death” — that unlocks their memorial page. Burial (and vigil, service, interment) is recorded as an ordinary event, or from the memorial programme — no separate step.",
+        "Mark a person deceased with “Record a death”. A short “After a death” checklist then appears on their profile — burial, memorial page, funeral programme, inviting relatives, a welfare fund, publishing — each linking to where it's done. Setting the resting place / burial date in the memorial also records a Burial event on the tree.",
         "Dates take partial or approximate values — “1948”, “March 1948”, “about 1950”, “before 1960”, “1950s”, “between 1948 and 1952”. Places can be just a county or a village.",
       ],
     },

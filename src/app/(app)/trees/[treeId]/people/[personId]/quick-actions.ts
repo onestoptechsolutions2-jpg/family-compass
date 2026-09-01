@@ -11,7 +11,7 @@ import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { notifyTreeManagers, notifyUser } from "@/lib/notify";
 import { emitTreeEvent } from "@/lib/webhooks";
-import { flashErr } from "@/lib/flash";
+import { flashErr, flashOk } from "@/lib/flash";
 import {
   createBarePerson,
   setVitalEvent,
@@ -264,6 +264,9 @@ export async function recordDeath(treeId: string, personId: string, formData: Fo
     });
   }
 
+  if (!hadDeath) {
+    await flashOk("Death recorded. There's a short checklist on the profile for the days ahead.");
+  }
   redirect(`/trees/${treeId}/people/${personId}`);
 }
 

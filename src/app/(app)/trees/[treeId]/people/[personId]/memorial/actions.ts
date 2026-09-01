@@ -14,8 +14,10 @@ import { expandTemplate } from "@/lib/programme-templates";
 import { parseGeo } from "@/lib/geo";
 import { BIO_FIELDS, type BioNotes } from "@/lib/eulogy";
 import { logActivity } from "@/lib/activity";
-import { emitEvent } from "@/lib/webhooks";
+import { emitEvent, emitTreeEvent } from "@/lib/webhooks";
 import { notifyTreeManagers } from "@/lib/notify";
+import { upsertPersonEvent } from "@/lib/person-write";
+import { releaseClaimOnDeath } from "@/lib/claims";
 import { MERGE_TARGET } from "@/lib/memorial-sections";
 import { isTemplateId } from "@/lib/memorial-templates";
 import {
@@ -124,6 +126,7 @@ const memorialSchema = z.object({
   bornText: z.string().trim().max(200).optional(),
   diedText: z.string().trim().max(200).optional(),
   restingPlace: z.string().trim().max(300).optional(),
+  burialDate: z.string().trim().max(60).optional(),
   serviceText: z.string().trim().max(4000).optional(),
   published: z.coerce.boolean().default(false),
   guestbookOpen: z.coerce.boolean().default(false),
@@ -154,6 +157,29 @@ export async function updateMemorial(treeId: string, memorialId: string, formDat
       includeLiving: d.includeLiving,
     },
   });
+
+  // Keep a Burial event on the tree in step with the memorial's resting
+  // place + burial date — the funeral-preparation process is how burial gets
+  // recorded, not a separate action.
+  if (d.burialDate || d.restingPlace) {
+    const evId = await upsertPersonEvent(
+      treeId,
+      before.personId,
+      "Burial",
+      d.burialDate ?? "",
+      d.restingPlace ?? "",
+    );
+    if (evId) {
+      await db.person.update({ where: { id: before.personId }, data: { living: false } });
+      await releaseClaimOnDeath(before.personId);
+      await emitTreeEvent(treeId, "person.event_recorded", {
+        personId: before.personId,
+        type: "Burial",
+        date: d.burialDate || null,
+        place: d.restingPlace || null,
+      });
+    }
+  }
 
   const wsId = before.tree.workspaceId;
   if (d.published && !before.published) {

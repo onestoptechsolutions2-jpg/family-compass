@@ -12,8 +12,10 @@ import { addMemoryAction, addToCircleAction, inviteFriendAction } from "./relati
 import { addLifeUpdateAction, endLifeUpdateAction } from "./life-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { analyzeProfile } from "@/lib/profile-analyzer";
+import { bereavementSteps } from "@/lib/bereavement";
 import { ClaimedWizard } from "@/components/ClaimedWizard";
 import { ProfileGaps } from "@/components/ProfileGaps";
+import { BereavementWizard } from "@/components/BereavementWizard";
 import { personMedia } from "@/lib/queries/media";
 import { commentsForEvents } from "@/lib/discussions";
 import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
@@ -91,6 +93,7 @@ export default async function PersonDetailPage({
   ]);
   const myFriendPending = friendPending.filter((f) => f.fromPersonId === personId);
   const analysis = canEdit(ctx.role) ? await analyzeProfile(treeId, personId, ctx.user.id) : null;
+  const bereavement = canEdit(ctx.role) ? await bereavementSteps(treeId, personId) : null;
   const eventComments = await commentsForEvents(
     [...person.eventRefs].map((r) => r.event.id),
   );
@@ -226,6 +229,14 @@ export default async function PersonDetailPage({
           self={analysis.self}
           ancestry={analysis.ancestry}
           gaps={analysis.gaps}
+        />
+      )}
+
+      {bereavement && (
+        <BereavementWizard
+          personId={personId}
+          name={displayName(person.names)}
+          steps={bereavement.steps}
         />
       )}
 

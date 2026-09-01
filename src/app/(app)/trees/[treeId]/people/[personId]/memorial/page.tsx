@@ -6,6 +6,7 @@ import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/memorial";
+import { formatDate } from "@/lib/date";
 import { viewSummary } from "@/lib/queries/view-analytics";
 import { chamaEnabled } from "@/lib/chama/plugin";
 import { sectionLabel } from "@/lib/memorial-sections";
@@ -114,6 +115,18 @@ export default async function MemorialEditorPage({
   }
 
   const media = await personMedia(treeId, personId);
+  const burialEv = await db.eventRef.findFirst({
+    where: { personId, event: { type: "Burial" } },
+    select: {
+      event: {
+        select: {
+          dateModifier: true, dateQuality: true, dateYear: true, dateMonth: true, dateDay: true,
+          dateYear2: true, dateMonth2: true, dateDay2: true, dateText: true,
+        },
+      },
+    },
+  });
+  const burialDateValue = burialEv ? formatDate(burialEv.event) : "";
   const reach = await viewSummary("memorial", memorial.slug);
   const order = normaliseOrder(memorial.program?.order);
   const orderDays = groupByDay(order);
@@ -308,10 +321,19 @@ export default async function MemorialEditorPage({
             <input name="diedText" defaultValue={memorial.diedText ?? ""} className={field} style={style} />
           </label>
         </div>
-        <label className="text-sm">
-          <span style={{ color: "var(--muted)" }}>Resting place</span>
-          <input name="restingPlace" defaultValue={memorial.restingPlace ?? ""} className={field} style={style} />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Resting place</span>
+            <input name="restingPlace" defaultValue={memorial.restingPlace ?? ""} className={field} style={style} list="ke-loc" />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Burial date</span>
+            <input name="burialDate" defaultValue={burialDateValue} placeholder="Sat 13 Sep 2025 · about 2025" className={field} style={style} />
+          </label>
+        </div>
+        <p className="-mt-2 text-xs" style={{ color: "var(--muted)" }}>
+          Saving the resting place or burial date also records a Burial event on the family tree.
+        </p>
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Eulogy</span>
           <textarea name="eulogy" rows={12} defaultValue={memorial.eulogy ?? ""} className={field} style={style} />

@@ -141,6 +141,52 @@ export async function ensureMarriageEvent(
   });
 }
 
+/**
+ * Create-or-update a person's event of `type` from free-text date + place.
+ * Returns the event id, or null when there's nothing to record. Used e.g. to
+ * keep a Burial event in step with the memorial's resting place + burial date.
+ */
+export async function upsertPersonEvent(
+  treeId: string,
+  personId: string,
+  type: string,
+  rawDate: string,
+  rawPlace: string,
+): Promise<string | null> {
+  const d = dateFields(rawDate);
+  const placeId = await upsertPlaceByTitle(treeId, rawPlace);
+  const existing = await db.eventRef.findFirst({
+    where: { personId, event: { type } },
+    select: { eventId: true },
+  });
+  if (!d && !placeId) {
+    return existing?.eventId ?? null;
+  }
+  const data = {
+    type,
+    placeId,
+    dateModifier: d?.dateModifier ?? DateModifier.NONE,
+    dateQuality: d?.dateQuality ?? DateQuality.NONE,
+    dateYear: d?.dateYear ?? null,
+    dateMonth: d?.dateMonth ?? null,
+    dateDay: d?.dateDay ?? null,
+    dateYear2: d?.dateYear2 ?? null,
+    dateMonth2: d?.dateMonth2 ?? null,
+    dateDay2: d?.dateDay2 ?? null,
+    dateText: d?.dateText ?? null,
+    dateSortKey: d?.dateSortKey ?? null,
+  };
+  if (existing) {
+    await db.event.update({ where: { id: existing.eventId }, data });
+    return existing.eventId;
+  }
+  const ev = await db.event.create({
+    data: { treeId, ...data, eventRefs: { create: { personId, role: "PRIMARY" } } },
+    select: { id: true },
+  });
+  return ev.id;
+}
+
 /** Add a standalone timeline event to a person (any type). Returns the new id. */
 export async function createPersonEvent(
   treeId: string,
