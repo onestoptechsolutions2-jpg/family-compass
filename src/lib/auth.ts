@@ -38,6 +38,20 @@ export const authConfig: NextAuthConfig = {
     async signIn({ user }) {
       return canSignIn(user.email);
     },
+    // Behind a reverse proxy the request host Auth.js sees is the internal
+    // container origin (localhost:PORT), so sign-in / sign-out redirects land
+    // on the wrong URL. Pin every auth redirect to the canonical public origin.
+    async redirect({ url, baseUrl }) {
+      const pub = env.APP_URL.replace(/\/$/, "");
+      if (url.startsWith("/")) return pub + url;
+      try {
+        const u = new URL(url);
+        if (u.origin === pub || u.origin === baseUrl) return pub + u.pathname + u.search;
+      } catch {
+        /* fall through */
+      }
+      return pub;
+    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;
