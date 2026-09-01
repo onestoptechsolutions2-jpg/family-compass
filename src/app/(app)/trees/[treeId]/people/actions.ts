@@ -11,6 +11,8 @@ import { parseISODateInput, dateSortKey } from "@/lib/date";
 import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { emitTreeEvent } from "@/lib/webhooks";
+import { cascadeClanDown } from "@/lib/lineage";
+import { flashOk } from "@/lib/flash";
 
 const label = (first?: string, surname?: string) =>
   `${first ?? ""} ${surname ?? ""}`.trim() || "a person";
@@ -195,12 +197,15 @@ export async function updatePerson(treeId: string, personId: string, formData: F
 
   const person = await db.person.findFirst({
     where: { id: personId, treeId },
-    select: { id: true, names: { orderBy: { order: "asc" } } },
+    select: { id: true, clanId: true, subClan: true, names: { orderBy: { order: "asc" } } },
   });
   if (!person) throw new Error("Person not found");
 
   const primary =
     person.names.find((n) => n.preferred) ?? person.names.find((n) => n.type === "BIRTH") ?? person.names[0];
+
+  const nextClanId = await resolveClan(treeId, d.clanId);
+  const nextSubClan = d.subClan || null;
 
   await db.person.update({
     where: { id: personId },
@@ -208,8 +213,8 @@ export async function updatePerson(treeId: string, personId: string, formData: F
       gender: d.gender,
       living: d.living,
       privacy: d.privacy,
-      clanId: await resolveClan(treeId, d.clanId),
-      subClan: d.subClan || null,
+      clanId: nextClanId,
+      subClan: nextSubClan,
       names: primary
         ? { update: { where: { id: primary.id }, data: { first: d.first || null, surname: d.surname || null } } }
         : {
@@ -223,6 +228,21 @@ export async function updatePerson(treeId: string, personId: string, formData: F
           },
     },
   });
+
+  // A corrected clan / sub-clan flows down the lineage automatically — every
+  // descendant whose value was blank or still matched the old one is updated,
+  // so you don't edit grandchildren one by one.
+  if (person.clanId !== nextClanId || (person.subClan ?? null) !== nextSubClan) {
+    const n = await cascadeClanDown(treeId, personId, {
+      fromClanId: person.clanId,
+      toClanId: nextClanId,
+      fromSubClan: person.subClan ?? null,
+      toSubClan: nextSubClan,
+    });
+    if (n > 0) {
+      await flashOk(`Clan updated. Carried down to ${n} descendant${n === 1 ? "" : "s"} on the same line.`);
+    }
+  }
 
   await syncVitalEvent(treeId, personId, "Birth", d.birthDate, d.birthPlace);
   const deathSync = await syncVitalEvent(treeId, personId, "Death", d.deathDate, d.deathPlace);

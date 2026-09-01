@@ -21,7 +21,7 @@ export function lineageParent(p1: PartnerRef, p2: PartnerRef, mode: ClanInherita
   return parts.find((p) => p.gender === Gender.FEMALE)?.id ?? p2?.id ?? p1?.id ?? null;
 }
 
-export type LineageApplied = { clan?: string; surname?: string };
+export type LineageApplied = { clan?: string; clanId?: string; surname?: string };
 
 /**
  * Fill a newly-added child's blank clan / sub-clan / family name from the
@@ -67,6 +67,7 @@ export async function applyLineageInheritance(
       where: { id: childId },
       data: { clanId: parent.clanId, subClan: child.subClan ?? parent.subClan ?? null },
     });
+    applied.clanId = parent.clanId;
     const clan = await db.clan.findUnique({ where: { id: parent.clanId }, select: { name: true } });
     if (clan) applied.clan = clan.name;
   }
@@ -85,6 +86,96 @@ export async function applyLineageInheritance(
   }
 
   return applied.clan || applied.surname ? applied : null;
+}
+
+/**
+ * Push a clan / sub-clan down the lineage from one person (e.g. a grandfather
+ * whose clan was just corrected). A descendant is updated when their value is
+ * blank *or* still equal to the ancestor's previous value — an explicitly
+ * different clan on a descendant is left alone. Descent follows the tree's
+ * lineage rule (patrilineal by default), so it stops at a daughter's children
+ * — they carry their own father's clan.
+ *
+ * Returns the number of descendants changed.
+ */
+export async function cascadeClanDown(
+  treeId: string,
+  ancestorId: string,
+  change: {
+    fromClanId: string | null;
+    toClanId: string | null;
+    fromSubClan: string | null;
+    toSubClan: string | null;
+  },
+): Promise<number> {
+  const tree = await db.tree.findUnique({
+    where: { id: treeId },
+    select: { clanInheritance: true },
+  });
+  const mode = tree?.clanInheritance ?? ClanInheritance.PATRILINEAL;
+  if (mode === ClanInheritance.NONE) return 0;
+
+  const clanChanged = change.fromClanId !== change.toClanId;
+  const subChanged = (change.fromSubClan ?? null) !== (change.toSubClan ?? null);
+  if (!clanChanged && !subChanged) return 0;
+
+  let changed = 0;
+  const visited = new Set<string>([ancestorId]);
+  let frontier = [ancestorId];
+
+  // Depth cap guards against pathological data; a real lineage is far shallower.
+  for (let depth = 0; depth < 25 && frontier.length > 0; depth++) {
+    const families = await db.family.findMany({
+      where: {
+        treeId,
+        OR: [{ partner1Id: { in: frontier } }, { partner2Id: { in: frontier } }],
+      },
+      select: {
+        partner1: { select: { id: true, gender: true } },
+        partner2: { select: { id: true, gender: true } },
+        childRefs: {
+          select: {
+            person: { select: { id: true, clanId: true, subClan: true } },
+          },
+        },
+      },
+    });
+
+    const next: string[] = [];
+    for (const fam of families) {
+      // Only descend through children whose lineage parent in THIS family is
+      // one of the ancestors we're cascading from.
+      const lp = lineageParent(fam.partner1, fam.partner2, mode);
+      if (!lp || !frontier.includes(lp)) continue;
+
+      for (const { person: child } of fam.childRefs) {
+        const data: { clanId?: string | null; subClan?: string | null } = {};
+        if (
+          clanChanged &&
+          (child.clanId === null || child.clanId === change.fromClanId)
+        ) {
+          data.clanId = change.toClanId;
+        }
+        if (
+          subChanged &&
+          ((child.subClan ?? null) === null || (child.subClan ?? null) === change.fromSubClan)
+        ) {
+          data.subClan = change.toSubClan;
+        }
+        if (Object.keys(data).length > 0) {
+          await db.person.update({ where: { id: child.id }, data });
+          changed++;
+        }
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          next.push(child.id);
+        }
+      }
+    }
+    frontier = next;
+  }
+
+  return changed;
 }
 
 export type NamesakeSuggestion = { id: string; name: string; label: string };

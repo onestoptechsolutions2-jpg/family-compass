@@ -19,7 +19,7 @@ import {
   ensureMarriageEvent,
   addChildRef,
 } from "@/lib/person-write";
-import { applyLineageInheritance } from "@/lib/lineage";
+import { applyLineageInheritance, cascadeClanDown } from "@/lib/lineage";
 import { isPersonEventType } from "@/lib/event-types";
 import { linkPersonToUser, releaseClaimOnDeath, issueClaimInvite } from "@/lib/claims";
 
@@ -152,13 +152,26 @@ export async function addParent(treeId: string, personId: string, formData: Form
   // new parent, per the tree's lineage rule.
   const inherited = await applyLineageInheritance(treeId, childFamilyId, personId);
   if (inherited) {
+    // Adding an ancestor with a clan populates the whole line below them, not
+    // just the immediate child.
+    let carried = 0;
+    if (inherited.clanId) {
+      carried = await cascadeClanDown(treeId, personId, {
+        fromClanId: null,
+        toClanId: inherited.clanId,
+        fromSubClan: null,
+        toSubClan: null,
+      });
+    }
     await flashOk(
       `Added. This person now carries ${[
         inherited.clan && `${inherited.clan} clan`,
         inherited.surname && `the name ${inherited.surname}`,
       ]
         .filter(Boolean)
-        .join(" and ")} from the ${d.role} — edit them if that's not right.`,
+        .join(" and ")} from the ${d.role}${
+        carried > 0 ? `, and it carried down to ${carried} descendant${carried === 1 ? "" : "s"}` : ""
+      } — edit them if that's not right.`,
     );
   }
 
