@@ -21,6 +21,7 @@ import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
 import { Dialog } from "@/components/Dialog";
+import { SearchSelect } from "@/components/SearchSelect";
 import { Tabs } from "@/components/Tabs";
 import { ActionMenu, actionItemClass } from "@/components/ActionMenu";
 import { CopyButton } from "@/components/CopyButton";
@@ -901,13 +902,14 @@ export default async function PersonDetailPage({
                           </label>
                           <label className="text-sm">
                             <span style={{ color: "var(--muted)" }}>Who else was there</span>
-                            <select name="others" multiple size={6} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
-                              {pickList.map((o) => (
-                                <option key={o.id} value={o.id}>{o.label}</option>
-                              ))}
-                            </select>
+                            <SearchSelect
+                              name="others"
+                              multiple
+                              options={pickList.map((o) => ({ value: o.id, label: o.label }))}
+                              placeholder="Search people…"
+                            />
                             <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
-                              Ctrl / ⌘-click for more than one. Each person can add their own side later.
+                              Add as many as you like. Each person can add their own side later.
                             </span>
                           </label>
                           <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
@@ -920,12 +922,13 @@ export default async function PersonDetailPage({
                         <form action={addToCircleAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
                           <label className="text-sm">
                             <span style={{ color: "var(--muted)" }}>Who</span>
-                            <select name="person" required className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
-                              <option value="">Pick a person…</option>
-                              {pickList.map((o) => (
-                                <option key={o.id} value={o.id}>{o.label}</option>
-                              ))}
-                            </select>
+                            <SearchSelect
+                              name="person"
+                              required
+                              allowEmpty={false}
+                              options={pickList.map((o) => ({ value: o.id, label: o.label }))}
+                              placeholder="Search people in the tree…"
+                            />
                           </label>
                           <label className="text-sm">
                             <span style={{ color: "var(--muted)" }}>They are a…</span>
@@ -942,12 +945,12 @@ export default async function PersonDetailPage({
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label className="text-sm">
                               <span style={{ color: "var(--muted)" }}>Through (optional)</span>
-                              <select name="via" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
-                                <option value="">— nobody in particular —</option>
-                                {pickList.map((o) => (
-                                  <option key={o.id} value={o.id}>{o.label}</option>
-                                ))}
-                              </select>
+                              <SearchSelect
+                                name="via"
+                                options={pickList.map((o) => ({ value: o.id, label: o.label }))}
+                                emptyLabel="— nobody in particular —"
+                                placeholder="Search people…"
+                              />
                             </label>
                             <label className="text-sm">
                               <span style={{ color: "var(--muted)" }}>Context (optional)</span>
@@ -1001,12 +1004,12 @@ export default async function PersonDetailPage({
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label className="text-sm">
                               <span style={{ color: "var(--muted)" }}>Through (optional)</span>
-                              <select name="via" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
-                                <option value="">— nobody in particular —</option>
-                                {pickList.map((o) => (
-                                  <option key={o.id} value={o.id}>{o.label}</option>
-                                ))}
-                              </select>
+                              <SearchSelect
+                                name="via"
+                                options={pickList.map((o) => ({ value: o.id, label: o.label }))}
+                                emptyLabel="— nobody in particular —"
+                                placeholder="Search people…"
+                              />
                             </label>
                             <label className="text-sm">
                               <span style={{ color: "var(--muted)" }}>Context (optional)</span>

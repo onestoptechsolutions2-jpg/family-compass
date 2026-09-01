@@ -1,6 +1,7 @@
 import { Gender, Privacy } from "@prisma/client";
 
 import { formatDate } from "@/lib/date";
+import { SearchSelect } from "@/components/SearchSelect";
 
 type EventLike = {
   type: string;
@@ -97,19 +98,13 @@ export function PersonForm({
       <div className="grid grid-cols-2 gap-3">
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Clan</span>
-          <select
+          <SearchSelect
             name="clanId"
-            defaultValue={values?.clanId ?? ""}
-            className={field}
-            style={fieldStyle}
-          >
-            <option value="">— none —</option>
-            {clans.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            options={clans.map((c) => ({ value: c.id, label: c.name }))}
+            defaultValue={values?.clanId ?? null}
+            placeholder="Search clans…"
+            className="mt-1"
+          />
         </label>
         <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Sub-clan / lineage</span>

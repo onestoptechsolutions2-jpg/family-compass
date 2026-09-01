@@ -1,31 +1,39 @@
+import { SearchSelect } from "./SearchSelect";
+
 type Option = { id: string; label: string };
 
+/**
+ * Pick a person (or family / place / clan …) by typing, not scrolling. Thin
+ * wrapper over <SearchSelect> that keeps the old `{ id, label }` option shape
+ * so every existing call site upgrades for free.
+ */
 export function PersonSelect({
   name,
   options,
   defaultValue,
   allowEmpty = true,
   emptyLabel = "— none —",
+  required = false,
+  multiple = false,
 }: {
   name: string;
   options: Option[];
-  defaultValue?: string | null;
+  defaultValue?: string | string[] | null;
   allowEmpty?: boolean;
   emptyLabel?: string;
+  required?: boolean;
+  multiple?: boolean;
 }) {
   return (
-    <select
+    <SearchSelect
       name={name}
-      defaultValue={defaultValue ?? ""}
-      className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-      style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-    >
-      {allowEmpty && <option value="">{emptyLabel}</option>}
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      options={options.map((o) => ({ value: o.id, label: o.label }))}
+      defaultValue={defaultValue}
+      allowEmpty={allowEmpty}
+      emptyLabel={emptyLabel}
+      required={required}
+      multiple={multiple}
+      className="mt-1"
+    />
   );
 }

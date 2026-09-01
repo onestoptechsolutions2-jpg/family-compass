@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog } from "@/components/Dialog";
+import { SearchSelect } from "@/components/SearchSelect";
 
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 const fs = { borderColor: "var(--border)", background: "var(--bg)" };
@@ -19,14 +20,13 @@ function PersonFields({
       {people.length > 0 && (
         <label className="col-span-2 text-sm">
           <span style={{ color: "var(--muted)" }}>Link a person already in the tree</span>
-          <select name="existingId" defaultValue="" className={field} style={fs}>
-            <option value="">— or create a new person below —</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            name="existingId"
+            options={people.map((p) => ({ value: p.id, label: p.label }))}
+            emptyLabel="— or create a new person below —"
+            placeholder="Search people in the tree…"
+            className="mt-1"
+          />
         </label>
       )}
       <label className="text-sm">
