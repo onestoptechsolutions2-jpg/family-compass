@@ -1,4 +1,4 @@
-# Family Compass — full stack for Coolify (and local `docker compose up`).
+# Family Compass - full stack for Coolify (and local `docker compose up`).
 #
 # Nothing environment-specific is baked in here. Every value comes from the
 # deployment environment:
@@ -75,7 +75,7 @@ services:
       - "${APP_PORT:-3000}:${PORT:-3000}"
     healthcheck:
       # node is always present; bookworm-slim ships no curl/wget. No `$` in
-      # this string — Compose would try to interpolate it. `process.env.PORT`
+      # this string - Compose would try to interpolate it. `process.env.PORT`
       # is read by node at runtime inside the container.
       test:
         - CMD
