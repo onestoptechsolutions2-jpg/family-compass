@@ -85,9 +85,9 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
 ## Deploy on Coolify
 
 1. **New Resource → Docker Compose**, point it at this repo. Set **Base
-   Directory** = `/` and **Docker Compose Location** = `/docker-compose.yaml`
-   (exact — the file is `.yaml`, not `.yml`; a mismatch here causes *"Docker
-   Compose file not found at: /docker-compose.yaml"*).
+   Directory** = `/` and **Docker Compose Location** = `/docker-compose.yml`
+   — must match the filename exactly. A mismatch fails the deploy in seconds
+   with *"Docker Compose file not found at: …"*. Set it once and leave it.
 2. Set environment variables in the Coolify UI. Nothing is baked into the
    image — the compose file **refuses to start** without the required ones:
 
