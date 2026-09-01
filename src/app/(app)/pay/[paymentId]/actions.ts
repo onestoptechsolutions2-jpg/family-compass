@@ -18,6 +18,7 @@ const KIND_DESC: Record<string, string> = {
   KEEPER: "Family Compass Family plan",
   DEEP_SEARCH: "Family Compass deep search",
   RESEARCH_PARTNER: "Family Compass research",
+  MEMORIAL_PASS: "Family Compass Memorial Pass",
 };
 
 async function ownPayment(paymentId: string) {
