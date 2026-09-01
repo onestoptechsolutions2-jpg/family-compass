@@ -5,8 +5,9 @@ import { grantCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activity";
 import { KEEPER_PLAN } from "@/lib/pricing";
 import { emitEvent } from "@/lib/webhooks";
-import { notifyWorkspaceOwners } from "@/lib/notify";
+import { notifyWorkspaceOwners, notifyUser } from "@/lib/notify";
 import { resumeAwaitingGenerations } from "@/lib/generation/resume";
+import { publicOrigin } from "@/lib/origin";
 
 /**
  * Mark a payment PAID and run everything downstream (credits / Family plan /
@@ -27,6 +28,10 @@ export async function fulfilPayment(
       kind: true,
       workspaceId: true,
       treeId: true,
+      userId: true,
+      reference: true,
+      amountKes: true,
+      currency: true,
       creditsGranted: true,
       generationJob: { select: { treeId: true } },
     },
@@ -101,6 +106,22 @@ export async function fulfilPayment(
     payment.workspaceId,
     "payment.verified",
     { paymentId: payment.id, kind: payment.kind, creditsGranted: payment.creditsGranted, summary },
+    { treeId },
+  );
+
+  // Receipt for the person who paid.
+  const receiptUrl = `${await publicOrigin()}/receipts/${payment.reference}`;
+  await notifyUser(payment.userId, {
+    kind: "payment.receipt_issued",
+    title: "Payment confirmed — receipt ready",
+    body: `${summary} · ${payment.currency} ${payment.amountKes.toLocaleString()}`,
+    linkPath: `/receipts/${payment.reference}`,
+    treeId,
+  });
+  await emitEvent(
+    payment.workspaceId,
+    "payment.receipt_issued",
+    { paymentId: payment.id, reference: payment.reference, receiptUrl },
     { treeId },
   );
 

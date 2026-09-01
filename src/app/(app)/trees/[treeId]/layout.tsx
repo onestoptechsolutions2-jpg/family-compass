@@ -57,6 +57,7 @@ export default async function TreeLayout({
     {
       label: "Manage",
       tabs: [
+        { href: `${base}/requests`, label: "Requests" },
         { href: `${base}/import`, label: "Import" },
         { href: `${base}/settings`, label: "Settings" },
       ],

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { sessionCookieName } from "@/lib/session";
 import { NOTIFY_GROUPS, parsePrefs } from "@/lib/push";
+import { myRequests } from "@/lib/queries/requests";
 import { PushSetup } from "@/components/PushSetup";
 import {
   setMyPassword,
@@ -45,6 +46,7 @@ export default async function AccountPage() {
   });
   const hasPassword = Boolean(user.passwordHash);
   const prefs = parsePrefs(user.notifyPrefs);
+  const requests = await myRequests(me.id);
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
 
   const currentToken = (await cookies()).get(sessionCookieName())?.value ?? null;
@@ -241,6 +243,42 @@ export default async function AccountPage() {
           </button>
         </form>
       </section>
+
+      {requests.length > 0 && (
+        <section
+          className="rounded-xl border p-4"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <h2 className="font-medium">My requests</h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Charts, books, exports and searches you&apos;ve asked for, and where each one is.
+          </p>
+          <ul className="mt-3 flex flex-col gap-2 text-sm">
+            {requests.map((r) => (
+              <li key={`${r.type}-${r.id}`} className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  {r.href ? (
+                    <Link href={r.href} className="hover:underline">{r.label}</Link>
+                  ) : (
+                    r.label
+                  )}{" "}
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>
+                    · {r.createdAt.toISOString().slice(0, 10)}
+                  </span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="text-xs" style={{ color: "var(--muted)" }}>{r.statusLabel}</span>
+                  {r.receiptRef && (
+                    <Link href={`/receipts/${r.receiptRef}`} className="text-xs hover:underline" style={{ color: "var(--link)" }}>
+                      Receipt →
+                    </Link>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

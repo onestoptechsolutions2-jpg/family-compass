@@ -37,6 +37,7 @@ export const EVENTS = {
   "invitation.accepted": "An invited person joined the workspace.",
   "payment.recorded": "A payment was submitted and is awaiting verification.",
   "payment.verified": "A payment was verified; credits / unlock granted.",
+  "payment.receipt_issued": "A receipt was issued for a verified payment; `data.reference` is the receipt/payment reference, `data.receiptUrl` the printable page.",
   "payment.rejected": "A payment was rejected.",
   "generation.preview_ready": "A watermarked preview of a paid export is ready.",
   "generation.output_ready": "A paid export was unlocked and the clean file is ready.",
