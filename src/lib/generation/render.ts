@@ -10,7 +10,9 @@ import { chartSvg } from "@/lib/charts/svg";
 import { svgToPng } from "@/lib/generation/raster";
 import { chartPdf, familyBookPdf } from "@/lib/generation/pdf";
 import { buildMemorialBook } from "@/lib/generation/memorial-book";
-import { makeThumbnail } from "@/lib/media";
+import { notifyUser } from "@/lib/notify";
+import { emitEvent } from "@/lib/webhooks";
+import { GENERATION_LABELS } from "@/lib/pricing";
 import { computeLayout } from "@/components/tree/layout";
 import { computeFan } from "@/components/tree/fan";
 import { getPaymentSettings, generationBaseKes } from "@/lib/payments";
@@ -25,22 +27,30 @@ const CHART_KINDS = new Set<GenerationKind>([
   GenerationKind.DESCENDANT_CHART,
 ]);
 
-async function saveMedia(treeId: string, a: Artifact): Promise<string> {
-  const thumb = await makeThumbnail(a.bytes, a.mime);
-  const row = await db.mediaObject.create({
+// Previews are cheap to regenerate — keep them briefly. Clean outputs are the
+// paid deliverable — keep them long enough for the buyer to come back.
+const TTL_DAYS = { preview: 30, output: 120 } as const;
+
+async function saveGeneratedFile(
+  generationJobId: string,
+  phase: "preview" | "output",
+  a: Artifact,
+): Promise<string> {
+  const row = await db.generatedFile.create({
     data: {
-      treeId,
+      generationJobId,
+      phase,
       fileName: a.fileName,
       mimeType: a.mime,
       byteSize: a.bytes.length,
       bytes: toBytes(a.bytes),
-      thumbnail: thumb ? toBytes(thumb.data) : null,
-      thumbMime: thumb?.mime ?? null,
-      width: thumb?.width ?? null,
-      height: thumb?.height ?? null,
-      title: a.fileName,
+      expiresAt: new Date(Date.now() + TTL_DAYS[phase] * 864e5),
     },
     select: { id: true },
+  });
+  // one file per job+phase — drop any earlier render
+  await db.generatedFile.deleteMany({
+    where: { generationJobId, phase, id: { not: row.id } },
   });
   return row.id;
 }
@@ -192,7 +202,7 @@ export async function renderGeneration(
   });
 
   const { artifact, nodeCount, generations } = await buildArtifacts(generationJobId, phase);
-  const mediaId = await saveMedia(job.treeId, artifact);
+  const fileId = await saveGeneratedFile(generationJobId, phase, artifact);
 
   if (phase === "preview") {
     const settings = await getPaymentSettings();
@@ -202,17 +212,43 @@ export async function renderGeneration(
     await db.generationJob.update({
       where: { id: generationJobId },
       data: {
-        previewMediaId: mediaId,
+        previewFileId: fileId,
         status: "PREVIEW_READY",
         error: null,
         nodeCount,
         priceKes,
       },
     });
-  } else {
-    await db.generationJob.update({
-      where: { id: generationJobId },
-      data: { outputMediaId: mediaId, status: "OUTPUT_READY", error: null },
+    return;
+  }
+
+  await db.generationJob.update({
+    where: { id: generationJobId },
+    data: { outputFileId: fileId, status: "OUTPUT_READY", error: null, unlockedAt: new Date() },
+  });
+
+  // The clean file is the paid deliverable — tell the person who asked.
+  const done = await db.generationJob.findUnique({
+    where: { id: generationJobId },
+    select: {
+      requestedById: true,
+      kind: true,
+      tree: { select: { id: true, name: true, workspaceId: true } },
+    },
+  });
+  if (done) {
+    await notifyUser(done.requestedById, {
+      kind: "generation.output_ready",
+      title: "Your download is ready",
+      body: `${GENERATION_LABELS[done.kind]} — ${done.tree.name}`,
+      linkPath: `/trees/${done.tree.id}/charts`,
+      treeId: done.tree.id,
     });
+    await emitEvent(
+      done.tree.workspaceId,
+      "generation.output_ready",
+      { generationJobId, kind: done.kind },
+      { treeId: done.tree.id },
+    );
   }
 }

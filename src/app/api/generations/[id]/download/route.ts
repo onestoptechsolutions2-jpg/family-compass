@@ -3,13 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/rbac";
 import { toBytes } from "@/lib/bytes";
+import { enqueue, QUEUE } from "@/lib/queue";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+const UNLOCKED = new Set(["PAID", "RENDERING_OUTPUT", "OUTPUT_READY"]);
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getSessionUser();
   if (!user) return new NextResponse("Sign in required", { status: 401 });
@@ -18,9 +18,9 @@ export async function GET(
     where: { id },
     select: {
       status: true,
-      outputMediaId: true,
+      outputFileId: true,
       tree: {
-        select: { workspace: { select: { memberships: { select: { userId: true } } } } },
+        select: { id: true, workspace: { select: { memberships: { select: { userId: true } } } } },
       },
     },
   });
@@ -29,23 +29,39 @@ export async function GET(
   const isMember = job.tree.workspace.memberships.some((m) => m.userId === user.id);
   if (!isMember && !user.isPlatformAdmin) return new NextResponse("Forbidden", { status: 403 });
 
-  if (job.status !== "OUTPUT_READY" || !job.outputMediaId) {
-    return new NextResponse("This download is not ready or has not been unlocked", { status: 409 });
+  if (!UNLOCKED.has(job.status)) {
+    return new NextResponse("This download hasn't been unlocked yet", { status: 409 });
   }
 
-  const media = await db.mediaObject.findUnique({
-    where: { id: job.outputMediaId },
-    select: { fileName: true, mimeType: true, bytes: true },
-  });
-  if (!media) return new NextResponse("File missing", { status: 404 });
+  const file = job.outputFileId
+    ? await db.generatedFile.findUnique({
+        where: { id: job.outputFileId },
+        select: { fileName: true, mimeType: true, bytes: true, expiresAt: true },
+      })
+    : null;
 
-  const body = toBytes(media.bytes);
+  const expired = file?.expiresAt && file.expiresAt.getTime() < Date.now();
+
+  if (!file || expired) {
+    // The job is paid but the clean file has lapsed (or a render is still
+    // running) — regenerate for free and notify when it's ready.
+    if (job.status !== "RENDERING_OUTPUT") {
+      await db.generationJob.update({ where: { id }, data: { status: "RENDERING_OUTPUT" } });
+      await enqueue(QUEUE.renderOutput, { generationJobId: id });
+    }
+    return new NextResponse(
+      "This download had expired — we're regenerating it now and will notify you when it's ready.",
+      { status: 202 },
+    );
+  }
+
+  const body = toBytes(file.bytes);
   return new NextResponse(body, {
     status: 200,
     headers: {
-      "Content-Type": media.mimeType,
+      "Content-Type": file.mimeType,
       "Content-Length": String(body.length),
-      "Content-Disposition": `attachment; filename="${media.fileName.replace(/"/g, "")}"`,
+      "Content-Disposition": `attachment; filename="${file.fileName.replace(/"/g, "")}"`,
       "Cache-Control": "private, no-store",
     },
   });

@@ -13,7 +13,6 @@ import {
 import { getPaymentSettings } from "@/lib/payments";
 import { getProvider } from "@/lib/payments";
 import { PersonSelect } from "@/components/PersonSelect";
-import { MediaThumb } from "@/components/media/MediaThumb";
 import {
   createGeneration,
   unlockGeneration,
@@ -298,22 +297,27 @@ export default async function ChartsPage({
                     j.centralPerson.names[0],
                 )
               : null;
-            const canPreview = j.previewMediaId && ["PREVIEW_READY", "AWAITING_PAYMENT", "PAID", "RENDERING_OUTPUT", "OUTPUT_READY"].includes(j.status);
+            const canPreview = j.previewFileId && ["PREVIEW_READY", "AWAITING_PAYMENT", "PAID", "RENDERING_OUTPUT", "OUTPUT_READY"].includes(j.status);
             return (
               <div
                 key={j.id}
                 className="flex flex-wrap items-start gap-4 rounded-xl border p-4"
                 style={{ borderColor: "var(--border)", background: "var(--card)" }}
               >
-                {canPreview && j.previewMediaId ? (
+                {canPreview && j.previewFileId ? (
                   <a
-                    href={`/api/media/${j.previewMediaId}`}
+                    href={`/api/generations/${j.id}/preview`}
                     target="_blank"
                     rel="noreferrer"
                     className="block h-24 w-32 shrink-0 overflow-hidden rounded-lg border"
                     style={{ borderColor: "var(--border)" }}
                   >
-                    <MediaThumb mediaId={j.previewMediaId} mimeType="image/png" alt="preview" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/generations/${j.id}/preview`}
+                      alt="preview"
+                      className="h-full w-full object-cover"
+                    />
                   </a>
                 ) : (
                   <div
@@ -376,13 +380,18 @@ export default async function ChartsPage({
                         </button>
                       </form>
                     )}
-                    {j.status === "OUTPUT_READY" && j.outputMediaId && (
+                    {j.status === "OUTPUT_READY" && j.outputFileId && (
                       <a
                         href={`/api/generations/${j.id}/download`}
                         className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
                       >
                         Download
                       </a>
+                    )}
+                    {(j.status === "PAID" || j.status === "RENDERING_OUTPUT") && (
+                      <span className="text-sm" style={{ color: "var(--muted)" }}>
+                        Preparing your clean file — we&apos;ll notify you when it&apos;s ready.
+                      </span>
                     )}
                   </div>
                 </div>

@@ -1302,6 +1302,10 @@ model GenerationJob {
   nodeCount       Int?
   previewMediaId  String?
   outputMediaId   String?
+  /// generated artifacts live in GeneratedFile, not MediaObject — kept apart
+  /// from user photos, no quota, and time-limited on the server.
+  previewFileId   String?
+  outputFileId    String?
   freeUnlock      Boolean          @default(false)
   unlockedAt      DateTime?
   error           String?          @db.Text
@@ -1314,6 +1318,7 @@ model GenerationJob {
   previewMedia  MediaObject? @relation("GenerationPreview", fields: [previewMediaId], references: [id], onDelete: SetNull)
   outputMedia   MediaObject? @relation("GenerationOutput", fields: [outputMediaId], references: [id], onDelete: SetNull)
 
+  files   GeneratedFile[]
   payment Payment?
 
   @@index([treeId])
@@ -2034,4 +2039,26 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// A rendered generation artifact — preview or clean output — stored apart
+/// from user media (no quota, no gallery) and given a server-side lifetime.
+/// The GC purges rows past `expiresAt`; a paid job whose file is gone just
+/// re-renders on the next download.
+model GeneratedFile {
+  id              String    @id @default(cuid())
+  generationJobId String
+  /// "preview" | "output"
+  phase           String
+  fileName        String
+  mimeType        String
+  byteSize        Int
+  bytes           Bytes
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  job GenerationJob @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
+
+  @@index([generationJobId, phase])
+  @@index([expiresAt])
 }

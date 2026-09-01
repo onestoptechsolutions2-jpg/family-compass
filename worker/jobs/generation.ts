@@ -4,9 +4,11 @@ import { db } from "@/lib/db";
 import type { JobPayloads } from "@/lib/queue";
 import { QUEUE } from "@/lib/queue";
 import { renderGeneration } from "@/lib/generation/render";
+import { purgeExpiredGeneratedFiles } from "@/lib/generation/gc";
 
 type PreviewPayload = JobPayloads[typeof QUEUE.renderPreview];
 type OutputPayload = JobPayloads[typeof QUEUE.renderOutput];
+type GcPayload = JobPayloads[typeof QUEUE.generationGc];
 
 async function run(generationJobId: string, phase: "preview" | "output") {
   try {
@@ -32,4 +34,13 @@ export async function handleRenderPreview(jobs: Job<PreviewPayload>[]) {
 
 export async function handleRenderOutput(jobs: Job<OutputPayload>[]) {
   for (const job of jobs) await run(job.data.generationJobId, "output");
+}
+
+export async function handleGenerationGc(_jobs: Job<GcPayload>[]) {
+  try {
+    const n = await purgeExpiredGeneratedFiles();
+    if (n) console.log(`[generation] gc removed ${n} expired file(s)`);
+  } catch (err) {
+    console.error("[generation] gc failed", err);
+  }
 }

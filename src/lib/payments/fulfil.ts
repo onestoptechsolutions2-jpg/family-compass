@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { KEEPER_PLAN } from "@/lib/pricing";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyWorkspaceOwners } from "@/lib/notify";
+import { resumeAwaitingGenerations } from "@/lib/generation/resume";
 
 /**
  * Mark a payment PAID and run everything downstream (credits / Family plan /
@@ -71,6 +72,12 @@ export async function fulfilPayment(
       note: opts.note ?? "M-Pesa payment",
     });
     summary = `${payment.creditsGranted} credits added`;
+  }
+
+  // Credit bundle or Family plan just cleared → push any parked generations
+  // straight to the clean render (no second "unlock" click).
+  if (payment.kind === PaymentKind.KEEPER || payment.creditsGranted > 0) {
+    await resumeAwaitingGenerations(payment.workspaceId, opts.verifiedById ?? null);
   }
 
   if (treeId) {

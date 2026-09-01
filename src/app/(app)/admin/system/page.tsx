@@ -12,6 +12,7 @@ import {
   purgeOrphanMedia,
   purgeCompletedJobs,
   purgeOldViewEvents,
+  purgeExpiredDownloads,
   runHealthCheck,
 } from "./actions";
 
@@ -96,6 +97,7 @@ export default async function AdminSystemPage() {
           />
         )}
         <Stat label="Media storage" value={humanBytes(s.rows.mediaBytes)} sub={`${s.rows.mediaCount} files`} />
+        <Stat label="Generated files" value={humanBytes(s.rows.generatedBytes)} sub={`${s.rows.generatedCount} artifacts · time-limited`} />
         <Stat label="Records" value={`${s.rows.people.toLocaleString()} people`} sub={`${s.rows.users} users · ${s.rows.trees} trees`} />
         <Stat label="Housekeeping" value={`${s.rows.notifications.toLocaleString()} notifications`} sub={`${s.rows.activity.toLocaleString()} activity · ${s.rows.sessions} sessions`} />
         <Stat
@@ -157,6 +159,7 @@ export default async function AdminSystemPage() {
       {job("Delete orphaned media", "Media rows with no references, cover or export use", purgeOrphanMedia, true)}
       {job("Archive finished jobs", "Completed / failed pg-boss jobs older than 7 days", purgeCompletedJobs)}
       {job("Trim view analytics", "Public-link view events older than 180 days", purgeOldViewEvents.bind(null, 180))}
+      {job("Purge expired downloads", "Generation previews / clean outputs past their lifetime (also runs nightly)", purgeExpiredDownloads)}
     </div>
   );
 

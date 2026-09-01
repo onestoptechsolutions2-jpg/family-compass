@@ -7,6 +7,7 @@ import { requirePlatformAdmin } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { getSystemStats, systemAlerts } from "@/lib/system-stats";
 import { notifyPlatformAdmins } from "@/lib/notify";
+import { purgeExpiredGeneratedFiles } from "@/lib/generation/gc";
 import { env } from "@/lib/env";
 
 const PATH = "/admin/system";
@@ -89,6 +90,13 @@ export async function purgeOldViewEvents(days: number) {
   const cutoff = new Date(Date.now() - days * 864e5);
   const r = await db.viewEvent.deleteMany({ where: { createdAt: { lt: cutoff } } });
   await done("maintenance.views.purge", { days, deleted: r.count }, me.id);
+}
+
+/** Delete generation artifacts (previews + clean outputs) past their lifetime. */
+export async function purgeExpiredDownloads() {
+  const me = await requirePlatformAdmin();
+  const n = await purgeExpiredGeneratedFiles();
+  await done("maintenance.downloads.purge", { deleted: n }, me.id);
 }
 
 /** Archive/remove completed & cancelled pg-boss jobs older than 7 days. */

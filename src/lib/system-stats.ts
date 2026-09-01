@@ -43,6 +43,8 @@ export type SystemStats = {
     installedDevices: number;
     /** distinct users with at least one installed session */
     installUsers: number;
+    generatedBytes: number;
+    generatedCount: number;
   };
 };
 
@@ -100,7 +102,7 @@ export async function getSystemStats(): Promise<SystemStats> {
     /* worker never started — no pgboss schema yet */
   }
 
-  const [users, trees, people, media, notifications, activity, sessions, installedDevices, installUserGroups] =
+  const [users, trees, people, media, notifications, activity, sessions, installedDevices, installUserGroups, generated] =
     await Promise.all([
       db.user.count(),
       db.tree.count(),
@@ -111,6 +113,7 @@ export async function getSystemStats(): Promise<SystemStats> {
       db.session.count(),
       db.session.count({ where: { standalone: true } }),
       db.session.groupBy({ by: ["userId"], where: { standalone: true } }),
+      db.generatedFile.aggregate({ _sum: { byteSize: true }, _count: true }),
     ]);
 
   return {
@@ -148,6 +151,8 @@ export async function getSystemStats(): Promise<SystemStats> {
       sessions,
       installedDevices,
       installUsers: installUserGroups.length,
+      generatedBytes: num(generated._sum.byteSize),
+      generatedCount: generated._count,
     },
   };
 }

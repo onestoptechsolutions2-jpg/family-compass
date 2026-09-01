@@ -19,8 +19,8 @@ export async function getChartsData(treeId: string, workspaceId: string) {
         priceKes: true,
         nodeCount: true,
         error: true,
-        previewMediaId: true,
-        outputMediaId: true,
+        previewFileId: true,
+        outputFileId: true,
         freeUnlock: true,
         createdAt: true,
         centralPerson: {
