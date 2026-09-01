@@ -8,6 +8,8 @@ import { personOptions } from "@/lib/queries/people";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
 import { PersonSelect } from "@/components/PersonSelect";
+import { marriageSteps } from "@/lib/marriage-checklist";
+import { MarriageWizard } from "@/components/MarriageWizard";
 import { updateFamily, addChild, removeChild, deleteFamily } from "../actions";
 
 export default async function FamilyDetailPage({
@@ -21,6 +23,7 @@ export default async function FamilyDetailPage({
   if (!family) notFound();
   const editable = canEdit(ctx.role);
   const options = editable ? await personOptions(treeId) : [];
+  const couple = editable ? await marriageSteps(treeId, familyId) : null;
 
   const childIds = new Set(family.childRefs.map((c) => c.person.id));
   const childOptions = options.filter(
@@ -33,6 +36,9 @@ export default async function FamilyDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {couple && couple.steps.length > 0 && (
+        <MarriageWizard familyId={familyId} label={couple.label} steps={couple.steps} />
+      )}
       <div className="flex items-start justify-between gap-3">
         <div>
           <Link
@@ -42,7 +48,7 @@ export default async function FamilyDetailPage({
           >
             ← Family units
           </Link>
-          <h2 className="mt-1 text-xl font-semibold">Family</h2>
+          <h2 className="mt-1 text-xl font-semibold">Family unit</h2>
         </div>
         {editable && (
           <form action={deleteFamily.bind(null, treeId, familyId)}>

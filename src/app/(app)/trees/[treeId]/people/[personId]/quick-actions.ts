@@ -325,6 +325,11 @@ export async function addEvent(treeId: string, personId: string, formData: FormD
     place: d.place || null,
   });
 
+  const MILESTONE = ["Graduation", "Retirement", "Baptism", "Christening", "Adoption", "Emigration", "Immigration", "Naturalization"];
+  if (MILESTONE.includes(type)) {
+    await flashOk(`${type} recorded. Add a photo, or a "Life now" update on the profile?`);
+  }
+
   redirect(`/trees/${treeId}/people/${personId}`);
 }
 

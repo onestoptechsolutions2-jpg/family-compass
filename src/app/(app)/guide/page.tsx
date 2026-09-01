@@ -58,7 +58,7 @@ export default async function GuidePage({
       steps: [
         { text: "Add yourself first, then work outwards.", href: "/people/new", label: "Add a person" },
         "On a person's page, use the + father / + mother / + partner / + child buttons. Each opens a small form — start typing in the picker to link someone already in the tree, or fill the fields to create a new person.",
-        { text: "In the Families section you can build a couple directly: search for each partner (husband / wife), or type a name and choose “＋ Add …” to create them on the spot. Same for adding children.", href: "/families", label: "Families" },
+        { text: "In the Family units section you can build a couple directly: search for each partner (husband / wife), or type a name and choose “＋ Add …” to create them on the spot. Same for adding children. A new couple gets a short checklist — names, wedding date, births, clans, a photo, inviting the new spouse.", href: "/families", label: "Family units" },
         "Fill in birth, death and marriage dates and places. Charts, reports and the memorial book all read these.",
         "Each profile has a “Complete this profile” panel: it checks what's missing and asks the questions — who were the parents? where were they born? — working toward four generations (self, parents, grandparents, great-grandparents). Hide it and it stays reachable from a small link.",
         "Mark a person deceased with “Record a death”. A short “After a death” checklist then appears on their profile — burial, memorial page, funeral programme, inviting relatives, a welfare fund, publishing — each linking to where it's done. Setting the resting place / burial date in the memorial also records a Burial event on the tree.",
