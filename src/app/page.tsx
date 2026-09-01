@@ -2,7 +2,9 @@ import Link from "next/link";
 
 import { getSessionUser } from "@/lib/rbac";
 import { homePathForUser } from "@/lib/home";
+import { publicShowcase } from "@/lib/queries/showcase";
 import { PeanutArt } from "@/components/GradientArt";
+import { ProofCarousel } from "@/components/ProofCarousel";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
 export const metadata = {
@@ -48,6 +50,7 @@ const FEATURES = [
 export default async function LandingPage() {
   const user = await getSessionUser();
   const appHref = user ? await homePathForUser(user.id) : null;
+  const showcase = await publicShowcase();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6 py-10">
@@ -93,6 +96,29 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Proof of use */}
+      {showcase.top.length > 0 && (
+        <section className="mt-12">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-serif text-2xl">Families already mapping their history</h2>
+              {showcase.totals && (
+                <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                  {showcase.totals.people.toLocaleString()} people recorded across{" "}
+                  {showcase.totals.trees.toLocaleString()} family trees — and counting.
+                </p>
+              )}
+            </div>
+            <Link href="/discover" className="text-sm hover:underline" style={{ color: "var(--color-brand-700)" }}>
+              See who&apos;s on Family Compass →
+            </Link>
+          </div>
+          <div className="mt-5">
+            <ProofCarousel trees={showcase.top} />
+          </div>
+        </section>
+      )}
 
       {/* The idea */}
       <section className="mt-14">
