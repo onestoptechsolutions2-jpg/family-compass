@@ -96,6 +96,7 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    | `ADMIN_EMAILS` | — | comma-separated; platform-admin on first sign-in |
    | `OPEN_SIGNUP` | — | `false` (default) = invite-only, no self-service registration; `true` = anyone may sign in |
    | `ALLOWED_SIGNUP_EMAILS` / `_DOMAINS` | — | extra addresses / whole domains allowed to sign in |
+   | `VAPID_PUBLIC_KEY` / `_PRIVATE_KEY` | — | Web Push for installed apps; `npx web-push generate-vapid-keys`. Unset = device notifications disabled. `VAPID_SUBJECT` optional (defaults to `mailto:<ADMIN_EMAILS[0]>`). |
    | `RUN_SEED_ON_MIGRATE` | — | `true` on the very first deploy only |
 
 3. Attach your domain (e.g. `myroots.laitor.co.ke`) to the **`app`** service.

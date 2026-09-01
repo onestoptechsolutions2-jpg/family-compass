@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { InstallPrompt } from "./InstallPrompt";
+import { PushSetup } from "./PushSetup";
 
 export type WizardStep = { done: boolean; label: string; href: string; cta: string };
 
@@ -102,6 +103,7 @@ export function ClaimedWizard({
         ))}
       </ol>
       <InstallPrompt />
+      <PushSetup compact />
     </div>
   );
 }

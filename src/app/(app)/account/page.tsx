@@ -4,12 +4,15 @@ import { cookies } from "next/headers";
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { sessionCookieName } from "@/lib/session";
+import { NOTIFY_GROUPS, parsePrefs } from "@/lib/push";
+import { PushSetup } from "@/components/PushSetup";
 import {
   setMyPassword,
   removeMyPassword,
   toggleResearchConsent,
   revokeSession,
   revokeOtherSessions,
+  setNotifyPrefs,
 } from "./actions";
 
 function ago(d: Date | null): string {
@@ -37,9 +40,11 @@ export default async function AccountPage() {
       isPlatformAdmin: true,
       researchConsent: true,
       consentVersion: true,
+      notifyPrefs: true,
     },
   });
   const hasPassword = Boolean(user.passwordHash);
+  const prefs = parsePrefs(user.notifyPrefs);
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
 
   const currentToken = (await cookies()).get(sessionCookieName())?.value ?? null;
@@ -197,6 +202,44 @@ export default async function AccountPage() {
             );
           })}
         </ul>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="font-medium">Notifications</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          In-app notifications always appear in{" "}
+          <Link href="/notifications" className="hover:underline" style={{ color: "var(--link)" }}>your inbox</Link>.
+          Device notifications need turning on per device.
+        </p>
+
+        <div className="mt-3">
+          <PushSetup />
+        </div>
+
+        <form action={setNotifyPrefs} className="mt-4 flex flex-col gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="push" defaultChecked={prefs.push !== false} />
+            <span>Send device notifications (when a device is set up above)</span>
+          </label>
+          <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>Don&apos;t notify me about:</p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {NOTIFY_GROUPS.map((g) => (
+              <label key={g.key} className="flex items-center gap-2">
+                <input type="checkbox" name={`mute_${g.key}`} defaultChecked={prefs.muted.includes(g.key)} />
+                <span>{g.label}</span>
+              </label>
+            ))}
+          </div>
+          <button
+            className="mt-2 self-start rounded-lg border px-3 py-1.5"
+            style={{ borderColor: "var(--border)" }}
+          >
+            Save notification settings
+          </button>
+        </form>
       </section>
     </div>
   );

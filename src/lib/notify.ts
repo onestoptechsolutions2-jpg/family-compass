@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { Role } from "@prisma/client";
 import type { EventName } from "@/lib/events-catalog";
+import { sendPushToUser } from "@/lib/push";
 
 type NotifyInput = {
   kind: EventName | (string & {});
@@ -11,7 +12,7 @@ type NotifyInput = {
   treeId?: string | null;
 };
 
-/** In-app notification for one user. Never throws. */
+/** In-app notification for one user, plus a device push if they've enabled it. */
 export async function notifyUser(userId: string, n: NotifyInput): Promise<void> {
   try {
     await db.notification.create({
@@ -28,6 +29,12 @@ export async function notifyUser(userId: string, n: NotifyInput): Promise<void> 
   } catch (err) {
     console.error("[notify] failed", err);
   }
+  await sendPushToUser(userId, {
+    title: n.title,
+    body: n.body,
+    url: n.linkPath,
+    kind: String(n.kind),
+  });
 }
 
 async function fanOut(userIds: string[], n: NotifyInput): Promise<void> {
@@ -48,6 +55,16 @@ async function fanOut(userIds: string[], n: NotifyInput): Promise<void> {
   } catch (err) {
     console.error("[notify] fan-out failed", err);
   }
+  await Promise.all(
+    ids.map((userId) =>
+      sendPushToUser(userId, {
+        title: n.title,
+        body: n.body,
+        url: n.linkPath,
+        kind: String(n.kind),
+      }),
+    ),
+  );
 }
 
 /** Notify every EDITOR/OWNER member of the tree's workspace. */

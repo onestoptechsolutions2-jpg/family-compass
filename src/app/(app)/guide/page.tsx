@@ -88,6 +88,7 @@ export default async function GuidePage({
         "Claiming only applies to living people. Recording a death releases any account link — the profile becomes a memorial, and “This is you” / “Mark as claimed” no longer appear on it.",
         { text: "The Claims page has an “Account claims” section that groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there.", href: "/claims", label: "Claims" },
         { text: "The Reports page opens with a “Family energy” bar — one 0–100 score for how living and complete the record is (connected people, dated lives, photos, events, memories, bonds), and the same broken down per household.", href: "/reports", label: "Reports" },
+        "In Account, turn on device notifications (per device, best with the app installed) and choose which categories to mute. Your in-app inbox always keeps everything.",
       ],
     },
     {

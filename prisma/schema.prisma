@@ -38,8 +38,12 @@ model User {
 
   isPlatformAdmin Boolean @default(false)
 
-  accounts Account[]
-  sessions Session[]
+  /// per-user notification prefs: { push: bool, muted: string[] (event kinds) }
+  notifyPrefs Json?
+
+  accounts          Account[]
+  sessions          Session[]
+  pushSubscriptions PushSubscription[]
 
   memberships          Membership[]
   invitationsSent      Invitation[]           @relation("InvitedBy")
@@ -2014,4 +2018,20 @@ model FriendLinkAssertion {
   byPerson Person     @relation("FriendLinkAssertionBy", fields: [byPersonId], references: [id], onDelete: Cascade)
 
   @@unique([linkId, byPersonId])
+}
+
+/// A browser Web Push subscription. One per installed app / browser profile.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  ua        String?
+  createdAt DateTime @default(now())
+  lastOkAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

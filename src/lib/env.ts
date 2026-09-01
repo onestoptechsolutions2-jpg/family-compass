@@ -87,6 +87,15 @@ const schema = z.object({
       const n = Number(v);
       return Number.isFinite(n) && n > 0 ? n : 5;
     }),
+  // --- Web Push (installed-app device notifications) --------------------
+  // All optional: push stays disabled until a VAPID key pair is supplied.
+  // Generate once with:  npx web-push generate-vapid-keys
+  VAPID_PUBLIC_KEY: z.string().optional().default(""),
+  VAPID_PRIVATE_KEY: z.string().optional().default(""),
+  // Contact URI for the push service (mailto: or https:). Falls back to a
+  // mailto: built from the first ADMIN_EMAILS entry.
+  VAPID_SUBJECT: z.string().optional().default(""),
+
   ALLOWED_SIGNUP_EMAILS: z.string().optional().default("").transform(csvLower),
   ALLOWED_SIGNUP_DOMAINS: z
     .string()
@@ -130,6 +139,13 @@ export const hasEmailProvider = Boolean(env.EMAIL_SERVER && env.EMAIL_FROM);
 export const hasDaraja = Boolean(
   env.MPESA_CONSUMER_KEY && env.MPESA_CONSUMER_SECRET && env.MPESA_SHORTCODE && env.MPESA_PASSKEY,
 );
+
+export const hasWebPush = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+export function vapidSubject(): string {
+  if (env.VAPID_SUBJECT) return env.VAPID_SUBJECT;
+  const admin = env.ADMIN_EMAILS[0];
+  return admin ? `mailto:${admin}` : "mailto:notifications@familycompass.app";
+}
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;

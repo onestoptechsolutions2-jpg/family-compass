@@ -9,6 +9,16 @@ import { hashPassword, verifyPassword, passwordProblem } from "@/lib/password";
 import { setResearchConsent } from "@/lib/consent";
 import { sessionCookieName } from "@/lib/session";
 import { flashOk, flashErr } from "@/lib/flash";
+import { NOTIFY_GROUPS } from "@/lib/push";
+
+export async function setNotifyPrefs(formData: FormData) {
+  const me = await requireUser();
+  const push = formData.get("push") === "on";
+  const muted = NOTIFY_GROUPS.filter((g) => formData.get(`mute_${g.key}`) === "on").map((g) => g.key);
+  await db.user.update({ where: { id: me.id }, data: { notifyPrefs: { push, muted } } });
+  await flashOk("Notification settings saved.");
+  redirect("/account");
+}
 
 export async function toggleResearchConsent(formData: FormData) {
   const me = await requireUser();
