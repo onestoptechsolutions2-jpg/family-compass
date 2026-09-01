@@ -61,11 +61,25 @@ async function migrationReport() {
  * browser. Returns 503 when the DB is down or migrations are pending/failed.
  */
 export async function GET() {
+  // Booleans only — never the value. `false` here means the runtime container
+  // is missing the var (often set build-only on the deploy platform).
+  const envPresent = {
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    AUTH_SECRET: !!process.env.AUTH_SECRET,
+    APP_URL: !!process.env.APP_URL,
+  };
+
   try {
     await db.$queryRaw`SELECT 1`;
   } catch (err) {
     return NextResponse.json(
-      { ok: false, build: BUILD, db: "down", error: err instanceof Error ? err.message : String(err) },
+      {
+        ok: false,
+        build: BUILD,
+        db: "down",
+        env: envPresent,
+        error: err instanceof Error ? err.message : String(err),
+      },
       { status: 503 },
     );
   }
@@ -79,6 +93,7 @@ export async function GET() {
     ok: true,
     build: BUILD,
     db: "up",
+    env: envPresent,
     schemaUpToDate: mig.schema === "up-to-date",
     ...mig,
     ts: new Date().toISOString(),
