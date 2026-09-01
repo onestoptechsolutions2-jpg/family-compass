@@ -36,7 +36,8 @@ const ENDPOINTS: { m: string; path: string; scope: string; desc: string }[] = [
   { m: "GET", path: "/trees/{treeId}/people/{personId}", scope: "read", desc: "One person with parents and families." },
   { m: "POST", path: "/trees/{treeId}/people", scope: "write", desc: "Create a person (optionally with birth/death). Emits `person.created`." },
   { m: "GET", path: "/trees/{treeId}/families?limit&cursor", scope: "read", desc: "Paginated families with partner ids and child ids." },
-  { m: "GET", path: "/trees/{treeId}/relationships?limit&cursor", scope: "read", desc: "Chosen / kin relationship edges: person id pair, roles, derived closeness score, origin context, reciprocity. No names or free text." },
+  { m: "GET", path: "/trees/{treeId}/relationships?limit&cursor", scope: "read", desc: "Chosen / kin relationship edges within the tree: person id pair, roles, derived closeness score, origin context, reciprocity. No names or free text." },
+  { m: "GET", path: "/trees/{treeId}/friend-links?limit&cursor", scope: "read", desc: "Cross-tree friend links touching this tree (person + tree id on each side, roles, score, origin context, reciprocity). No names or free text." },
   { m: "GET", path: "/trees/{treeId}/statistics", scope: "read", desc: "Aggregate statistics (totals, decades, surnames, clans) plus the `energy` score and its parts." },
   { m: "GET", path: "/trees/{treeId}/events?limit&cursor", scope: "read", desc: "Recent activity stream for the tree." },
 ];

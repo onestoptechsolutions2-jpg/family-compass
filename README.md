@@ -44,6 +44,9 @@ Family plan, and commissioned research are paid (M-Pesa).
 | 6 | Paid generation — watermarked preview → first-free / credit / M-Pesa Till bundle → admin verify → clean download. Pedigree/fan/descendant PDF, family-book PDF, GEDCOM + `.gramps` exports. Pluggable payment provider + `/admin/payments` + `/admin/settings` | ✅ done |
 | 7 | Marketing pages, rate limiting, audit log, backups, admin console | ⏳ planned |
 | R | **Relationships as shared history** — `Memory` / `MemoryParticipant` (co-owned, each side annotates), `RelationEdge` (derived closeness score, never a slider; carries the origin story — text + context + "through" person), `RelationAssertion` (per-side, so reciprocity is measurable). Person-page **Circle** tab; **Family energy** bar on Reports (tree-wide + per household); `GET /api/v1/trees/{id}/relationships`; `memory.added` / `relation.named` webhooks. | 🟡 in progress |
+| R2 | **Friend links** — invite a non-relative → they get their own seeded tree and a cross-tree `FriendLink` joins the two people (`/f/<token>`, WhatsApp sign-in, no email). "From other families" on the Circle tab; `GET /api/v1/trees/{id}/friend-links`; `friend.invited` / `friend.linked` webhooks. | 🟡 in progress |
+| R3 | **Profile analyzer** — `analyzeProfile()` finds the gaps (birth, place, photo, clan, then parents → grandparents → great-grandparents) and a persistent `<ProfileGaps>` wizard on the person page works toward four generations (present vs a 14-ancestor target). | 🟡 in progress |
+| R4 | **Device notifications** — opt-in Web Push (`web-push` + VAPID, `public/sw.js`), `PushSubscription` + `User.notifyPrefs`. `<PushSetup>` in the claimed-profile wizard and on `/account` with a per-category mute form. Off until `VAPID_*` is set. | 🟡 in progress |
 
 Full plan: `.claude/plans/async-inventing-fountain.md` (or ask).
 
