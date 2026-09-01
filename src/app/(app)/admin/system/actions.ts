@@ -118,6 +118,44 @@ export async function purgeCompletedJobs() {
   await done("maintenance.jobs.purge", { deleted }, me.id);
 }
 
+/** Put failed pg-boss jobs back in the queue for another attempt. */
+export async function retryFailedJobs() {
+  const me = await requirePlatformAdmin();
+  let requeued = 0;
+  try {
+    const rows = await db.$queryRawUnsafe<{ n: bigint }[]>(
+      `WITH u AS (UPDATE pgboss.job
+         SET state = 'created', startedon = NULL, completedon = NULL,
+             retrycount = 0, output = NULL
+         WHERE state = 'failed'
+         RETURNING 1)
+       SELECT count(*)::bigint AS n FROM u`,
+    );
+    requeued = Number(rows[0]?.n ?? 0);
+  } catch (err) {
+    console.error("[jobs] retry failed", err);
+  }
+  await done("jobs.retry_failed", { requeued }, me.id);
+}
+
+/** Re-enqueue a single generation job's render (preview or clean output). */
+export async function requeueGeneration(jobId: string) {
+  const me = await requirePlatformAdmin();
+  const { enqueue, QUEUE } = await import("@/lib/queue");
+  const job = await db.generationJob.findUnique({
+    where: { id: jobId },
+    select: { id: true, status: true },
+  });
+  if (!job) return;
+  const wantsOutput = job.status === "PAID" || job.status === "RENDERING_OUTPUT";
+  await db.generationJob.update({
+    where: { id: jobId },
+    data: { status: wantsOutput ? "PAID" : "QUEUED", error: null },
+  });
+  await enqueue(wantsOutput ? QUEUE.renderOutput : QUEUE.renderPreview, { generationJobId: jobId });
+  await done("jobs.requeue_generation", { jobId, phase: wantsOutput ? "output" : "preview" }, me.id);
+}
+
 /** Run the health check on demand and notify admins of any breach. */
 export async function runHealthCheck() {
   const me = await requirePlatformAdmin();

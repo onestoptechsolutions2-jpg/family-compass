@@ -1,6 +1,9 @@
+import Link from "next/link";
+
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { env } from "@/lib/env";
 import { getSystemStats, systemAlerts, humanBytes } from "@/lib/system-stats";
+import { queueJobs, pendingGenerations, pendingImports } from "@/lib/queries/jobs";
 import { listAudit } from "@/lib/audit";
 import { activityKind, activityKindMeta } from "@/lib/activity";
 import { Tabs } from "@/components/Tabs";
@@ -13,6 +16,8 @@ import {
   purgeCompletedJobs,
   purgeOldViewEvents,
   purgeExpiredDownloads,
+  retryFailedJobs,
+  requeueGeneration,
   runHealthCheck,
 } from "./actions";
 
@@ -46,8 +51,20 @@ function Bar({ pct }: { pct: number }) {
 
 export default async function AdminSystemPage() {
   await requirePlatformAdmin();
-  const [s, audit] = await Promise.all([getSystemStats(), listAudit(120)]);
+  const [s, audit, qJobs, genJobs, impJobs] = await Promise.all([
+    getSystemStats(),
+    listAudit(120),
+    queueJobs(),
+    pendingGenerations(),
+    pendingImports(),
+  ]);
   const alerts = systemAlerts(s, { dbAlertGB: env.SYSTEM_DB_ALERT_GB });
+  const failedCount = qJobs?.filter((j) => j.state === "failed").length ?? 0;
+  const jobsPending = (qJobs?.length ?? 0) + genJobs.length + impJobs.length;
+  const ago = (d: Date) => {
+    const m = Math.floor((Date.now() - d.getTime()) / 60000);
+    return m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`;
+  };
 
   const resources = (
     <>
@@ -163,6 +180,98 @@ export default async function AdminSystemPage() {
     </div>
   );
 
+  const jobs = (
+    <div className="flex flex-col gap-5 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <span style={{ color: "var(--muted)" }}>
+          {jobsPending === 0 ? "Nothing pending." : `${jobsPending} item${jobsPending === 1 ? "" : "s"} outstanding`}
+          {failedCount > 0 ? ` · ${failedCount} failed` : ""}
+        </span>
+        {failedCount > 0 && (
+          <form action={retryFailedJobs}>
+            <button className="rounded-lg border px-3 py-1.5 text-xs" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
+              Retry {failedCount} failed job{failedCount === 1 ? "" : "s"}
+            </button>
+          </form>
+        )}
+      </div>
+
+      <section>
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          Worker queue {qJobs === null ? "(worker not started)" : `(${qJobs.length})`}
+        </h3>
+        <div className="mt-2 overflow-x-auto rounded-xl border" style={{ borderColor: "var(--border)" }}>
+          <table className="w-full">
+            <thead>
+              <tr className="text-left" style={{ color: "var(--muted)" }}>
+                <th className="px-3 py-1.5 font-medium">Job</th>
+                <th className="px-3 py-1.5 font-medium">State</th>
+                <th className="px-3 py-1.5 font-medium">Tries</th>
+                <th className="px-3 py-1.5 font-medium">Age</th>
+                <th className="px-3 py-1.5 font-medium">Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(qJobs ?? []).map((j) => (
+                <tr key={j.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                  <td className="px-3 py-1.5 font-mono text-xs">{j.name}</td>
+                  <td className="px-3 py-1.5" style={{ color: j.state === "failed" ? "var(--danger)" : undefined }}>{j.state}</td>
+                  <td className="px-3 py-1.5">{j.retryCount}/{j.retryLimit}</td>
+                  <td className="px-3 py-1.5" style={{ color: "var(--muted)" }}>{ago(j.createdOn)}</td>
+                  <td className="px-3 py-1.5 text-xs" style={{ color: "var(--muted)" }}>{j.error ?? ""}</td>
+                </tr>
+              ))}
+              {qJobs !== null && qJobs.length === 0 && (
+                <tr><td colSpan={5} className="px-3 py-3 text-center" style={{ color: "var(--muted)" }}>Queue clear.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          Generations in flight ({genJobs.length})
+        </h3>
+        <div className="mt-2 flex flex-col gap-2">
+          {genJobs.map((g) => (
+            <div key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--border)" }}>
+              <div>
+                <Link href={`/trees/${g.tree.id}/charts`} className="font-medium hover:underline">{g.tree.name}</Link>
+                <span style={{ color: "var(--muted)" }}>
+                  {" "}· {g.kind} · <span style={{ color: g.status === "FAILED" ? "var(--danger)" : undefined }}>{g.status}</span> · {ago(g.updatedAt)} · {g.requestedBy.name ?? g.requestedBy.email}
+                </span>
+                {g.error && <div className="text-xs" style={{ color: "var(--danger)" }}>{g.error}</div>}
+              </div>
+              <form action={requeueGeneration.bind(null, g.id)}>
+                <button className="rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border)" }}>Requeue</button>
+              </form>
+            </div>
+          ))}
+          {genJobs.length === 0 && <p style={{ color: "var(--muted)" }}>None.</p>}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          Imports ({impJobs.length})
+        </h3>
+        <div className="mt-2 flex flex-col gap-2">
+          {impJobs.map((i) => (
+            <div key={i.id} className="rounded-lg border p-2.5" style={{ borderColor: "var(--border)" }}>
+              <Link href={`/trees/${i.tree.id}/import`} className="font-medium hover:underline">{i.tree.name}</Link>
+              <span style={{ color: "var(--muted)" }}>
+                {" "}· {i.kind} · <span style={{ color: i.status === "FAILED" ? "var(--danger)" : undefined }}>{i.status}</span> · {i.fileName} · {ago(i.updatedAt)}
+              </span>
+              {i.error && <div className="text-xs" style={{ color: "var(--danger)" }}>{i.error}</div>}
+            </div>
+          ))}
+          {impJobs.length === 0 && <p style={{ color: "var(--muted)" }}>None.</p>}
+        </div>
+      </section>
+    </div>
+  );
+
   const backup = (
     <div className="flex flex-col gap-3 text-sm">
       <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
@@ -222,6 +331,7 @@ pg_restore --no-owner --clean --if-exists -d "$DATABASE_URL" backup.dump`}</pre>
       <Tabs
         items={[
           { id: "resources", label: "Resources", badge: alerts.length || undefined, panel: resources },
+          { id: "jobs", label: "Jobs", badge: failedCount || undefined, panel: jobs },
           { id: "maintenance", label: "Maintenance", panel: maintenance },
           { id: "backup", label: "Backup & restore", panel: backup },
           { id: "log", label: "Admin log", panel: log },
