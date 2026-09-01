@@ -28,6 +28,7 @@ describe("events catalogue", () => {
       "friend.invited",
       "friend.linked",
       "payment.receipt_issued",
+      "person.life_update",
     ] as const) {
       expect(isEventName(name)).toBe(true);
     }

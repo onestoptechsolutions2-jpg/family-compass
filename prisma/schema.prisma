@@ -80,6 +80,7 @@ model User {
   authoredMemories      Memory[]              @relation("MemoryAuthor")
   friendInvitesSent     FriendInvite[]        @relation("FriendInviteInviter")
   treesAdministered     Tree[]                @relation("TreeFamilyAdmin")
+  lifeUpdates           LifeUpdate[]          @relation("LifeUpdateAuthor")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -514,6 +515,7 @@ model Tree {
   chamaLink      ChamaLink?
   memories       Memory[]
   relationEdges  RelationEdge[]
+  lifeUpdates       LifeUpdate[]
   friendInvitesFrom FriendInvite[] @relation("FriendInviteFromTree")
   friendLinksAsA    FriendLink[]   @relation("FriendLinkATree")
   friendLinksAsB    FriendLink[]   @relation("FriendLinkBTree")
@@ -655,6 +657,7 @@ model Person {
   friendLinksAsA       FriendLink[]       @relation("FriendLinkA")
   friendLinksAsB       FriendLink[]       @relation("FriendLinkB")
   friendLinkAssertions FriendLinkAssertion[] @relation("FriendLinkAssertionBy")
+  lifeUpdates          LifeUpdate[]
 
   tags Tag[] @relation("PersonTags")
 
@@ -2073,4 +2076,29 @@ model GeneratedFile {
 
   @@index([generationJobId, phase])
   @@index([expiresAt])
+}
+
+/// "Life now" — an ongoing, updatable status about a person's *present*:
+/// current illness, what they're studying, a new job, a milestone. Distinct
+/// from Event (dated history) and Memory (shared past). One `current` row per
+/// category is kept live; older ones stay in the reel.
+model LifeUpdate {
+  id          String   @id @default(cuid())
+  treeId      String
+  personId    String
+  /// health | education | work | family | home | faith | travel | milestone | other
+  category    String   @default("other")
+  body        String   @db.Text
+  current     Boolean  @default(true)
+  since       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tree      Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("LifeUpdateAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([treeId, createdAt])
+  @@index([personId, current])
 }

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { collectAnniversaries } from "@/lib/queries/anniversaries";
+import { treeLifeReel, lifeCategoryMeta } from "@/lib/life";
+import { displayName } from "@/lib/person";
 import { ACTIVITY_KINDS, activityKind, type ActivityKind } from "@/lib/activity";
 
 export const metadata = { title: "Updates" };
@@ -25,6 +27,7 @@ export default async function UpdatesPage({
   await loadTreeContext(treeId);
 
   const anniversaries = await collectAnniversaries(treeId, 30);
+  const lifeReel = await treeLifeReel(treeId, 20);
 
   const events = await db.activityEvent.findMany({
     where: { treeId },
@@ -77,6 +80,31 @@ export default async function UpdatesPage({
           </ul>
         )}
       </section>
+
+      {lifeReel.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Family life reel</h2>
+          <ul className="flex flex-col">
+            {lifeReel.map((l) => (
+              <li
+                key={l.id}
+                className="flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-0"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <span>
+                  <Link href={`/trees/${treeId}/people/${l.person.id}#tab=life`} className="font-medium hover:underline">
+                    {displayName(l.person.names)}
+                  </Link>{" "}
+                  <span style={{ color: "var(--muted)" }}>
+                    {lifeCategoryMeta(l.category).emoji} {l.body}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>{ago(l.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Recent activity</h2>

@@ -7,7 +7,9 @@ import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
 import { personCircle, personMemories, RELATION_ROLES, RELATION_CONTEXTS } from "@/lib/relationships";
 import { friendLinksForPerson, pendingFriendInvites } from "@/lib/friends";
+import { personLifeNow, personLifeReel, LIFE_CATEGORIES, lifeCategoryMeta } from "@/lib/life";
 import { addMemoryAction, addToCircleAction, inviteFriendAction } from "./relationship-actions";
+import { addLifeUpdateAction, endLifeUpdateAction } from "./life-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { analyzeProfile } from "@/lib/profile-analyzer";
 import { ClaimedWizard } from "@/components/ClaimedWizard";
@@ -79,11 +81,13 @@ export default async function PersonDetailPage({
   if (!person) notFound();
   const relations = await getPersonRelations(treeId, personId);
   const media = await personMedia(treeId, personId);
-  const [circle, relMemories, friendLinks, friendPending] = await Promise.all([
+  const [circle, relMemories, friendLinks, friendPending, lifeNow, lifeReel] = await Promise.all([
     personCircle(treeId, personId),
     personMemories(treeId, personId),
     friendLinksForPerson(personId),
     pendingFriendInvites(treeId),
+    personLifeNow(personId),
+    personLifeReel(personId),
   ]);
   const myFriendPending = friendPending.filter((f) => f.fromPersonId === personId);
   const analysis = canEdit(ctx.role) ? await analyzeProfile(treeId, personId, ctx.user.id) : null;
@@ -117,7 +121,13 @@ export default async function PersonDetailPage({
         ? "living"
         : null,
     person.clan ? `${person.clan.name} clan${person.subClan ? ` (${person.subClan})` : ""}` : null,
+    ...(deceased
+      ? []
+      : lifeNow
+          .filter((l) => l.category === "health" || l.category === "education" || l.category === "work")
+          .map((l) => `${lifeCategoryMeta(l.category).emoji} ${l.body}`)),
   ].filter(Boolean);
+  const canPostLife = !deceased && (canEdit(ctx.role) || person.claimedByUserId === ctx.user.id);
   const avatarId = media.find((r) => r.media.mimeType.startsWith("image/"))?.media.id ?? null;
 
   const manages = canManageTree(ctx.role);
@@ -1167,6 +1177,110 @@ export default async function PersonDetailPage({
                       ))}
                     </ul>
                   </div>
+                )}
+              </section>
+            ),
+          },
+          {
+            id: "life",
+            label: "Life now",
+            badge: lifeNow.length || undefined,
+            panel: deceased ? (
+              <section
+                className="rounded-xl border p-4 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--card)", color: "var(--muted)" }}
+              >
+                Life updates are for living people. This person&apos;s story is on their timeline and memorial.
+              </section>
+            ) : (
+              <section
+                className="flex flex-col gap-4 rounded-xl border p-4"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-medium">Life now</h3>
+                    <p className="text-sm" style={{ color: "var(--muted)" }}>
+                      What&apos;s going on for {displayName(person.names)} right now — health, study,
+                      work, a milestone. A reel you can scroll back through.
+                    </p>
+                  </div>
+                  {canPostLife && (
+                    <Dialog label="Post an update" title="What's going on?" wide>
+                      <form action={addLifeUpdateAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                        <label className="text-sm">
+                          <span style={{ color: "var(--muted)" }}>About</span>
+                          <select name="category" defaultValue="other" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                            {LIFE_CATEGORIES.map((c) => (
+                              <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-sm">
+                          <span style={{ color: "var(--muted)" }}>What&apos;s the update?</span>
+                          <textarea name="body" rows={3} required placeholder="2nd year Law at UoN · recovering from a knee op · started a new job at KRA" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                        </label>
+                        <label className="text-sm">
+                          <span style={{ color: "var(--muted)" }}>Since (optional)</span>
+                          <input name="since" placeholder="March 2024 · this year" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" name="current" defaultChecked /> This is the situation right now
+                        </label>
+                        <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                          Post
+                        </button>
+                      </form>
+                    </Dialog>
+                  )}
+                </div>
+
+                {lifeNow.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+                      Right now
+                    </h4>
+                    <ul className="flex flex-col gap-1.5">
+                      {lifeNow.map((l) => (
+                        <li key={l.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2.5 text-sm" style={{ borderColor: "var(--hairline)" }}>
+                          <span>{lifeCategoryMeta(l.category).emoji}</span>
+                          <span className="font-medium">{l.body}</span>
+                          {l.since && <span className="text-xs" style={{ color: "var(--muted)" }}>· since {l.since}</span>}
+                          {canPostLife && (
+                            <form action={endLifeUpdateAction.bind(null, treeId, personId, l.id)} className="ml-auto">
+                              <button className="text-xs hover:underline" style={{ color: "var(--muted)" }}>✓ no longer</button>
+                            </form>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {lifeReel.length > 0 ? (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>The reel</h4>
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {lifeReel.map((l) => (
+                        <li key={l.id} className="rounded-lg border p-3 text-sm" style={{ borderColor: "var(--hairline)" }}>
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span>{lifeCategoryMeta(l.category).emoji} {lifeCategoryMeta(l.category).label}</span>
+                            {l.current && (
+                              <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>current</span>
+                            )}
+                            <span className="text-xs" style={{ color: "var(--muted)" }}>
+                              {l.createdAt.toISOString().slice(0, 10)}
+                              {l.createdBy?.name ? ` · ${l.createdBy.name}` : ""}
+                            </span>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap">{l.body}</p>
+                          {l.since && <p className="mt-0.5 text-xs" style={{ color: "var(--muted)" }}>since {l.since}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm" style={{ color: "var(--muted)" }}>Nothing yet.</p>
                 )}
               </section>
             ),

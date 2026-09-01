@@ -61,7 +61,8 @@ export default async function GuidePage({
         { text: "In the Families section you can build a couple directly: search for each partner (husband / wife), or type a name and choose “＋ Add …” to create them on the spot. Same for adding children.", href: "/families", label: "Families" },
         "Fill in birth, death and marriage dates and places. Charts, reports and the memorial book all read these.",
         "Each profile has a “Complete this profile” panel: it checks what's missing and asks the questions — who were the parents? where were they born? — working toward four generations (self, parents, grandparents, great-grandparents). Hide it and it stays reachable from a small link.",
-        "Mark a person deceased with “Record a death” — that unlocks their memorial page.",
+        "Mark a person deceased with “Record a death” — that unlocks their memorial page. Burial (and vigil, service, interment) is recorded as an ordinary event, or from the memorial programme — no separate step.",
+        "Dates take partial or approximate values — “1948”, “March 1948”, “about 1950”, “before 1960”, “1950s”, “between 1948 and 1952”. Places can be just a county or a village.",
       ],
     },
     {
@@ -101,6 +102,7 @@ export default async function GuidePage({
         "Closeness is read from that record — how many memories you share, how recent, whether both sides name it — never a number you set. It shows with its evidence.",
         "“Invite a friend” (for someone not on this tree and not related) sends a link. They start their own tree, centred on themselves — no email or password — and a cross-family link connects the two of you. Neither can see into the other's tree.",
         "The family you build counts as much as the one you come from.",
+        { text: "The “Life now” tab on a profile is a reel of what's going on for someone right now — current illness, what they're studying, a new job, a milestone. One live entry per topic; older ones stay in the reel. The person themselves can post if they've claimed their profile, and the family life reel gathers everyone's recent updates.", href: "/updates", label: "Updates" },
       ],
     },
     {
