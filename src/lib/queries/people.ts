@@ -185,6 +185,9 @@ export async function getPersonDetail(treeId: string, personId: string) {
       clanId: true,
       subClan: true,
       clan: { select: { name: true } },
+      namedAfterId: true,
+      namedAfter: { select: { id: true, names: { select: NAME_SELECT } } },
+      namesakes: { select: { id: true, names: { select: NAME_SELECT } }, orderBy: { createdAt: "asc" } },
       names: { select: NAME_SELECT, orderBy: { order: "asc" } },
       attributes: { select: { id: true, type: true, value: true }, orderBy: { order: "asc" } },
       eventRefs: {

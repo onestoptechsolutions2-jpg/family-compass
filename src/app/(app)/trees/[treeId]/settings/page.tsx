@@ -11,6 +11,7 @@ import {
   setHomePerson,
   setFamilyAdmin,
   updateDiscovery,
+  updateLineage,
   updateAnniversaryReminders,
   deleteTree,
 } from "./actions";
@@ -37,6 +38,8 @@ export default async function TreeSettingsPage({
       showcase: true,
       community: true,
       region: true,
+      clanInheritance: true,
+      inheritSurname: true,
       anniversaryReminders: true,
     },
   });
@@ -177,6 +180,41 @@ export default async function TreeSettingsPage({
               />
             </label>
           </div>
+          <div>
+            <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+              Save
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h3 className="font-medium">Clan &amp; naming</h3>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          When you add a child, they take their clan — and, if you like, their family name — from
+          one parent by default. Most Kenyan communities reckon this through the father.
+        </p>
+        <form action={updateLineage.bind(null, treeId)} className="mt-3 flex flex-col gap-3">
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Inherit clan from</span>
+            <select
+              name="clanInheritance"
+              defaultValue={tree.clanInheritance}
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm sm:w-64"
+              style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            >
+              <option value="PATRILINEAL">the father (patrilineal)</option>
+              <option value="MATRILINEAL">the mother (matrilineal)</option>
+              <option value="NONE">don&apos;t inherit automatically</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="inheritSurname" value="true" defaultChecked={tree.inheritSurname} />
+            Also copy that parent&apos;s family name to a new child when it&apos;s left blank
+          </label>
           <div>
             <button className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
               Save

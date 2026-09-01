@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
 import { createBarePerson } from "@/lib/person-write";
+import { applyLineageInheritance } from "@/lib/lineage";
 import { emitTreeEvent } from "@/lib/webhooks";
 
 const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -116,6 +117,14 @@ export async function addChild(treeId: string, familyId: string, formData: FormD
     update: { partner1Relation: rel, partner2Relation: rel },
     create: { familyId, personId, order: count, partner1Relation: rel, partner2Relation: rel },
   });
+
+  const namedAfter = String(formData.get("namedAfterId") ?? "").trim();
+  if (namedAfter) {
+    const ok = await db.person.findFirst({ where: { id: namedAfter, treeId }, select: { id: true } });
+    if (ok) await db.person.update({ where: { id: personId }, data: { namedAfterId: ok.id } });
+  }
+  await applyLineageInheritance(treeId, familyId, personId);
+
   revalidatePath(`/trees/${treeId}/families/${familyId}`);
 }
 

@@ -15,6 +15,7 @@ import { saveSelfNodeAction } from "./self-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { analyzeProfile } from "@/lib/profile-analyzer";
 import { bereavementSteps } from "@/lib/bereavement";
+import { namesakeSuggestions } from "@/lib/lineage";
 import { ClaimedWizard } from "@/components/ClaimedWizard";
 import { ProfileGaps } from "@/components/ProfileGaps";
 import { BereavementWizard } from "@/components/BereavementWizard";
@@ -107,6 +108,18 @@ export default async function PersonDetailPage({
         .map((o) => ({ id: o.id, label: o.label }))
     : [];
 
+  // Suggested namesakes (grandparents) per family, for the "named after" picker.
+  const namesakesByFamily = editable
+    ? Object.fromEntries(
+        await Promise.all(
+          (relations?.families ?? []).map(
+            async (f) =>
+              [f.id, (await namesakeSuggestions(treeId, f.id)).map((s) => ({ id: s.id, label: `${s.name} (${s.label})` }))] as const,
+          ),
+        ),
+      )
+    : {};
+
   const events = [...person.eventRefs]
     .map((r) => r.event)
     .sort((a, b) => dateSortKey(a).localeCompare(dateSortKey(b)));
@@ -127,6 +140,7 @@ export default async function PersonDetailPage({
         ? "living"
         : null,
     person.clan ? `${person.clan.name} clan${person.subClan ? ` (${person.subClan})` : ""}` : null,
+    person.namedAfter ? `named after ${displayName(person.namedAfter.names)}` : null,
     ...(deceased
       ? []
       : lifeNow
@@ -746,6 +760,7 @@ export default async function PersonDetailPage({
                           action={addChildToFamily.bind(null, treeId, f.id)}
                           back={`/trees/${treeId}/people/${personId}`}
                           people={pickList}
+                          namesakes={namesakesByFamily[f.id] ?? []}
                         />
                       )}
                     </div>
@@ -779,6 +794,37 @@ export default async function PersonDetailPage({
               </div>
             )}
           </div>
+
+          {(person.namedAfter || person.namesakes.length > 0) && (
+            <div
+              className="rounded-xl border p-4"
+              style={{ borderColor: "var(--border)", background: "var(--card)" }}
+            >
+              <h3 className="font-medium">Naming</h3>
+              {person.namedAfter && (
+                <p className="mt-2 text-sm">
+                  Named after{" "}
+                  <Link
+                    href={`/trees/${treeId}/people/${person.namedAfter.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {displayName(person.namedAfter.names)}
+                  </Link>
+                  .
+                </p>
+              )}
+              {person.namesakes.length > 0 && (
+                <div className="mt-2 text-sm">
+                  <span style={{ color: "var(--muted)" }}>Namesakes — named after this person:</span>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {person.namesakes.map((n) => (
+                      <PersonChip key={n.id} person={{ id: n.id, names: n.names }} treeId={treeId} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
               </>
             ),
           },

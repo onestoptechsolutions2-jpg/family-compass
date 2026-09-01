@@ -11,9 +11,15 @@ export type PickOption = { id: string; label: string };
 function PersonFields({
   surname,
   people = [],
+  namedAfter = false,
+  namesakes = [],
 }: {
   surname?: string | null;
   people?: PickOption[];
+  /** show a "named after" picker (a Kenyan naming custom) */
+  namedAfter?: boolean;
+  /** suggested namesakes (grandparents), shown first in the picker */
+  namesakes?: PickOption[];
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -56,6 +62,26 @@ function PersonFields({
       <label className="col-span-2 flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
         <input type="checkbox" name="allowDup" value="1" /> Add even if someone with this name already exists
       </label>
+      {namedAfter && (
+        <label className="col-span-2 text-sm">
+          <span style={{ color: "var(--muted)" }}>Named after (optional)</span>
+          <SearchSelect
+            name="namedAfterId"
+            options={[
+              ...namesakes.map((p) => ({ value: p.id, label: `${p.label} — suggested` })),
+              ...people
+                .filter((p) => !namesakes.some((s) => s.id === p.id))
+                .map((p) => ({ value: p.id, label: p.label })),
+            ]}
+            emptyLabel="— nobody in particular —"
+            placeholder="Search the relative this child is named for…"
+            className="mt-1"
+          />
+          <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
+            Many families name a child after a grandparent — paternal side first, then maternal.
+          </span>
+        </label>
+      )}
     </div>
   );
 }
@@ -141,16 +167,18 @@ export function AddChildButton({
   action,
   back,
   people,
+  namesakes,
 }: {
   action: (fd: FormData) => void;
   back?: string;
   people?: PickOption[];
+  namesakes?: PickOption[];
 }) {
   return (
     <Dialog label="+ child" title="Add a child">
       <form action={action}>
         {back && <input type="hidden" name="back" value={back} />}
-        <PersonFields people={people} />
+        <PersonFields people={people} namedAfter namesakes={namesakes} />
         <label className="mt-2 block text-sm">
           <span style={{ color: "var(--muted)" }}>Relationship to parents</span>
           <select name="childRelation" defaultValue="BIRTH" className={field} style={fs}>

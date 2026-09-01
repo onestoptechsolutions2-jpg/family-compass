@@ -70,6 +70,22 @@ export async function updateDiscovery(treeId: string, formData: FormData) {
   revalidatePath(`/trees/${treeId}/settings`);
 }
 
+const lineageSchema = z.object({
+  clanInheritance: z.enum(["PATRILINEAL", "MATRILINEAL", "NONE"]).default("PATRILINEAL"),
+  inheritSurname: z.coerce.boolean().default(false),
+});
+
+/** Default lineage rule for clan / family-name inheritance on new children. */
+export async function updateLineage(treeId: string, formData: FormData) {
+  await requireTreeManage(treeId);
+  const d = lineageSchema.parse(Object.fromEntries(formData));
+  await db.tree.update({
+    where: { id: treeId },
+    data: { clanInheritance: d.clanInheritance, inheritSurname: d.inheritSurname },
+  });
+  revalidatePath(`/trees/${treeId}/settings`);
+}
+
 export async function updateAnniversaryReminders(treeId: string, formData: FormData) {
   await requireTreeManage(treeId);
   await db.tree.update({

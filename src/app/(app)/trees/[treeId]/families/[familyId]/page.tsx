@@ -9,6 +9,7 @@ import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
 import { PersonSelect } from "@/components/PersonSelect";
 import { marriageSteps } from "@/lib/marriage-checklist";
+import { namesakeSuggestions } from "@/lib/lineage";
 import { MarriageWizard } from "@/components/MarriageWizard";
 import { updateFamily, addChild, removeChild, deleteFamily } from "../actions";
 
@@ -29,6 +30,13 @@ export default async function FamilyDetailPage({
   const childOptions = options.filter(
     (o) => !childIds.has(o.id) && o.id !== family.partner1Id && o.id !== family.partner2Id,
   );
+
+  const suggestions = editable ? await namesakeSuggestions(treeId, familyId) : [];
+  const suggestedIds = new Set(suggestions.map((s) => s.id));
+  const namesakeOptions = [
+    ...suggestions.map((s) => ({ id: s.id, label: `${s.name} — ${s.label}` })),
+    ...options.filter((o) => !suggestedIds.has(o.id)),
+  ];
 
   const events = family.eventRefs
     .map((r) => r.event)
@@ -151,6 +159,10 @@ export default async function FamilyDetailPage({
                 <option value="SPONSORED">sponsored / guardian</option>
                 <option value="UNKNOWN">unknown</option>
               </select>
+            </label>
+            <label className="min-w-48 flex-1 text-sm">
+              <span style={{ color: "var(--muted)" }}>Named after (optional)</span>
+              <PersonSelect name="namedAfterId" options={namesakeOptions} allowEmpty />
             </label>
             <button className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
               Add

@@ -19,6 +19,7 @@ import {
   ensureMarriageEvent,
   addChildRef,
 } from "@/lib/person-write";
+import { applyLineageInheritance } from "@/lib/lineage";
 import { isPersonEventType } from "@/lib/event-types";
 import { linkPersonToUser, releaseClaimOnDeath, issueClaimInvite } from "@/lib/claims";
 
@@ -35,6 +36,7 @@ const personBits = {
   living: z.coerce.boolean().optional().default(false),
   existingId: z.string().trim().max(40).optional().default(""),
   allowDup: z.string().trim().optional().default(""),
+  namedAfterId: z.string().trim().max(40).optional().default(""),
 };
 
 type PersonBits = {
@@ -45,7 +47,16 @@ type PersonBits = {
   living: boolean;
   existingId: string;
   allowDup: string;
+  namedAfterId: string;
 };
+
+/** Validate a "named after" pick belongs to this tree; returns null otherwise. */
+async function resolveNamedAfter(treeId: string, raw: string): Promise<string | null> {
+  const id = raw.trim();
+  if (!id) return null;
+  const p = await db.person.findFirst({ where: { id, treeId }, select: { id: true } });
+  return p?.id ?? null;
+}
 
 async function assertFamilyInTree(treeId: string, familyId: string) {
   const f = await db.family.findFirst({ where: { id: familyId, treeId }, select: { id: true } });
@@ -94,6 +105,7 @@ async function resolveOrCreatePerson(
     surname: d.surname,
     gender: opts.gender,
     living: d.living,
+    namedAfterId: await resolveNamedAfter(treeId, d.namedAfterId),
   });
   await setVitalEvent(treeId, p.id, "Birth", d.birthDate, d.birthPlace);
   return { id: p.id, created: true };
@@ -116,20 +128,38 @@ export async function addParent(treeId: string, personId: string, formData: Form
   if (parent.id === personId) throw new Error("A person cannot be their own parent");
 
   const slot = d.role === "father" ? "partner1Id" : "partner2Id";
+  let childFamilyId: string;
   if (childOf) {
     const current =
       d.role === "father" ? childOf.family.partner1Id : childOf.family.partner2Id;
     if (current) throw new Error(`This person already has a ${d.role} recorded`);
     await db.family.update({ where: { id: childOf.familyId }, data: { [slot]: parent.id } });
+    childFamilyId = childOf.familyId;
   } else {
-    await db.family.create({
+    const fam = await db.family.create({
       data: {
         treeId,
         type: FamilyType.UNKNOWN,
         [slot]: parent.id,
         childRefs: { create: { personId, order: 0 } },
       },
+      select: { id: true },
     });
+    childFamilyId = fam.id;
+  }
+
+  // The child may now be able to take a blank clan / family name from this
+  // new parent, per the tree's lineage rule.
+  const inherited = await applyLineageInheritance(treeId, childFamilyId, personId);
+  if (inherited) {
+    await flashOk(
+      `Added. This person now carries ${[
+        inherited.clan && `${inherited.clan} clan`,
+        inherited.surname && `the name ${inherited.surname}`,
+      ]
+        .filter(Boolean)
+        .join(" and ")} from the ${d.role} — edit them if that's not right.`,
+    );
   }
 
   await logActivity({
@@ -202,6 +232,7 @@ export async function addChildToFamily(treeId: string, familyId: string, formDat
     throw new Error("That person is a partner in this family and cannot also be its child");
   }
   await addChildRef(familyId, child.id, childRelationOf(formData.get("childRelation")));
+  const inherited = child.created ? await applyLineageInheritance(treeId, familyId, child.id) : null;
 
   await logActivity({
     treeId,
@@ -211,6 +242,13 @@ export async function addChildToFamily(treeId: string, familyId: string, formDat
     objectId: child.id,
     summary: "added a child",
   });
+  if (inherited) {
+    await flashOk(
+      `Added. Took ${[inherited.clan && `${inherited.clan} clan`, inherited.surname && `the name ${inherited.surname}`]
+        .filter(Boolean)
+        .join(" and ")} from the parent — edit the child if that's not right.`,
+    );
+  }
   redirect(back.startsWith("/") ? back : `/trees/${treeId}/people/${child.id}`);
 }
 
@@ -455,6 +493,7 @@ export async function addFirstChild(treeId: string, personId: string, formData: 
     select: { id: true },
   });
   await addChildRef(family.id, child.id, childRelationOf(formData.get("childRelation")));
+  const inherited = child.created ? await applyLineageInheritance(treeId, family.id, child.id) : null;
 
   await logActivity({
     treeId,
@@ -464,6 +503,13 @@ export async function addFirstChild(treeId: string, personId: string, formData: 
     objectId: child.id,
     summary: "added a child",
   });
+  if (inherited) {
+    await flashOk(
+      `Added. Took ${[inherited.clan && `${inherited.clan} clan`, inherited.surname && `the name ${inherited.surname}`]
+        .filter(Boolean)
+        .join(" and ")} from the parent — edit the child if that's not right.`,
+    );
+  }
   redirect(`/trees/${treeId}/people/${personId}`);
 }
 

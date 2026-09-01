@@ -45,42 +45,42 @@ model User {
   sessions          Session[]
   pushSubscriptions PushSubscription[]
 
-  memberships          Membership[]
-  invitationsSent      Invitation[]           @relation("InvitedBy")
-  uploadedMedia        MediaObject[]          @relation("MediaUploader")
-  generationJobs       GenerationJob[]        @relation("GenerationRequestedBy")
-  payments             Payment[]              @relation("PaymentUser")
-  paymentsVerified     Payment[]              @relation("PaymentVerifier")
-  sharedViews          SharedView[]           @relation("SharedViewCreator")
-  auditLogs            AuditLog[]
-  activityEvents       ActivityEvent[]
-  creditLedger         CreditLedger[]         @relation("CreditActor")
-  claimedPerson        Person?                @relation("PersonClaimedBy")
-  claimsDecided        PersonClaim[]          @relation("ClaimDecidedBy")
-  claimsCreatedFor     PersonClaim[]          @relation("ClaimCreatedUser")
-  claimInvitesCreated  ClaimInvite[]          @relation("ClaimInviteCreator")
-  loginTokens          LoginToken[]
-  deepSearches         DeepSearch[]           @relation("DeepSearchRequester")
-  engagementsRequested ResearchEngagement[]   @relation("EngagementRequester")
-  engagementsAssigned  ResearchEngagement[]   @relation("EngagementAssignee")
-  consentEvents        ConsentEvent[]
-  memorialsCreated     Memorial[]             @relation("MemorialCreator")
-  memorialsLocked      Memorial[]             @relation("MemorialLocker")
-  memorialInvites      MemorialContributor[]  @relation("MemorialContributorInviter")
-  memorialReviews      MemorialContribution[] @relation("MemorialContributionReviewer")
-  programEdits         FuneralProgram[]       @relation("ProgramEditor")
-  programRevisions     ProgramRevision[]      @relation("ProgramReviser")
-  notifications        Notification[]
-  apiKeysCreated       ApiKey[]               @relation("ApiKeyCreator")
-  webhooksCreated      WebhookEndpoint[]      @relation("WebhookCreator")
-  chamasCreated        Chama[]                @relation("ChamaCreator")
-  chamaConfirmations   ChamaContribution[]    @relation("ChamaContribConfirmer")
-  eventCommentsAuthored EventComment[]        @relation("EventCommentAuthor")
-  eventCommentsResolved EventComment[]        @relation("EventCommentResolver")
-  authoredMemories      Memory[]              @relation("MemoryAuthor")
-  friendInvitesSent     FriendInvite[]        @relation("FriendInviteInviter")
-  treesAdministered     Tree[]                @relation("TreeFamilyAdmin")
-  lifeUpdates           LifeUpdate[]          @relation("LifeUpdateAuthor")
+  memberships           Membership[]
+  invitationsSent       Invitation[]           @relation("InvitedBy")
+  uploadedMedia         MediaObject[]          @relation("MediaUploader")
+  generationJobs        GenerationJob[]        @relation("GenerationRequestedBy")
+  payments              Payment[]              @relation("PaymentUser")
+  paymentsVerified      Payment[]              @relation("PaymentVerifier")
+  sharedViews           SharedView[]           @relation("SharedViewCreator")
+  auditLogs             AuditLog[]
+  activityEvents        ActivityEvent[]
+  creditLedger          CreditLedger[]         @relation("CreditActor")
+  claimedPerson         Person?                @relation("PersonClaimedBy")
+  claimsDecided         PersonClaim[]          @relation("ClaimDecidedBy")
+  claimsCreatedFor      PersonClaim[]          @relation("ClaimCreatedUser")
+  claimInvitesCreated   ClaimInvite[]          @relation("ClaimInviteCreator")
+  loginTokens           LoginToken[]
+  deepSearches          DeepSearch[]           @relation("DeepSearchRequester")
+  engagementsRequested  ResearchEngagement[]   @relation("EngagementRequester")
+  engagementsAssigned   ResearchEngagement[]   @relation("EngagementAssignee")
+  consentEvents         ConsentEvent[]
+  memorialsCreated      Memorial[]             @relation("MemorialCreator")
+  memorialsLocked       Memorial[]             @relation("MemorialLocker")
+  memorialInvites       MemorialContributor[]  @relation("MemorialContributorInviter")
+  memorialReviews       MemorialContribution[] @relation("MemorialContributionReviewer")
+  programEdits          FuneralProgram[]       @relation("ProgramEditor")
+  programRevisions      ProgramRevision[]      @relation("ProgramReviser")
+  notifications         Notification[]
+  apiKeysCreated        ApiKey[]               @relation("ApiKeyCreator")
+  webhooksCreated       WebhookEndpoint[]      @relation("WebhookCreator")
+  chamasCreated         Chama[]                @relation("ChamaCreator")
+  chamaConfirmations    ChamaContribution[]    @relation("ChamaContribConfirmer")
+  eventCommentsAuthored EventComment[]         @relation("EventCommentAuthor")
+  eventCommentsResolved EventComment[]         @relation("EventCommentResolver")
+  authoredMemories      Memory[]               @relation("MemoryAuthor")
+  friendInvitesSent     FriendInvite[]         @relation("FriendInviteInviter")
+  treesAdministered     Tree[]                 @relation("TreeFamilyAdmin")
+  lifeUpdates           LifeUpdate[]           @relation("LifeUpdateAuthor")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -471,60 +471,73 @@ model Invitation {
   @@index([email])
 }
 
+/// How a child's clan (and, optionally, family name) is inherited by default
+/// when they're added to a family unit. Most Kenyan communities are
+/// patrilineal; a few reckon descent through the mother.
+enum ClanInheritance {
+  PATRILINEAL
+  MATRILINEAL
+  NONE
+}
+
 model Tree {
-  id               String    @id @default(cuid())
-  workspaceId      String
-  name             String
-  description      String?   @db.Text
-  slug             String
-  homePersonId     String?
+  id                   String          @id @default(cuid())
+  workspaceId          String
+  name                 String
+  description          String?         @db.Text
+  slug                 String
+  homePersonId         String?
+  /// default lineage rule for clan (and family-name) inheritance on new children
+  clanInheritance      ClanInheritance @default(PATRILINEAL)
+  /// also copy the lineage parent's surname to a new child when it's blank
+  inheritSurname       Boolean         @default(true)
   /// the designated "family admin" for this tree — manages its claims,
   /// sharing links and requests even if their workspace role is lower.
-  adminUserId      String?
-  freeExportUsedAt DateTime?
-  contactWhatsapp  String?
-  claimPinHash     String?
-  keeperUntil      DateTime?
-  discoverable     Boolean   @default(false)
+  adminUserId          String?
+  freeExportUsedAt     DateTime?
+  contactWhatsapp      String?
+  claimPinHash         String?
+  keeperUntil          DateTime?
+  discoverable         Boolean         @default(false)
   /// when discoverable, also feature this tree in the public homepage carousel
-  showcase         Boolean   @default(true)
-  community        String?
-  region           String?
-  anniversaryReminders Boolean @default(true)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  showcase             Boolean         @default(true)
+  community            String?
+  region               String?
+  anniversaryReminders Boolean         @default(true)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   admin     User?     @relation("TreeFamilyAdmin", fields: [adminUserId], references: [id], onDelete: SetNull)
 
-  people         Person[]
-  families       Family[]
-  events         Event[]
-  places         Place[]
-  sources        Source[]
-  citations      Citation[]
-  repositories   Repository[]
-  notes          Note[]
-  tags           Tag[]
-  media          MediaObject[]
-  sharedViews    SharedView[]
-  generationJobs GenerationJob[]
-  activityEvents ActivityEvent[]
-  importJobs     ImportJob[]
-  personClaims   PersonClaim[]
-  claimInvites   ClaimInvite[]
-  payments       Payment[]       @relation("TreePayments")
-  clans          Clan[]
-  memorials      Memorial[]
+  people                 Person[]
+  families               Family[]
+  events                 Event[]
+  places                 Place[]
+  sources                Source[]
+  citations              Citation[]
+  repositories           Repository[]
+  notes                  Note[]
+  tags                   Tag[]
+  media                  MediaObject[]
+  sharedViews            SharedView[]
+  generationJobs         GenerationJob[]
+  activityEvents         ActivityEvent[]
+  importJobs             ImportJob[]
+  personClaims           PersonClaim[]
+  claimInvites           ClaimInvite[]
+  payments               Payment[]             @relation("TreePayments")
+  clans                  Clan[]
+  memorials              Memorial[]
   anniversaryReminderLog AnniversaryReminder[]
-  chamas         Chama[]
-  chamaLink      ChamaLink?
-  memories       Memory[]
-  relationEdges  RelationEdge[]
-  lifeUpdates       LifeUpdate[]
-  friendInvitesFrom FriendInvite[] @relation("FriendInviteFromTree")
-  friendLinksAsA    FriendLink[]   @relation("FriendLinkATree")
-  friendLinksAsB    FriendLink[]   @relation("FriendLinkBTree")
+  chamas                 Chama[]
+  chamaLink              ChamaLink?
+  memories               Memory[]
+  relationEdges          RelationEdge[]
+  lifeUpdates            LifeUpdate[]
+  friendInvitesFrom      FriendInvite[]        @relation("FriendInviteFromTree")
+  friendLinksAsA         FriendLink[]          @relation("FriendLinkATree")
+  friendLinksAsB         FriendLink[]          @relation("FriendLinkBTree")
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -614,25 +627,30 @@ enum DateQuality {
 }
 
 model Person {
-  id              String   @id @default(cuid())
-  treeId          String
-  grampsId        String?
-  gender          Gender   @default(UNKNOWN)
-  living          Boolean  @default(false)
-  privacy         Privacy  @default(INHERIT)
+  id                  String        @id @default(cuid())
+  treeId              String
+  grampsId            String?
+  gender              Gender        @default(UNKNOWN)
+  living              Boolean       @default(false)
+  privacy             Privacy       @default(INHERIT)
   /// public-surface date precision + photo suppression (member views unaffected)
   publicDatePrecision DatePrecision @default(FULL)
   hidePhotosPublic    Boolean       @default(false)
-  phone           String?
-  claimedByUserId String?  @unique
-  clanId          String?
-  subClan         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  phone               String?
+  claimedByUserId     String?       @unique
+  clanId              String?
+  subClan             String?
+  /// the relative this person was named after (a Kenyan naming custom — often a
+  /// grandparent). Same-tree pointer; informational, not a lineage link.
+  namedAfterId        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  tree      Tree  @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  claimedBy User? @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
-  clan      Clan? @relation(fields: [clanId], references: [id], onDelete: SetNull)
+  tree       Tree     @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  claimedBy  User?    @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  clan       Clan?    @relation(fields: [clanId], references: [id], onDelete: SetNull)
+  namedAfter Person?  @relation("NamedAfter", fields: [namedAfterId], references: [id], onDelete: SetNull)
+  namesakes  Person[] @relation("NamedAfter")
 
   names        Name[]
   eventRefs    EventRef[]
@@ -654,15 +672,15 @@ model Person {
   chamaMemberships        ChamaMember[]   @relation("PersonChamaMemberships")
 
   memoryParticipations MemoryParticipant[]
-  relationEdgesA       RelationEdge[]      @relation("RelationEdgeA")
-  relationEdgesB       RelationEdge[]      @relation("RelationEdgeB")
-  relationEdgesSeeded  RelationEdge[]      @relation("RelationEdgeSeededBy")
-  relationEdgesBridged RelationEdge[]      @relation("RelationEdgeOriginVia")
-  relationAssertions   RelationAssertion[] @relation("RelationAssertionBy")
-  friendInvitesFromMe  FriendInvite[]     @relation("FriendInviteFromPerson")
-  friendInvitesViaMe   FriendInvite[]     @relation("FriendInviteOriginVia")
-  friendLinksAsA       FriendLink[]       @relation("FriendLinkA")
-  friendLinksAsB       FriendLink[]       @relation("FriendLinkB")
+  relationEdgesA       RelationEdge[]        @relation("RelationEdgeA")
+  relationEdgesB       RelationEdge[]        @relation("RelationEdgeB")
+  relationEdgesSeeded  RelationEdge[]        @relation("RelationEdgeSeededBy")
+  relationEdgesBridged RelationEdge[]        @relation("RelationEdgeOriginVia")
+  relationAssertions   RelationAssertion[]   @relation("RelationAssertionBy")
+  friendInvitesFromMe  FriendInvite[]        @relation("FriendInviteFromPerson")
+  friendInvitesViaMe   FriendInvite[]        @relation("FriendInviteOriginVia")
+  friendLinksAsA       FriendLink[]          @relation("FriendLinkA")
+  friendLinksAsB       FriendLink[]          @relation("FriendLinkB")
   friendLinkAssertions FriendLinkAssertion[] @relation("FriendLinkAssertionBy")
   lifeUpdates          LifeUpdate[]
 
@@ -874,14 +892,14 @@ model Event {
 /// A discussion thread on a fact — "was it 1948 or 1949?", "his second wife,
 /// not his first". Tree members only; flat (no nesting), resolvable.
 model EventComment {
-  id         String    @id @default(cuid())
-  eventId    String
-  treeId     String
-  authorId   String?
-  body       String    @db.Text
-  resolvedAt DateTime?
+  id           String    @id @default(cuid())
+  eventId      String
+  treeId       String
+  authorId     String?
+  body         String    @db.Text
+  resolvedAt   DateTime?
   resolvedById String?
-  createdAt  DateTime  @default(now())
+  createdAt    DateTime  @default(now())
 
   event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   author   User? @relation("EventCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
@@ -1398,16 +1416,16 @@ model Payment {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  generationJob GenerationJob?      @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
-  memorial      Memorial?          @relation("MemorialPassPayments", fields: [memorialId], references: [id], onDelete: SetNull)
-  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tree          Tree?               @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
-  user          User                @relation("PaymentUser", fields: [userId], references: [id])
-  verifiedBy    User?               @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
-  ledgerEntries CreditLedger[]
-  deepSearch    DeepSearch?         @relation("DeepSearchPayment")
-  engagement    ResearchEngagement? @relation("EngagementPayment")
-  chamaContribution ChamaContribution? @relation("PaymentChamaContribution")
+  generationJob     GenerationJob?      @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  memorial          Memorial?           @relation("MemorialPassPayments", fields: [memorialId], references: [id], onDelete: SetNull)
+  workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tree              Tree?               @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
+  user              User                @relation("PaymentUser", fields: [userId], references: [id])
+  verifiedBy        User?               @relation("PaymentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  ledgerEntries     CreditLedger[]
+  deepSearch        DeepSearch?         @relation("DeepSearchPayment")
+  engagement        ResearchEngagement? @relation("EngagementPayment")
+  chamaContribution ChamaContribution?  @relation("PaymentChamaContribution")
 
   @@index([workspaceId])
   @@index([treeId])
@@ -1463,16 +1481,16 @@ enum VerificationMode {
 // Single global row (scope = "global"). Holds the platform owner's M-Pesa
 // Till / Store details and the swappable provider selection.
 model PaymentSettings {
-  id              String @id @default(cuid())
-  scope           String @unique @default("global")
-  provider        String @default("manual_mpesa")
-  currency        String @default("KES")
-  defaultPriceKes Int    @default(750)
-  keeperPriceKes  Int    @default(3000)
+  id               String @id @default(cuid())
+  scope            String @unique @default("global")
+  provider         String @default("manual_mpesa")
+  currency         String @default("KES")
+  defaultPriceKes  Int    @default(750)
+  keeperPriceKes   Int    @default(3000)
   // Memorial Pass — one payment per memorial: unlimited memorial-book &
   // funeral-programme prints, clean (no watermark), for `memorialPassDays`.
-  memorialPassKes  Int @default(1500)
-  memorialPassDays Int @default(120)
+  memorialPassKes  Int    @default(1500)
+  memorialPassDays Int    @default(120)
 
   // Size-based print pricing: price = kind base
   //   + max(0, generations - freeGenerations) * perGenerationKes
@@ -1548,17 +1566,17 @@ enum ChamaContribStatus {
 /// A family group that collects money — most often a welfare kitty for
 /// funerals, but also rotating savings (merry-go-round) or table banking.
 model Chama {
-  id             String       @id @default(cuid())
-  treeId         String
-  workspaceId    String
-  name           String
-  purpose        ChamaPurpose  @default(WELFARE)
+  id               String       @id @default(cuid())
+  treeId           String
+  workspaceId      String
+  name             String
+  purpose          ChamaPurpose @default(WELFARE)
   defaultAmountKes Int?
-  currency       String       @default("KES")
-  active         Boolean      @default(true)
-  createdById    String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  currency         String       @default("KES")
+  active           Boolean      @default(true)
+  createdById      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   tree      Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -2056,13 +2074,13 @@ model FriendLinkAssertion {
 
 /// A browser Web Push subscription. One per installed app / browser profile.
 model PushSubscription {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  endpoint  String   @unique
+  endpoint  String    @unique
   p256dh    String
   auth      String
   ua        String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   lastOkAt  DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

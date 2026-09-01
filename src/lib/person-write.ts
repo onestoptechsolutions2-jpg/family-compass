@@ -5,13 +5,20 @@ import { parseFuzzyDate, dateSortKey } from "@/lib/date";
 
 export async function createBarePerson(
   treeId: string,
-  input: { first?: string; surname?: string; gender?: Gender; living?: boolean },
+  input: {
+    first?: string;
+    surname?: string;
+    gender?: Gender;
+    living?: boolean;
+    namedAfterId?: string | null;
+  },
 ): Promise<{ id: string }> {
   return db.person.create({
     data: {
       treeId,
       gender: input.gender ?? Gender.UNKNOWN,
       living: input.living ?? false,
+      namedAfterId: input.namedAfterId ?? null,
       names: {
         create: {
           type: "BIRTH",
