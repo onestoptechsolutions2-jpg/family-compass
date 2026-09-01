@@ -23,15 +23,6 @@ export type PersonFormValues = {
   events?: EventLike[];
 };
 
-function isoValue(e?: EventLike) {
-  if (e?.dateYear && e.dateMonth && e.dateDay) {
-    return `${String(e.dateYear).padStart(4, "0")}-${String(e.dateMonth).padStart(2, "0")}-${String(
-      e.dateDay,
-    ).padStart(2, "0")}`;
-  }
-  return "";
-}
-
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--bg)" };
 
@@ -130,17 +121,12 @@ export function PersonForm({
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Date</span>
             <input
-              type="date"
               name="birthDate"
-              defaultValue={isoValue(birth)}
+              defaultValue={formatDate(birth)}
+              placeholder="1948 · Mar 1948 · 12 Mar 1948 · about 1950 · before 1960"
               className={field}
               style={fieldStyle}
             />
-            {birth && !isoValue(birth) && (
-              <span className="text-xs" style={{ color: "var(--muted)" }}>
-                current: {formatDate(birth)}
-              </span>
-            )}
           </label>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Place</span>
@@ -162,9 +148,9 @@ export function PersonForm({
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Date</span>
             <input
-              type="date"
               name="deathDate"
-              defaultValue={isoValue(death)}
+              defaultValue={formatDate(death)}
+              placeholder="1948 · Mar 1948 · 12 Mar 1948 · about 1950"
               className={field}
               style={fieldStyle}
             />

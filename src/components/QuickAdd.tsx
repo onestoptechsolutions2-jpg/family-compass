@@ -39,7 +39,12 @@ function PersonFields({
       </label>
       <label className="text-sm">
         <span style={{ color: "var(--muted)" }}>Born (date)</span>
-        <input type="date" name="birthDate" className={field} style={fs} />
+        <input
+          name="birthDate"
+          placeholder="1948 · Mar 1948 · 12 Mar 1948 · about 1950"
+          className={field}
+          style={fs}
+        />
       </label>
       <label className="text-sm">
         <span style={{ color: "var(--muted)" }}>Born (place)</span>
@@ -119,7 +124,7 @@ export function AddPartnerButton({
           </label>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Married (date)</span>
-            <input type="date" name="marriageDate" className={field} style={fs} />
+            <input name="marriageDate" placeholder="1972 · Jun 1972 · about 1970" className={field} style={fs} />
           </label>
           <label className="text-sm">
             <span style={{ color: "var(--muted)" }}>Married (place)</span>

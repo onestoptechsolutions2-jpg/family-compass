@@ -320,7 +320,7 @@ export default async function PersonDetailPage({
                     </p>
                     <label className="text-sm">
                       <span style={{ color: "var(--muted)" }}>Date of death (optional)</span>
-                      <input name="deathDate" placeholder="YYYY-MM-DD or free text" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                      <input name="deathDate" placeholder="1948 · Mar 1948 · 12 Mar 1948 · about 1950 · before 1960" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
                     </label>
                     <label className="text-sm">
                       <span style={{ color: "var(--muted)" }}>Place of death (optional)</span>
@@ -354,7 +354,7 @@ export default async function PersonDetailPage({
                   </label>
                   <label className="text-sm">
                     <span style={{ color: "var(--muted)" }}>Date (optional)</span>
-                    <input name="date" placeholder="YYYY-MM-DD or free text" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                    <input name="date" placeholder="1948 · Mar 1948 · 12 Mar 1948 · about 1950 · before 1960" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
                   </label>
                   <label className="text-sm">
                     <span style={{ color: "var(--muted)" }}>Place (optional)</span>

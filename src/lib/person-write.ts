@@ -1,7 +1,7 @@
 import { ChildRelation, DateModifier, DateQuality, FamilyType, Gender } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { parseISODateInput, dateSortKey } from "@/lib/date";
+import { parseFuzzyDate, dateSortKey } from "@/lib/date";
 
 export async function createBarePerson(
   treeId: string,
@@ -36,32 +36,21 @@ export async function upsertPlaceByTitle(treeId: string, title: string): Promise
 }
 
 function dateFields(raw: string) {
-  const iso = parseISODateInput(raw);
-  if (iso.dateYear) {
-    return {
-      dateModifier: DateModifier.EXACT,
-      dateQuality: DateQuality.NONE,
-      dateYear: iso.dateYear,
-      dateMonth: iso.dateMonth,
-      dateDay: iso.dateDay,
-      dateText: null as string | null,
-      dateSortKey: dateSortKey(iso),
-      any: true,
-    };
-  }
-  if (raw.trim()) {
-    return {
-      dateModifier: DateModifier.NONE,
-      dateQuality: DateQuality.NONE,
-      dateYear: null,
-      dateMonth: null,
-      dateDay: null,
-      dateText: raw.trim(),
-      dateSortKey: `~${raw.trim()}`,
-      any: true,
-    };
-  }
-  return null;
+  const d = parseFuzzyDate(raw);
+  if (!d.any) return null;
+  return {
+    dateModifier: d.dateModifier,
+    dateQuality: d.dateQuality,
+    dateYear: d.dateYear,
+    dateMonth: d.dateMonth,
+    dateDay: d.dateDay,
+    dateYear2: d.dateYear2,
+    dateMonth2: d.dateMonth2,
+    dateDay2: d.dateDay2,
+    dateText: d.dateText,
+    dateSortKey: d.dateYear ? dateSortKey(d) : d.dateText ? `~${d.dateText}` : "",
+    any: true,
+  };
 }
 
 export type VitalEventResult = "created" | "updated" | "deleted" | "noop";
@@ -96,6 +85,9 @@ export async function setVitalEvent(
     dateYear: d?.dateYear ?? null,
     dateMonth: d?.dateMonth ?? null,
     dateDay: d?.dateDay ?? null,
+    dateYear2: d?.dateYear2 ?? null,
+    dateMonth2: d?.dateMonth2 ?? null,
+    dateDay2: d?.dateDay2 ?? null,
     dateText: d?.dateText ?? null,
     dateSortKey: d?.dateSortKey ?? null,
   };
@@ -130,6 +122,9 @@ export async function ensureMarriageEvent(
     dateYear: d?.dateYear ?? null,
     dateMonth: d?.dateMonth ?? null,
     dateDay: d?.dateDay ?? null,
+    dateYear2: d?.dateYear2 ?? null,
+    dateMonth2: d?.dateMonth2 ?? null,
+    dateDay2: d?.dateDay2 ?? null,
     dateText: d?.dateText ?? null,
     dateSortKey: d?.dateSortKey ?? null,
   };
@@ -168,6 +163,9 @@ export async function createPersonEvent(
       dateYear: d?.dateYear ?? null,
       dateMonth: d?.dateMonth ?? null,
       dateDay: d?.dateDay ?? null,
+      dateYear2: d?.dateYear2 ?? null,
+      dateMonth2: d?.dateMonth2 ?? null,
+      dateDay2: d?.dateDay2 ?? null,
       dateText: d?.dateText ?? null,
       dateSortKey: d?.dateSortKey ?? null,
       eventRefs: { create: { personId, role: "PRIMARY" } },
