@@ -157,11 +157,20 @@ function deriveEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
     made.push("DATABASE_URL");
   }
 
-  const coolifyOrigin =
-    trimmed(e.COOLIFY_URL) ??
-    (trimmed(e.COOLIFY_FQDN)
-      ? `https://${trimmed(e.COOLIFY_FQDN)!.split(",")[0]!.trim()}`
-      : undefined);
+  // Coolify exposes the public origin as SERVICE_URL_<SVC> / SERVICE_FQDN_<SVC>
+  // (e.g. SERVICE_URL_APP) — and sometimes COOLIFY_URL / COOLIFY_FQDN. Take the
+  // first URL-ish value we find.
+  const firstHost = (v: string | undefined) => trimmed(v)?.split(",")[0]?.trim();
+  const asOrigin = (v: string | undefined) => {
+    const h = firstHost(v);
+    if (!h) return undefined;
+    return /^https?:\/\//.test(h) ? h : `https://${h}`;
+  };
+  const svcUrl = Object.keys(e)
+    .filter((k) => k.startsWith("SERVICE_URL_") || k.startsWith("SERVICE_FQDN_"))
+    .map((k) => asOrigin(e[k]))
+    .find(Boolean);
+  const coolifyOrigin = asOrigin(e.COOLIFY_URL) ?? asOrigin(e.COOLIFY_FQDN) ?? svcUrl;
   if (!trimmed(e.APP_URL) && coolifyOrigin) {
     e.APP_URL = coolifyOrigin;
     made.push("APP_URL");
