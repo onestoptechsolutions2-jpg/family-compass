@@ -9,6 +9,7 @@ import { flashOk, flashErr } from "@/lib/flash";
 import { logActivity } from "@/lib/activity";
 import { emitTreeEvent } from "@/lib/webhooks";
 import { addMemory, assertRelation } from "@/lib/relationships";
+import { createFriendInvite } from "@/lib/friends";
 
 const back = (treeId: string, personId: string) =>
   `/trees/${treeId}/people/${personId}#tab=circle`;
@@ -103,6 +104,33 @@ export async function addToCircleAction(treeId: string, personId: string, formDa
     originContext,
   });
   await flashOk("Added to the circle.");
+  revalidatePath(`/trees/${treeId}/people/${personId}`);
+  redirect(back(treeId, personId));
+}
+
+/** Invite a non-relative to start their own tree and connect across families. */
+export async function inviteFriendAction(treeId: string, personId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const via = String(formData.get("via") ?? "");
+  try {
+    if (via) await assertInTree(treeId, [via]);
+    const token = await createFriendInvite({
+      fromTreeId: treeId,
+      fromPersonId: personId,
+      inviterUserId: ctx.user.id,
+      name: String(formData.get("name") ?? ""),
+      phone: String(formData.get("phone") ?? "") || null,
+      roleHint: String(formData.get("role") ?? "friend"),
+      originText: String(formData.get("originText") ?? ""),
+      originContext: String(formData.get("originContext") ?? "") || null,
+      originViaPersonId: via || null,
+    });
+    await emitTreeEvent(treeId, "friend.invited", { fromPersonId: personId, token });
+  } catch (e) {
+    await flashErr(e instanceof Error ? e.message : "Could not create the invite.");
+    redirect(back(treeId, personId));
+  }
+  await flashOk("Friend invite ready — copy or send the link below.");
   revalidatePath(`/trees/${treeId}/people/${personId}`);
   redirect(back(treeId, personId));
 }

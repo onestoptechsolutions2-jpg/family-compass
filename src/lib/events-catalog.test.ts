@@ -25,6 +25,8 @@ describe("events catalogue", () => {
       "chama.external_event",
       "memory.added",
       "relation.named",
+      "friend.invited",
+      "friend.linked",
     ] as const) {
       expect(isEventName(name)).toBe(true);
     }

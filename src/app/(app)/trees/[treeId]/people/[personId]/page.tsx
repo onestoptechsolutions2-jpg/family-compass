@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
 import { personCircle, personMemories, RELATION_ROLES, RELATION_CONTEXTS } from "@/lib/relationships";
-import { addMemoryAction, addToCircleAction } from "./relationship-actions";
+import { friendLinksForPerson, pendingFriendInvites } from "@/lib/friends";
+import { addMemoryAction, addToCircleAction, inviteFriendAction } from "./relationship-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
 import { ClaimedWizard } from "@/components/ClaimedWizard";
 import { personMedia } from "@/lib/queries/media";
@@ -75,10 +76,13 @@ export default async function PersonDetailPage({
   if (!person) notFound();
   const relations = await getPersonRelations(treeId, personId);
   const media = await personMedia(treeId, personId);
-  const [circle, relMemories] = await Promise.all([
+  const [circle, relMemories, friendLinks, friendPending] = await Promise.all([
     personCircle(treeId, personId),
     personMemories(treeId, personId),
+    friendLinksForPerson(personId),
+    pendingFriendInvites(treeId),
   ]);
+  const myFriendPending = friendPending.filter((f) => f.fromPersonId === personId);
   const eventComments = await commentsForEvents(
     [...person.eventRefs].map((r) => r.event.id),
   );
@@ -952,6 +956,61 @@ export default async function PersonDetailPage({
                           </button>
                         </form>
                       </Dialog>
+
+                      <Dialog label="Invite a friend" title="Invite a friend to their own tree" wide>
+                        <form action={inviteFriendAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
+                          <p className="text-sm" style={{ color: "var(--muted)" }}>
+                            For someone who isn&apos;t on this tree and isn&apos;t related. They get
+                            their <em>own</em> family tree, centred on themselves, and the two of
+                            you stay connected across families.
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>Their name</span>
+                              <input name="name" required className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                            </label>
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>Their WhatsApp (optional)</span>
+                              <input name="phone" inputMode="tel" placeholder="+2547…" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                            </label>
+                          </div>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>They are a…</span>
+                            <select name="role" defaultValue="friend" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                              {RELATION_ROLES.map((r) => (
+                                <option key={r} value={r}>{r.replace(/-/g, " ")}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="text-sm">
+                            <span style={{ color: "var(--muted)" }}>How do you know them?</span>
+                            <textarea name="originText" rows={2} placeholder="We were at university together" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle} />
+                          </label>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>Through (optional)</span>
+                              <select name="via" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                                <option value="">— nobody in particular —</option>
+                                {pickList.map((o) => (
+                                  <option key={o.id} value={o.id}>{o.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-sm">
+                              <span style={{ color: "var(--muted)" }}>Context (optional)</span>
+                              <select name="originContext" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={fieldStyle}>
+                                <option value="">—</option>
+                                {RELATION_CONTEXTS.map((c) => (
+                                  <option key={c} value={c}>{c.replace(/-/g, " ")}</option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <button className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                            Create invite link
+                          </button>
+                        </form>
+                      </Dialog>
                     </div>
                   )}
                 </div>
@@ -993,6 +1052,66 @@ export default async function PersonDetailPage({
                   <p className="text-sm" style={{ color: "var(--muted)" }}>
                     No one in the circle yet. Add a shared memory or name a tie above.
                   </p>
+                )}
+
+                {friendLinks.length > 0 && (
+                  <div>
+                    <h4 className="font-medium">From other families</h4>
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {friendLinks.map((f) => (
+                        <li key={f.linkId} className="rounded-lg border p-3 text-sm" style={{ borderColor: "var(--hairline)" }}>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{displayName(f.person.names)}</span>
+                            <span className="text-xs" style={{ color: "var(--muted)" }}>· {f.familyName}</span>
+                            {f.roles.map((r) => (
+                              <span key={r} className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--surface-2)", color: "var(--muted)" }}>
+                                {r.replace(/-/g, " ")}
+                              </span>
+                            ))}
+                            {f.reciprocated && (
+                              <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                                both say so
+                              </span>
+                            )}
+                          </div>
+                          {(f.originText || f.originContext) && (
+                            <div className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                              {f.originContext ? f.originContext.replace(/-/g, " ") : "How it started"}
+                              {f.originText ? ` — ${f.originText}` : ""}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {editable && myFriendPending.length > 0 && (
+                  <div>
+                    <h4 className="font-medium">Friend invites out</h4>
+                    <ul className="mt-2 flex flex-col gap-2 text-sm">
+                      {myFriendPending.map((f) => {
+                        const url = `${origin}/f/${f.token}`;
+                        return (
+                          <li key={f.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--hairline)" }}>
+                            <span className="font-medium">{f.inviteeName}</span>
+                            <span className="text-xs" style={{ color: "var(--muted)" }}>{f.roleHint.replace(/-/g, " ")} · pending</span>
+                            <code className="rounded bg-black/5 px-1.5 py-0.5 text-xs">{url}</code>
+                            <CopyButton value={url} label="Copy" />
+                            <a
+                              href={`https://wa.me/?text=${encodeURIComponent(`Hi ${f.inviteeName} — start your own family tree and connect with mine: ${url}`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded px-1.5 py-0.5 text-xs font-medium text-white"
+                              style={{ background: "#25D366" }}
+                            >
+                              WhatsApp
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
 
                 {relMemories.length > 0 && (

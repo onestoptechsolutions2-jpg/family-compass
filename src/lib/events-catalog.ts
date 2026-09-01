@@ -17,6 +17,8 @@ export const EVENTS = {
   "family.created": "A family (couple / parent unit) was created.",
   "memory.added": "A shared memory was recorded, tagging two or more people; `data.participantIds` lists them.",
   "relation.named": "Someone named a chosen or kin tie between two people (friend, mentor, elder, chosen-sibling, co-parent, …), optionally with how it started; `data.role`, `data.originContext`.",
+  "friend.invited": "A member invited a non-relative to start their own tree and connect; `data.token` is the invite link token.",
+  "friend.linked": "A friend accepted an invite: their tree is seeded and a cross-tree FriendLink now joins the two people; `data.friendTreeId`.",
   "memorial.published": "A memorial page went live (published toggled on).",
   "memorial.updated": "A published memorial's tribute or programme changed.",
   "memorial.contribution_received": "An invited contributor submitted a memory, life detail, date correction or photos to a memorial.",

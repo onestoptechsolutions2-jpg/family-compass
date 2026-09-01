@@ -74,6 +74,7 @@ model User {
   eventCommentsAuthored EventComment[]        @relation("EventCommentAuthor")
   eventCommentsResolved EventComment[]        @relation("EventCommentResolver")
   authoredMemories      Memory[]              @relation("MemoryAuthor")
+  friendInvitesSent     FriendInvite[]        @relation("FriendInviteInviter")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -504,6 +505,9 @@ model Tree {
   chamaLink      ChamaLink?
   memories       Memory[]
   relationEdges  RelationEdge[]
+  friendInvitesFrom FriendInvite[] @relation("FriendInviteFromTree")
+  friendLinksAsA    FriendLink[]   @relation("FriendLinkATree")
+  friendLinksAsB    FriendLink[]   @relation("FriendLinkBTree")
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -637,6 +641,11 @@ model Person {
   relationEdgesSeeded  RelationEdge[]      @relation("RelationEdgeSeededBy")
   relationEdgesBridged RelationEdge[]      @relation("RelationEdgeOriginVia")
   relationAssertions   RelationAssertion[] @relation("RelationAssertionBy")
+  friendInvitesFromMe  FriendInvite[]     @relation("FriendInviteFromPerson")
+  friendInvitesViaMe   FriendInvite[]     @relation("FriendInviteOriginVia")
+  friendLinksAsA       FriendLink[]       @relation("FriendLinkA")
+  friendLinksAsB       FriendLink[]       @relation("FriendLinkB")
+  friendLinkAssertions FriendLinkAssertion[] @relation("FriendLinkAssertionBy")
 
   tags Tag[] @relation("PersonTags")
 
@@ -1923,4 +1932,86 @@ model RelationAssertion {
   byPerson Person       @relation("RelationAssertionBy", fields: [byPersonId], references: [id], onDelete: Cascade)
 
   @@unique([edgeId, byPersonId])
+}
+
+// ---------------------------------------------------------------------------
+// Friend links — the chosen family that lives in a different tree
+//
+// A member invites a non-relative. The friend gets their OWN tree (seeded
+// with just themselves) and a FriendLink joins the two person nodes across
+// trees. Neither can browse into the other's tree. The research graph is the
+// union of all trees plus all FriendLinks.
+// ---------------------------------------------------------------------------
+
+model FriendInvite {
+  id                String    @id @default(cuid())
+  token             String    @unique
+  fromTreeId        String
+  fromPersonId      String
+  inviterUserId     String
+  inviteeName       String
+  inviteePhone      String?
+  roleHint          String    @default("friend")
+  originText        String?
+  originContext     String?
+  originViaPersonId String?
+  /// PENDING | ACCEPTED | DECLINED | EXPIRED
+  status            String    @default("PENDING")
+  acceptedPersonId  String?
+  linkId            String?
+  expiresAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  fromTree   Tree        @relation("FriendInviteFromTree", fields: [fromTreeId], references: [id], onDelete: Cascade)
+  fromPerson Person      @relation("FriendInviteFromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
+  inviter    User        @relation("FriendInviteInviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  originVia  Person?     @relation("FriendInviteOriginVia", fields: [originViaPersonId], references: [id], onDelete: SetNull)
+  link       FriendLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+
+  @@index([fromPersonId])
+  @@index([status])
+}
+
+model FriendLink {
+  id                String    @id @default(cuid())
+  /// canonical order: aPersonId < bPersonId
+  aPersonId         String
+  aTreeId           String
+  bPersonId         String
+  bTreeId           String
+  roles             String[]  @default([])
+  originText        String?
+  originContext     String?
+  originViaPersonId String?
+  invitedByUserId   String?
+  score             Float     @default(0)
+  firstMemoryAt     DateTime?
+  lastInteractionAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  aPerson Person @relation("FriendLinkA", fields: [aPersonId], references: [id], onDelete: Cascade)
+  aTree   Tree   @relation("FriendLinkATree", fields: [aTreeId], references: [id], onDelete: Cascade)
+  bPerson Person @relation("FriendLinkB", fields: [bPersonId], references: [id], onDelete: Cascade)
+  bTree   Tree   @relation("FriendLinkBTree", fields: [bTreeId], references: [id], onDelete: Cascade)
+
+  assertions FriendLinkAssertion[]
+  invites    FriendInvite[]
+
+  @@unique([aPersonId, bPersonId])
+  @@index([aPersonId])
+  @@index([bPersonId])
+}
+
+model FriendLinkAssertion {
+  id         String   @id @default(cuid())
+  linkId     String
+  byPersonId String
+  role       String?
+  assertedAt DateTime @default(now())
+
+  link     FriendLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  byPerson Person     @relation("FriendLinkAssertionBy", fields: [byPersonId], references: [id], onDelete: Cascade)
+
+  @@unique([linkId, byPersonId])
 }
