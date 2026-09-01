@@ -43,7 +43,12 @@ export default async function TreeViewPage({
     );
   }
 
-  const initialCenterId = focus ?? tree.homePersonId ?? null;
+  // A claimed relative sees the tree centred on *themselves* by default.
+  const mine = await db.person.findFirst({
+    where: { treeId, claimedByUserId: ctx.user.id },
+    select: { id: true },
+  });
+  const initialCenterId = focus ?? mine?.id ?? tree.homePersonId ?? null;
   const graph = await getTreeGraph(treeId, initialCenterId);
 
   const bound = setHomePersonFromTree.bind(null, treeId);

@@ -284,6 +284,15 @@ export default async function PersonDetailPage({
           </div>
         {editable && (
           <div className="flex flex-wrap items-start gap-2">
+            {!deceased && person.claimedByUserId === ctx.user.id && (
+              <Link
+                href={`/trees/${treeId}/tree?focus=${personId}`}
+                className="rounded-lg border px-3 py-1.5 text-sm"
+                style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
+              >
+                Tree centred on you
+              </Link>
+            )}
             {deceased && (
               <Link
                 href={`/trees/${treeId}/people/${personId}/memorial`}

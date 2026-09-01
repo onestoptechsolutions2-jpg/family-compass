@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getSessionUser } from "@/lib/rbac";
+import { homePathForUser } from "@/lib/home";
 import { PeanutArt } from "@/components/GradientArt";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
@@ -46,6 +47,7 @@ const FEATURES = [
 
 export default async function LandingPage() {
   const user = await getSessionUser();
+  const appHref = user ? await homePathForUser(user.id) : null;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6 py-10">
@@ -55,7 +57,7 @@ export default async function LandingPage() {
           <Link href="/docs" className="hover:underline">Developers</Link>
           <Link href="/pricing" className="hover:underline">Pricing</Link>
           {user ? (
-            <Link href="/app" className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
+            <Link href={appHref ?? "/app"} className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
               Open app
             </Link>
           ) : (
@@ -82,8 +84,8 @@ export default async function LandingPage() {
             starting in Western Kenya.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href={user ? "/app" : "/start"} className="rounded-lg bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700">
-              {user ? "Go to your trees" : "Start free"}
+            <Link href={appHref ?? "/start"} className="rounded-lg bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700">
+              {user ? "Open Family Compass" : "Start free"}
             </Link>
             <Link href="/about" className="rounded-lg border border-[#00000022] bg-white/70 px-5 py-3 font-medium text-[#3b2a1c] backdrop-blur">
               About the project

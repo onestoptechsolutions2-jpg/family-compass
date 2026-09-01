@@ -4,6 +4,7 @@ import { consumeSignInToken } from "@/lib/claims";
 import { startDbSession } from "@/lib/session";
 import { getSessionUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
+import { homePathForUser } from "@/lib/home";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,8 @@ export async function GET(
 
   const current = await getSessionUser();
   if (current) {
-    // Already signed in — don't burn the token; just point them somewhere sane.
-    return NextResponse.redirect(new URL("/app", origin));
+    // Already signed in — don't burn the token; land them on their own home.
+    return NextResponse.redirect(new URL(await homePathForUser(current.id), origin));
   }
 
   const claim = await consumeSignInToken(token);
@@ -33,8 +34,9 @@ export async function GET(
   }
 
   await startDbSession(claim.userId);
+  // Always their own profile, centred on them, with the first-run wizard.
   const dest = claim.personId
     ? `/trees/${claim.treeId}/people/${claim.personId}?welcome=1`
-    : "/app";
+    : await homePathForUser(claim.userId, { welcome: true });
   return NextResponse.redirect(new URL(dest, origin));
 }
