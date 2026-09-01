@@ -33,6 +33,11 @@ RUN set -eux; \
 
 # ---------- builder ----------
 FROM base AS builder
+# Commit the image is built from — Coolify provides SOURCE_COMMIT at build.
+# next.config.ts reads APP_BUILD_SHA and inlines it so /api/health can report
+# what's live. Falls back to "unknown" when built outside Coolify.
+ARG SOURCE_COMMIT
+ENV APP_BUILD_SHA=$SOURCE_COMMIT
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # `prisma generate` (downloads the engine here) + `next build`.

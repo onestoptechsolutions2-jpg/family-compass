@@ -88,8 +88,13 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    Directory** = `/` and **Docker Compose Location** = `/docker-compose.yml`
    — must match the filename exactly. A mismatch fails the deploy in seconds
    with *"Docker Compose file not found at: …"*. Set it once and leave it.
-2. Set environment variables in the Coolify UI. Nothing is baked into the
-   image — the compose file **refuses to start** without the required ones:
+2. Set environment variables in the Coolify UI. The compose file **refuses to
+   start** without the required ones. **Turn "Build Variable" OFF for every
+   secret** (`AUTH_SECRET`, `DATABASE_URL`, `POSTGRES_PASSWORD`,
+   `SUPERADMIN_PASSWORD`, `GOOGLE_CLIENT_SECRET`, `MPESA_*`) — otherwise Coolify
+   passes them as Docker build args, which bake them into image layers and
+   print them in the build log. They're only needed at runtime; the Dockerfile
+   has harmless dummy defaults for the build.
 
    | Variable | Req? | Notes |
    |---|---|---|
