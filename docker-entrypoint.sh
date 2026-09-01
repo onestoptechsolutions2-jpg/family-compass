@@ -1,6 +1,15 @@
 #!/bin/sh
 set -e
 
+# Derive DATABASE_URL from the bundled postgres service when it isn't set
+# explicitly — POSTGRES_PASSWORD is the only value the operator must provide
+# (the postgres container needs it too). Keeps `prisma migrate deploy` and the
+# seed working with a minimal env.
+if [ -z "${DATABASE_URL:-}" ] && [ -n "${POSTGRES_PASSWORD:-}" ]; then
+  export DATABASE_URL="postgresql://${POSTGRES_USER:-familycompass}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-familycompass}?schema=public"
+  echo "==> DATABASE_URL derived from POSTGRES_* (host ${POSTGRES_HOST:-postgres})"
+fi
+
 # The `app` service runs migrations on boot (RUN_MIGRATIONS defaults to true).
 # Set RUN_MIGRATIONS=false on the `worker` service so the two containers don't
 # race each other applying migrations.

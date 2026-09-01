@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { z } from "zod";
 
 /**
@@ -8,13 +10,19 @@ import { z } from "zod";
  * and secrets must all be supplied by the deployment. The only baked values
  * are throwaway placeholders used during `next build` (see below).
  */
+// A compose `${VAR:-}` on an unset variable hands us "" — treat it as absent.
+const optionalUrl = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.string().url().optional(),
+);
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   DATABASE_URL: z.string().url(),
 
   AUTH_SECRET: z.string().min(1, "AUTH_SECRET is required (openssl rand -base64 33)"),
-  AUTH_URL: z.string().url().optional(),
+  AUTH_URL: optionalUrl,
   // Public origin of the app, e.g. https://myroots.example.com — used to build
   // share links and payment references.
   APP_URL: z.string().url(),
@@ -22,7 +30,7 @@ const schema = z.object({
   // invites, WhatsApp sign-in). Set this when the browsing origin differs from
   // the canonical public origin, or when developing locally but sharing real
   // links. Falls back to the live request host, then APP_URL.
-  SHARE_ORIGIN: z.string().url().optional().default(""),
+  SHARE_ORIGIN: optionalUrl.transform((v) => v ?? ""),
   AUTH_TRUST_HOST: z
     .string()
     .optional()
@@ -121,13 +129,77 @@ const BUILD_FALLBACKS = {
   APP_URL: "http://localhost",
 } as const;
 
-const source = isBuildPhase ? { ...BUILD_FALLBACKS, ...process.env } : process.env;
+const trimmed = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
+
+/**
+ * A compose stack ships its own postgres and the platform (Coolify) injects
+ * the domain. Rather than making the operator hand-set five variables, derive
+ * the ones we can when they're absent — the ONLY value that must be set is
+ * POSTGRES_PASSWORD (the DB container needs it too).
+ *
+ *   DATABASE_URL  ← postgres://<POSTGRES_USER>:<POSTGRES_PASSWORD>@<host>/<db>
+ *   APP_URL       ← COOLIFY_URL / https://COOLIFY_FQDN
+ *   AUTH_URL      ← APP_URL
+ *   AUTH_SECRET   ← stable hash of POSTGRES_PASSWORD (warns; set an explicit one)
+ */
+export let envSynthesized: string[] = [];
+
+function deriveEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  const e: Record<string, string | undefined> = { ...raw };
+  const pgPass = trimmed(e.POSTGRES_PASSWORD);
+  const made: string[] = [];
+
+  if (!trimmed(e.DATABASE_URL) && pgPass) {
+    const u = trimmed(e.POSTGRES_USER) ?? "familycompass";
+    const d = trimmed(e.POSTGRES_DB) ?? "familycompass";
+    const h = trimmed(e.POSTGRES_HOST) ?? "postgres";
+    e.DATABASE_URL = `postgresql://${u}:${encodeURIComponent(pgPass)}@${h}:5432/${d}?schema=public`;
+    made.push("DATABASE_URL");
+  }
+
+  const coolifyOrigin =
+    trimmed(e.COOLIFY_URL) ??
+    (trimmed(e.COOLIFY_FQDN)
+      ? `https://${trimmed(e.COOLIFY_FQDN)!.split(",")[0]!.trim()}`
+      : undefined);
+  if (!trimmed(e.APP_URL) && coolifyOrigin) {
+    e.APP_URL = coolifyOrigin;
+    made.push("APP_URL");
+  }
+  if (!trimmed(e.AUTH_URL) && trimmed(e.APP_URL)) {
+    e.AUTH_URL = trimmed(e.APP_URL);
+    made.push("AUTH_URL");
+  }
+
+  if (!trimmed(e.AUTH_SECRET) && pgPass) {
+    e.AUTH_SECRET = createHash("sha256").update(`familycompass:auth:${pgPass}`).digest("base64");
+    made.push("AUTH_SECRET");
+  }
+
+  envSynthesized = made;
+  return e;
+}
+
+const source = isBuildPhase
+  ? { ...BUILD_FALLBACKS, ...process.env }
+  : deriveEnv(process.env);
 
 const parsed = schema.safeParse(source);
 
 if (!parsed.success) {
   console.error("❌ Invalid environment variables:", z.treeifyError(parsed.error));
-  if (!isBuildPhase) throw new Error("Invalid environment variables");
+  if (!isBuildPhase) {
+    console.error(
+      "→ Set POSTGRES_PASSWORD (the postgres container needs it too). " +
+        "DATABASE_URL, APP_URL, AUTH_URL and AUTH_SECRET are derived from it + the platform URL when unset.",
+    );
+    throw new Error("Invalid environment variables");
+  }
+} else if (envSynthesized.length > 0 && !isBuildPhase) {
+  console.warn(`⚠ Derived ${envSynthesized.join(", ")} from POSTGRES_PASSWORD / platform URL.`);
+  if (envSynthesized.includes("AUTH_SECRET")) {
+    console.warn("⚠ Set an explicit AUTH_SECRET (openssl rand -base64 33) for a stable value.");
+  }
 }
 
 export const env = (parsed.success ? parsed.data : schema.parse(BUILD_FALLBACKS)) as z.infer<

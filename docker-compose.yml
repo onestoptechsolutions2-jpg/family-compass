@@ -8,10 +8,13 @@
 #     $PORT (default 3000) internally.
 #   * Locally: put them in a `.env` file next to this compose file.
 #
-# Required (compose refuses to start without them):
-#   POSTGRES_PASSWORD, DATABASE_URL, AUTH_SECRET, AUTH_URL, APP_URL
-# Optional:
-#   POSTGRES_USER, POSTGRES_DB, APP_PORT, PORT, GOOGLE_CLIENT_ID/SECRET,
+# The ONLY value you must set is POSTGRES_PASSWORD. Everything else is derived
+# at boot (src/lib/env.ts + docker-entrypoint.sh) when unset:
+#   DATABASE_URL  <- the bundled postgres service + POSTGRES_PASSWORD
+#   APP_URL / AUTH_URL <- COOLIFY_URL / COOLIFY_FQDN injected by the platform
+#   AUTH_SECRET   <- stable hash of POSTGRES_PASSWORD (set an explicit one for prod)
+# Set any of them explicitly to override the derived value.
+# Optional: POSTGRES_USER, POSTGRES_DB, APP_PORT, PORT, GOOGLE_CLIENT_ID/SECRET,
 #   EMAIL_SERVER, EMAIL_FROM, ADMIN_EMAILS, RUN_SEED_ON_MIGRATE
 
 x-build: &app-build
@@ -41,10 +44,17 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET (openssl rand -base64 33)}
-      AUTH_URL: ${AUTH_URL:?set AUTH_URL to your public origin, e.g. https://host}
-      APP_URL: ${APP_URL:?set APP_URL to your public origin, e.g. https://host}
+      # Only POSTGRES_PASSWORD must be set; the rest derive from it + the
+      # platform URL in src/lib/env.ts / docker-entrypoint.sh when left blank.
+      POSTGRES_USER: ${POSTGRES_USER:-familycompass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-familycompass}
+      COOLIFY_URL: ${COOLIFY_URL:-}
+      COOLIFY_FQDN: ${COOLIFY_FQDN:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      AUTH_URL: ${AUTH_URL:-}
+      APP_URL: ${APP_URL:-}
       AUTH_TRUST_HOST: "true"
       PORT: ${PORT:-3000}
       RUN_MIGRATIONS: "true"
@@ -97,9 +107,15 @@ services:
         condition: service_started
     command: ["npm", "run", "worker"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
-      APP_URL: ${APP_URL:?set APP_URL}
+      POSTGRES_USER: ${POSTGRES_USER:-familycompass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-familycompass}
+      COOLIFY_URL: ${COOLIFY_URL:-}
+      COOLIFY_FQDN: ${COOLIFY_FQDN:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      AUTH_URL: ${AUTH_URL:-}
+      APP_URL: ${APP_URL:-}
       RUN_MIGRATIONS: "false"
       EMAIL_SERVER: ${EMAIL_SERVER:-}
       EMAIL_FROM: ${EMAIL_FROM:-}

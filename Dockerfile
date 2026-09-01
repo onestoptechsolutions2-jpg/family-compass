@@ -53,6 +53,10 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/worker ./worker
 COPY --from=builder /app/seed ./seed
+# `npm start` fires the `prestart` hook (scripts/prestart.mjs) — without this
+# COPY, `node scripts/prestart.mjs` is missing and the container crash-loops
+# before `next start` even runs.
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN chmod +x ./docker-entrypoint.sh && chown -R node:node /app

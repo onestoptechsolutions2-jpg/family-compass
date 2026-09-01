@@ -13,6 +13,21 @@ if (process.env.RUN_MIGRATIONS === "false") {
   process.exit(0);
 }
 
+// Mirror docker-entrypoint.sh: derive DATABASE_URL from the postgres service
+// when unset, so migrate works even if the ENTRYPOINT was bypassed.
+if (!process.env.DATABASE_URL?.trim() && process.env.POSTGRES_PASSWORD?.trim()) {
+  const u = process.env.POSTGRES_USER?.trim() || "familycompass";
+  const d = process.env.POSTGRES_DB?.trim() || "familycompass";
+  const h = process.env.POSTGRES_HOST?.trim() || "postgres";
+  process.env.DATABASE_URL = `postgresql://${u}:${encodeURIComponent(process.env.POSTGRES_PASSWORD.trim())}@${h}:5432/${d}?schema=public`;
+  console.log("[prestart] DATABASE_URL derived from POSTGRES_*");
+}
+
+if (!process.env.DATABASE_URL?.trim()) {
+  console.error("[prestart] no DATABASE_URL and no POSTGRES_PASSWORD — skipping migrate; the app will report this via /api/health");
+  process.exit(0);
+}
+
 console.log("[prestart] prisma migrate deploy");
 const r = spawnSync("npx", ["prisma", "migrate", "deploy"], {
   stdio: "inherit",
