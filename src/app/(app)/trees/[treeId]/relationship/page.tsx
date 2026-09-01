@@ -7,6 +7,7 @@ import { personOptions } from "@/lib/queries/people";
 import { displayName, NAME_SELECT } from "@/lib/person";
 import { bloodRelationship } from "@/lib/kinship";
 import { affinalRelationship } from "@/lib/affinity";
+import { howConnected } from "@/lib/queries/connection";
 import { PersonSelect } from "@/components/PersonSelect";
 
 export const metadata = { title: "Relationship check" };
@@ -24,7 +25,35 @@ export default async function RelationshipPage({
   const options = await personOptions(treeId);
 
   let result: React.ReactNode = null;
+  let connection: React.ReactNode = null;
   if (a && b && a !== b) {
+    const conn = await howConnected(a, b);
+    if (conn.found && conn.hops.length > 0) {
+      connection = (
+        <div className="rounded-xl border p-5" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <h2 className="font-medium">How they&apos;re connected</h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+            Through the circle — friends, mentors, chosen family (not bloodline).
+          </p>
+          <ol className="mt-3 flex flex-col gap-1.5 text-sm">
+            {conn.hops.map((h, i) => (
+              <li key={i}>
+                <strong>{h.fromName}</strong>{" "}
+                <span style={{ color: "var(--muted)" }}>
+                  — {h.relation.replace(/-/g, " ")}
+                  {h.otherFamily ? ` · from the ${h.otherFamily}` : ""} →
+                </span>{" "}
+                <strong>{h.toName}</strong>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+            {conn.hops.length} step{conn.hops.length === 1 ? "" : "s"} apart in the social graph.
+          </p>
+        </div>
+      );
+    }
+
     const [pa, pb, graph] = await Promise.all([
       db.person.findFirst({
         where: { id: a, treeId },
@@ -142,10 +171,10 @@ export default async function RelationshipPage({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold">Are we related?</h1>
+        <h1 className="text-lg font-semibold">Are we related — and how are we connected?</h1>
         <p className="text-sm" style={{ color: "var(--muted)" }}>
-          Check two people for a shared bloodline or clan — e.g. before a relationship or
-          marriage.
+          Check two people for a shared bloodline or clan, and trace how they&apos;re linked through
+          the circle (friends, mentors, chosen family — across families too).
         </p>
       </div>
 
@@ -168,6 +197,7 @@ export default async function RelationshipPage({
       </form>
 
       {result}
+      {connection}
     </div>
   );
 }
