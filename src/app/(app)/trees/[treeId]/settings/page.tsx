@@ -27,22 +27,28 @@ export default async function TreeSettingsPage({
   const ctx = await loadTreeContext(treeId);
   if (!canManageTree(ctx.role)) notFound();
 
-  const tree = await db.tree.findUniqueOrThrow({
-    where: { id: treeId },
-    select: {
-      name: true,
-      description: true,
-      homePersonId: true,
-      adminUserId: true,
-      discoverable: true,
-      showcase: true,
-      community: true,
-      region: true,
-      clanInheritance: true,
-      inheritSurname: true,
-      anniversaryReminders: true,
-    },
-  });
+  const treeBase = {
+    name: true,
+    description: true,
+    homePersonId: true,
+    adminUserId: true,
+    discoverable: true,
+    showcase: true,
+    community: true,
+    region: true,
+    anniversaryReminders: true,
+  } as const;
+  // clanInheritance / inheritSurname land with migration …037 — tolerate a
+  // database that hasn't caught up yet rather than 500 the settings page.
+  const tree = await db.tree
+    .findUniqueOrThrow({
+      where: { id: treeId },
+      select: { ...treeBase, clanInheritance: true, inheritSurname: true },
+    })
+    .catch(async () => {
+      const b = await db.tree.findUniqueOrThrow({ where: { id: treeId }, select: treeBase });
+      return { ...b, clanInheritance: "PATRILINEAL" as const, inheritSurname: true };
+    });
   const options = await personOptions(treeId);
   const members = await db.membership.findMany({
     where: { workspaceId: ctx.workspace.id },

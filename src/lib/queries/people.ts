@@ -168,56 +168,82 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
   return rows;
 }
 
+const PERSON_DETAIL_BASE = {
+  id: true,
+  grampsId: true,
+  gender: true,
+  living: true,
+  privacy: true,
+  publicDatePrecision: true,
+  hidePhotosPublic: true,
+  phone: true,
+  claimedByUserId: true,
+  claimedBy: { select: { name: true } },
+  clanId: true,
+  subClan: true,
+  clan: { select: { name: true } },
+} satisfies Prisma.PersonSelect;
+
+const PERSON_DETAIL_NAMING = {
+  namedAfterId: true,
+  namedAfter: { select: { id: true, names: { select: NAME_SELECT } } },
+  namesakes: { select: { id: true, names: { select: NAME_SELECT } }, orderBy: { createdAt: "asc" } },
+} satisfies Prisma.PersonSelect;
+
 export async function getPersonDetail(treeId: string, personId: string) {
-  return db.person.findFirst({
-    where: { id: personId, treeId },
-    select: {
-      id: true,
-      grampsId: true,
-      gender: true,
-      living: true,
-      privacy: true,
-      publicDatePrecision: true,
-      hidePhotosPublic: true,
-      phone: true,
-      claimedByUserId: true,
-      claimedBy: { select: { name: true } },
-      clanId: true,
-      subClan: true,
-      clan: { select: { name: true } },
-      namedAfterId: true,
-      namedAfter: { select: { id: true, names: { select: NAME_SELECT } } },
-      namesakes: { select: { id: true, names: { select: NAME_SELECT } }, orderBy: { createdAt: "asc" } },
-      names: { select: NAME_SELECT, orderBy: { order: "asc" } },
-      attributes: { select: { id: true, type: true, value: true }, orderBy: { order: "asc" } },
-      eventRefs: {
-        select: {
-          id: true,
-          role: true,
-          event: {
-            select: {
-              id: true,
-              type: true,
-              description: true,
-              dateModifier: true,
-              dateQuality: true,
-              dateYear: true,
-              dateMonth: true,
-              dateDay: true,
-              dateYear2: true,
-              dateMonth2: true,
-              dateDay2: true,
-              dateText: true,
-              place: { select: { id: true, title: true } },
-            },
+  // The naming fields (migration …037) are additive — if a deploy hasn't run
+  // migrations yet, fall back so every person page doesn't 500 on a missing
+  // column. Check /api/health?schema=1 when this fallback fires in prod.
+  const rest = {
+    names: { select: NAME_SELECT, orderBy: { order: "asc" } },
+    attributes: { select: { id: true, type: true, value: true }, orderBy: { order: "asc" } },
+    eventRefs: {
+      select: {
+        id: true,
+        role: true,
+        event: {
+          select: {
+            id: true,
+            type: true,
+            description: true,
+            dateModifier: true,
+            dateQuality: true,
+            dateYear: true,
+            dateMonth: true,
+            dateDay: true,
+            dateYear2: true,
+            dateMonth2: true,
+            dateDay2: true,
+            dateText: true,
+            place: { select: { id: true, title: true } },
           },
         },
       },
-      familiesAsPartner1: { select: { id: true } },
-      familiesAsPartner2: { select: { id: true } },
-      childRefs: { select: { id: true, familyId: true } },
     },
-  });
+    familiesAsPartner1: { select: { id: true } },
+    familiesAsPartner2: { select: { id: true } },
+    childRefs: { select: { id: true, familyId: true } },
+  } satisfies Prisma.PersonSelect;
+
+  try {
+    return await db.person.findFirst({
+      where: { id: personId, treeId },
+      select: { ...PERSON_DETAIL_BASE, ...PERSON_DETAIL_NAMING, ...rest },
+    });
+  } catch {
+    const base = await db.person.findFirst({
+      where: { id: personId, treeId },
+      select: { ...PERSON_DETAIL_BASE, ...rest },
+    });
+    return base
+      ? {
+          ...base,
+          namedAfterId: null as string | null,
+          namedAfter: null as { id: string; names: (typeof base.names) } | null,
+          namesakes: [] as { id: string; names: typeof base.names }[],
+        }
+      : null;
+  }
 }
 
 const PERSON_MINI = {

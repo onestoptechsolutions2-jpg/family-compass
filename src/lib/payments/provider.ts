@@ -57,15 +57,23 @@ const DEFAULTS: PaymentSettings = {
 };
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {
-  const row = await db.paymentSettings.findUnique({ where: { scope: "global" } });
+  // A missing column (a settings migration not yet deployed) would otherwise
+  // throw here and take down every page that prices anything. Fall back to
+  // defaults instead — see /api/health?schema=1 to spot the real cause.
+  let row: Awaited<ReturnType<typeof db.paymentSettings.findUnique>> = null;
+  try {
+    row = await db.paymentSettings.findUnique({ where: { scope: "global" } });
+  } catch {
+    return DEFAULTS;
+  }
   if (!row) return DEFAULTS;
   return {
     provider: row.provider,
     currency: row.currency,
     defaultPriceKes: row.defaultPriceKes,
     keeperPriceKes: row.keeperPriceKes,
-    memorialPassKes: row.memorialPassKes,
-    memorialPassDays: row.memorialPassDays,
+    memorialPassKes: row.memorialPassKes ?? DEFAULTS.memorialPassKes,
+    memorialPassDays: row.memorialPassDays ?? DEFAULTS.memorialPassDays,
     priceFreeGenerations: row.priceFreeGenerations,
     priceFreeNodes: row.priceFreeNodes,
     pricePerGenerationKes: row.pricePerGenerationKes,
