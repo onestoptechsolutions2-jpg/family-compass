@@ -58,6 +58,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/worker ./worker
 COPY --from=builder /app/seed ./seed
+# `npm start` runs the `prestart` hook (scripts/prestart.mjs) — a migration
+# safety net for when the platform overrides the container ENTRYPOINT.
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN chmod +x ./docker-entrypoint.sh && chown -R node:node /app
