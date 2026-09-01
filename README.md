@@ -39,10 +39,12 @@ Family plan, and commissioned research are paid (M-Pesa).
 | 1 | People / Families CRUD, Events / Places / Sources lists, tree settings | ✅ done |
 | 2 | `.gramps` XML + GEDCOM importers (background jobs) | ✅ done (Gramps verified on seed data; GEDCOM needs a real-file test) |
 | 3 | Interactive pan/zoom tree — ancestors / hourglass / descendants / fan chart, click-to-re-root, keyboard nav, jump-to-person, set home person | ✅ done |
-| 4 | Media upload (Postgres bytea) + `sharp` thumbnails + `/api/media/[id]` with auth, ETag, range · gallery + per-person photos · 10 MB/file, 250 MB/tree quota | ✅ done |
+| 4 | Media upload (Postgres bytea) + `sharp` thumbnails + `/api/media/[id]` with auth, ETag, range · gallery + per-person photos · 10 MB/file, 250 MB/tree quota. Generated charts / PDFs live in `GeneratedFile` (TTL, no quota) and are excluded from the gallery. | ✅ done |
 | 5 | Role management + `/trees/…/sharing`, public `/s/[slug]` read-only tree (living-person redaction, optional password/expiry), `/updates` feed. **WhatsApp self-onboarding**: claim an existing node from a shared view → admin approves in `/trees/…/claims` → one-tap `wa.me` sign-in link (`/api/auth/wa/[token]`). No email/passwords required. | ✅ done |
 | 6 | Paid generation — watermarked preview → first-free / credit / M-Pesa Till bundle → admin verify → clean download. Pedigree/fan/descendant PDF, family-book PDF, GEDCOM + `.gramps` exports. Pluggable payment provider + `/admin/payments` + `/admin/settings` | ✅ done |
-| 7 | Marketing pages, rate limiting, audit log, backups, admin console | ⏳ planned |
+| 7 | Marketing pages, rate limiting, audit log, backups, admin console | 🟡 mostly done — `/admin` (users/revenue), `/admin/trees` (every tree, searchable), `/admin/payments`, `/admin/research`, `/admin/system` (resources · **Jobs**: pending worker queue + generations + imports with retry · maintenance · backup · audit log). Marketing pages + rate limiting still light. |
+| L | **Lineage & naming** — `Tree.clanInheritance` (patrilineal default) + `inheritSurname`: adding a child/parent fills blank clan/sub-clan/surname from the lineage parent; correcting a person's clan **cascades down the line** (`cascadeClanDown`, stops at a daughter's children). `Person.namedAfterId` records the relative a child is named after; add-child dialogs suggest the four grandparents. Settings → Clan & naming has a bulk **backfill**. | ✅ done |
+| M | **Memorial Pass** — one KES 1,500 payment per memorial unlocks unlimited clean memorial-book & programme prints for `memorialPassDays`. `Memorial.passUntil`, `Payment.memorialId`, wired through `fulfilPayment` + `unlockGeneration` + the bereavement checklist. | ✅ done |
 | R | **Relationships as shared history** — `Memory` / `MemoryParticipant` (co-owned, each side annotates), `RelationEdge` (derived closeness score, never a slider; carries the origin story — text + context + "through" person), `RelationAssertion` (per-side, so reciprocity is measurable). Person-page **Circle** tab; **Family energy** bar on Reports (tree-wide + per household); `GET /api/v1/trees/{id}/relationships`; `memory.added` / `relation.named` webhooks. | 🟡 in progress |
 | R2 | **Friend links** — invite a non-relative → they get their own seeded tree and a cross-tree `FriendLink` joins the two people (`/f/<token>`, WhatsApp sign-in, no email). "From other families" on the Circle tab; `GET /api/v1/trees/{id}/friend-links`; `friend.invited` / `friend.linked` webhooks. | 🟡 in progress |
 | R3 | **Profile analyzer** — `analyzeProfile()` finds the gaps (birth, place, photo, clan, then parents → grandparents → great-grandparents) and a persistent `<ProfileGaps>` wizard on the person page works toward four generations (present vs a 14-ancestor target). | 🟡 in progress |
@@ -82,7 +84,10 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
 
 ## Deploy on Coolify
 
-1. **New Resource → Docker Compose**, point it at this repo (`docker-compose.yml`).
+1. **New Resource → Docker Compose**, point it at this repo. Set **Base
+   Directory** = `/` and **Docker Compose Location** = `/docker-compose.yml`
+   (exact — a mismatch here is what causes *"Failed to read the Docker Compose
+   file from the repository"*).
 2. Set environment variables in the Coolify UI. Nothing is baked into the
    image — the compose file **refuses to start** without the required ones:
 
@@ -106,9 +111,15 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
 3. Attach your domain (e.g. `myroots.laitor.co.ke`) to the **`app`** service.
    Coolify's proxy routes it to the container's `$PORT`; `APP_PORT` is the
    host-published port if you front it yourself.
-4. Deploy. On boot the `app` container runs `prisma migrate deploy`
-   (`RUN_MIGRATIONS=true`); the `worker` container has it disabled to avoid a
-   migration race.
+4. Deploy. On boot the `app` container runs `prisma migrate deploy` — from
+   `docker-entrypoint.sh` (`RUN_MIGRATIONS=true`) **and** again from the `npm`
+   `prestart` hook, so migrations still apply if a platform "start command"
+   bypasses the entrypoint. The `worker` container sets `RUN_MIGRATIONS=false`
+   to avoid a race. If tree pages 500 on missing columns after a deploy, check
+   `GET /api/health` — `pending[]` non-empty means migrations didn't run
+   (usually a wrong **Docker Compose Location** / **Base Directory** in Coolify,
+   or a start-command override); `failed[]` non-empty means one half-applied
+   and needs `prisma migrate resolve`.
 5. First deploy: set `RUN_SEED_ON_MIGRATE=true` **or** run `npm run db:seed`
    once via a Coolify terminal on the **`app`** container. This:
    - creates the global `PaymentSettings` row, and
@@ -159,14 +170,23 @@ Free to build, invite, and publish shared links.
   KES 6,000.
 - **Family plan** (`PaymentKind.KEEPER`) — KES 3,000 / tree / year, unlimited
   downloads of any size while `Tree.keeperUntil` is in the future.
+- **Memorial Pass** (`PaymentKind.MEMORIAL_PASS`) — KES 1,500, one payment per
+  memorial: unlimited clean (no-watermark) memorial-book & funeral-programme
+  prints for `memorialPassDays` (default 120) while `Memorial.passUntil` is in
+  the future. Bought from the memorial editor; regenerate freely as
+  arrangements change before a funeral.
 - **Deep search** (`PaymentKind.DEEP_SEARCH`) — KES 300 for one cross-tree
-  lookup (`/discover`): is this person from my bloodline / clan? Free preview
-  shows the match count; paid shows who, where, and a WhatsApp connect link.
+  lookup. Launched as an **overlay** (`<DeepSearchDialog>`) from the
+  relationship check or any person page, not a page of its own. The free
+  preview is a **teaser** — given name + surname initial, clan, birth decade,
+  area — enough to recognise a relative; paying reveals full names, which tree
+  each is in, and a WhatsApp connect link.
 - **Research Partner** (`PaymentKind.RESEARCH_PARTNER`) — quoted engagement
   (`/research` → `/admin/research`): we build the tree. Quote helper =
   `base + perGen × generationsTarget + perNode × nodesTarget`.
 
-All prices/multipliers are editable in **/admin/settings**.
+All prices/multipliers (including `memorialPassKes` / `memorialPassDays`) are
+editable in **/admin/settings**.
 
 Credits detail:
 first export per tree is **free**, then **1 credit per download**. Credits are
@@ -178,7 +198,13 @@ credits land → *Unlock* again → clean file at `/api/generations/[id]/downloa
 Swap `PaymentSettings.provider` to an aggregator (IntaSend/Paystack STK push)
 later — same `PaymentProvider` interface, webhook route already stubbed.
 
-Health check: `GET /api/health` → `{ ok: true, db: "up" }`.
+Health & deploy probe: `GET /api/health` →
+`{ ok, build, db, schemaUpToDate, appliedCount, pending[], failed[], latestApplied, latestOnDisk }`.
+`build` is the commit the image was built from (`APP_BUILD_SHA`, stamped from
+Coolify's `SOURCE_COMMIT`); `pending` / `failed` list migrations the connected
+database hasn't applied. It stays **HTTP 200 while the DB is reachable** so a
+migration lag can't make the container healthcheck flap or trigger a rollback —
+read the body to see drift.
 
 ### Backups
 
