@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
   // process, which share code under src/lib. Revisit standalone later as an
   // image-size optimization.
   serverExternalPackages: ["pg-boss", "sharp", "@resvg/resvg-js"],
+  // Stamp the build with the commit it was built from (Coolify sets
+  // SOURCE_COMMIT at build time) so /api/health can report what's live.
+  env: {
+    APP_BUILD_SHA:
+      process.env.SOURCE_COMMIT ??
+      process.env.APP_BUILD_SHA ??
+      process.env.GIT_SHA ??
+      "unknown",
+  },
   experimental: {
     // Server Actions handle media uploads; raise the body limit.
     serverActions: {

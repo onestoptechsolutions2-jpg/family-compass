@@ -22,7 +22,7 @@ export default async function AdminHomePage() {
 
   const cards = [
     { label: "Users", value: users },
-    { label: "Trees", value: trees },
+    { label: "Trees", value: trees, href: "/admin/trees" },
     { label: "Payments awaiting verification", value: pendingPayments, href: "/admin/payments" },
     { label: "Paid generations", value: paidPayments },
     { label: "Revenue (KES)", value: revenue._sum.amountKes ?? 0 },

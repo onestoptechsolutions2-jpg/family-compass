@@ -9,6 +9,7 @@ import { displayName, genderColor, genderSymbol, NAME_SELECT } from "@/lib/perso
 import { displayPhone, waLink } from "@/lib/wa";
 import { claimStatusReport, CLAIM_CATEGORIES } from "@/lib/queries/claim-report";
 import { CopyButton } from "@/components/CopyButton";
+import { Tabs } from "@/components/Tabs";
 import { approveClaimAction, rejectClaimAction, sendClaimLink } from "./actions";
 
 export const metadata = { title: "Claims" };
@@ -145,16 +146,13 @@ export default async function ClaimsPage({
     );
   };
 
-  return (
+  const requestsPanel = (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">Claims &amp; join requests</h2>
-        <p className="text-sm" style={{ color: "var(--muted)" }}>
-          People who opened a share link and asked to be an existing person (or to be added).
-          Verify the WhatsApp message you received, then approve — that links their sign-in to the
-          existing record, so no duplicate is created.
-        </p>
-      </div>
+      <p className="text-sm" style={{ color: "var(--muted)" }}>
+        People who opened a share link and asked to be an existing person (or to be added).
+        Verify the WhatsApp message you received, then approve — that links their sign-in to the
+        existing record, so no duplicate is created.
+      </p>
 
       <section>
         <h3 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
@@ -184,18 +182,18 @@ export default async function ClaimsPage({
           </div>
         </section>
       )}
+    </div>
+  );
 
-      <section id="accounts" className="flex scroll-mt-4 flex-col gap-3 border-t pt-6" style={{ borderColor: "var(--border)" }}>
-        <div>
-          <h3 className="text-lg font-semibold">Account claims</h3>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Every profile in the tree, bucketed by whether it&apos;s tied to a login, has a link out,
-            or is still open. Send a claim link straight from here — it goes to the owner, they
-            confirm, a manager approves.
-          </p>
-        </div>
+  const profilesPanel = (
+    <section id="accounts" className="flex scroll-mt-4 flex-col gap-3">
+      <p className="text-sm" style={{ color: "var(--muted)" }}>
+        Every profile in the tree, bucketed by whether it&apos;s tied to a login, has a link out,
+        or is still open. Send a claim link straight from here — it goes to the owner, they
+        confirm, a manager approves.
+      </p>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {CLAIM_CATEGORIES.map((c) => (
             <a
               key={c.id}
@@ -258,7 +256,25 @@ export default async function ClaimsPage({
             </ul>
           </div>
         ))}
-      </section>
+    </section>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold">Claims &amp; join requests</h2>
+      </div>
+      <Tabs
+        items={[
+          {
+            id: "requests",
+            label: "Join requests",
+            badge: pending.length || undefined,
+            panel: requestsPanel,
+          },
+          { id: "profiles", label: "Profiles & claim links", panel: profilesPanel },
+        ]}
+      />
     </div>
   );
 }

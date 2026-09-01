@@ -12,6 +12,7 @@ import {
   setFamilyAdmin,
   updateDiscovery,
   updateLineage,
+  backfillLineage,
   updateAnniversaryReminders,
   deleteTree,
 } from "./actions";
@@ -226,6 +227,15 @@ export default async function TreeSettingsPage({
               Save
             </button>
           </div>
+        </form>
+        <form action={backfillLineage.bind(null, treeId)} className="mt-3 border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Apply the rule to people already in the tree: fill a blank clan (and name) on every
+            child from their lineage parent. Existing clans are left untouched.
+          </p>
+          <button className="mt-2 rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+            Backfill clans from lineage
+          </button>
         </form>
       </section>
 

@@ -9,6 +9,8 @@ import { SHOWCASE_TAG } from "@/lib/queries/showcase";
 import { db } from "@/lib/db";
 import { requireTreeManage, loadTreeContext } from "@/lib/rbac";
 import { canManageWorkspace } from "@/lib/rbac";
+import { applyLineageInheritance } from "@/lib/lineage";
+import { flashOk } from "@/lib/flash";
 
 export async function renameTree(treeId: string, formData: FormData) {
   await requireTreeManage(treeId);
@@ -83,6 +85,31 @@ export async function updateLineage(treeId: string, formData: FormData) {
     where: { id: treeId },
     data: { clanInheritance: d.clanInheritance, inheritSurname: d.inheritSurname },
   });
+  revalidatePath(`/trees/${treeId}/settings`);
+}
+
+/**
+ * Bring existing children in line with the lineage rule: for every child with
+ * no clan (and, if enabled, no family name) recorded, copy it from the lineage
+ * parent. Only fills blanks — never changes a clan already set.
+ */
+export async function backfillLineage(treeId: string) {
+  await requireTreeManage(treeId);
+  const children = await db.childRef.findMany({
+    where: { family: { treeId }, person: { clanId: null } },
+    select: { familyId: true, personId: true },
+  });
+
+  let filled = 0;
+  for (const c of children) {
+    const applied = await applyLineageInheritance(treeId, c.familyId, c.personId);
+    if (applied?.clan || applied?.surname) filled++;
+  }
+  await flashOk(
+    filled > 0
+      ? `Filled clan/name for ${filled} ${filled === 1 ? "child" : "children"} from the lineage parent.`
+      : "Nothing to fill — every child already has a clan, or no parent has one recorded.",
+  );
   revalidatePath(`/trees/${treeId}/settings`);
 }
 

@@ -5,6 +5,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requirePlatformAdmin();
   const tabs = [
     { href: "/admin", label: "Overview" },
+    { href: "/admin/trees", label: "Trees" },
     { href: "/admin/payments", label: "Payments" },
     { href: "/admin/claims", label: "Claims" },
     { href: "/admin/research", label: "Research" },
