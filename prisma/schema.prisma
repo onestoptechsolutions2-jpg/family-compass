@@ -152,6 +152,9 @@ model Memorial {
   lockedAt    DateTime?
   lockedById  String?
   finalisedAt DateTime?
+  /// Memorial Pass active until — while set & future, memorial-book
+  /// generations for this person unlock free and render clean.
+  passUntil   DateTime?
 
   /// Public page look: classic | linkedin | stripe | x
   template String @default("classic")
@@ -175,6 +178,7 @@ model Memorial {
   contributors  MemorialContributor[]
   contributions MemorialContribution[]
   chamaFund     ChamaFund?             @relation("MemorialChamaFund")
+  passPayments  Payment[]              @relation("MemorialPassPayments")
 
   @@index([treeId])
 }
@@ -1362,11 +1366,13 @@ enum PaymentKind {
   DEEP_SEARCH
   RESEARCH_PARTNER
   CHAMA_CONTRIBUTION
+  MEMORIAL_PASS
 }
 
 model Payment {
   id                String        @id @default(cuid())
   generationJobId   String?       @unique
+  memorialId        String?
   workspaceId       String
   treeId            String?
   userId            String
@@ -1393,6 +1399,7 @@ model Payment {
   updatedAt         DateTime      @updatedAt
 
   generationJob GenerationJob?      @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
+  memorial      Memorial?          @relation("MemorialPassPayments", fields: [memorialId], references: [id], onDelete: SetNull)
   workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tree          Tree?               @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
   user          User                @relation("PaymentUser", fields: [userId], references: [id])
@@ -1462,6 +1469,10 @@ model PaymentSettings {
   currency        String @default("KES")
   defaultPriceKes Int    @default(750)
   keeperPriceKes  Int    @default(3000)
+  // Memorial Pass — one payment per memorial: unlimited memorial-book &
+  // funeral-programme prints, clean (no watermark), for `memorialPassDays`.
+  memorialPassKes  Int @default(1500)
+  memorialPassDays Int @default(120)
 
   // Size-based print pricing: price = kind base
   //   + max(0, generations - freeGenerations) * perGenerationKes

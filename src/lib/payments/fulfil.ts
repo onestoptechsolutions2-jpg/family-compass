@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { grantCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activity";
 import { KEEPER_PLAN } from "@/lib/pricing";
+import { getPaymentSettings } from "@/lib/payments";
+import { enqueue, QUEUE } from "@/lib/queue";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyWorkspaceOwners, notifyUser } from "@/lib/notify";
 import { resumeAwaitingGenerations } from "@/lib/generation/resume";
@@ -33,6 +35,7 @@ export async function fulfilPayment(
       amountKes: true,
       currency: true,
       creditsGranted: true,
+      memorialId: true,
       generationJob: { select: { treeId: true } },
     },
   });
@@ -63,6 +66,40 @@ export async function fulfilPayment(
   } else if (payment.kind === PaymentKind.DEEP_SEARCH) {
     await db.deepSearch.updateMany({ where: { paymentId: payment.id }, data: { status: "PAID" } });
     summary = "deep search unlocked";
+  } else if (payment.kind === PaymentKind.MEMORIAL_PASS && payment.memorialId) {
+    const settings = await getPaymentSettings();
+    const memorial = await db.memorial.findUnique({
+      where: { id: payment.memorialId },
+      select: { id: true, personId: true, passUntil: true },
+    });
+    if (memorial) {
+      const from =
+        memorial.passUntil && memorial.passUntil.getTime() > Date.now()
+          ? memorial.passUntil
+          : new Date();
+      const until = new Date(from);
+      until.setDate(until.getDate() + settings.memorialPassDays);
+      await db.memorial.update({ where: { id: memorial.id }, data: { passUntil: until } });
+      summary = `Memorial Pass active until ${until.toISOString().slice(0, 10)}`;
+
+      // Release any memorial-book generations parked behind the paywall for
+      // this person — straight to the clean render, no extra unlock click.
+      const parked = await db.generationJob.findMany({
+        where: {
+          centralPersonId: memorial.personId,
+          kind: "MEMORIAL_BOOK",
+          status: { in: ["PREVIEW_READY", "AWAITING_PAYMENT"] },
+        },
+        select: { id: true },
+      });
+      for (const job of parked) {
+        await db.generationJob.update({
+          where: { id: job.id },
+          data: { status: "PAID", unlockedAt: new Date() },
+        });
+        await enqueue(QUEUE.renderOutput, { generationJobId: job.id });
+      }
+    }
   } else if (payment.kind === PaymentKind.RESEARCH_PARTNER) {
     await db.researchEngagement.updateMany({
       where: { paymentId: payment.id },

@@ -36,6 +36,7 @@ export async function bereavementSteps(
         id: true,
         published: true,
         restingPlace: true,
+        passUntil: true,
         program: { select: { order: true } },
         chamaFund: { select: { id: true } },
       },
@@ -75,6 +76,13 @@ export async function bereavementSteps(
       label: "Invite relatives to add memories and tributes",
       href: `${mBase}#tab=people`,
       cta: "Invite",
+    },
+    {
+      key: "pass",
+      done: !!memorial?.passUntil && memorial.passUntil.getTime() > Date.now(),
+      label: "Get the Memorial Pass — unlimited book & programme prints",
+      href: `${mBase}#pass`,
+      cta: "Get the pass",
     },
     ...(chamaEnabled()
       ? [

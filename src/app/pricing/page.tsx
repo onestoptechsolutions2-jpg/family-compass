@@ -69,6 +69,21 @@ export default function PricingPage() {
         </p>
       </div>
 
+      <div
+        className="mt-4 rounded-2xl border p-6"
+        style={{ borderColor: "var(--color-brand-600)", background: "var(--card)" }}
+      >
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-semibold">KES 1,500</span>
+          <span style={{ color: "var(--muted)" }}>per memorial, one payment</span>
+        </div>
+        <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+          <strong>Memorial Pass</strong> — unlimited clean prints of the memorial book and the
+          funeral programme for one memorial, for 120 days. Regenerate as often as arrangements
+          change in the days before a funeral, with no per-download charge and no watermark.
+        </p>
+      </div>
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border p-6" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           <div className="text-2xl font-semibold">KES 300</div>

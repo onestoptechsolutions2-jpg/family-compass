@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
-import { slugify, randomToken } from "@/lib/slug";
+import { slugify, randomToken, paymentReference } from "@/lib/slug";
+import { getPaymentSettings } from "@/lib/payments";
 import { displayName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 import { draftEulogyText, normaliseOrder, type ProgramItem } from "@/lib/queries/memorial";
@@ -27,7 +28,7 @@ import {
   closeFund as closeChamaFund,
   reopenFund as reopenChamaFund,
 } from "@/lib/chama";
-import { MemorialStatus, ContributionStatus } from "@prisma/client";
+import { MemorialStatus, ContributionStatus, PaymentKind, PaymentStatus } from "@prisma/client";
 
 const revalidate = (treeId: string, personId: string) => {
   revalidatePath(`/trees/${treeId}/people/${personId}/memorial`);
@@ -190,6 +191,56 @@ export async function updateMemorial(treeId: string, memorialId: string, formDat
 
   revalidatePath(`/trees/${treeId}/people/${before.personId}/memorial`);
   revalidatePath(`/trees/${treeId}/people`);
+}
+
+/**
+ * Buy the Memorial Pass for this memorial — one payment that unlocks unlimited
+ * clean memorial-book & funeral-programme prints for `memorialPassDays`.
+ * Creates a PENDING Payment and sends the buyer to the pay page.
+ */
+export async function startMemorialPassPurchase(treeId: string, memorialId: string) {
+  const ctx = await requireTreeEdit(treeId);
+  const m = await db.memorial.findFirst({
+    where: { id: memorialId, treeId },
+    select: {
+      id: true,
+      personId: true,
+      passUntil: true,
+      tree: { select: { workspaceId: true } },
+      passPayments: {
+        where: { status: { in: [PaymentStatus.PENDING, PaymentStatus.AWAITING_VERIFICATION] } },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+  if (!m) throw new Error("Memorial not found");
+
+  if (m.passUntil && m.passUntil.getTime() > Date.now()) {
+    redirect(`/trees/${treeId}/people/${m.personId}/memorial#tab=print`);
+  }
+  // Re-use an in-flight purchase rather than stacking payments.
+  const pending = m.passPayments[0];
+  if (pending) redirect(`/pay/${pending.id}`);
+
+  const settings = await getPaymentSettings();
+  const payment = await db.payment.create({
+    data: {
+      workspaceId: m.tree.workspaceId,
+      treeId,
+      memorialId: m.id,
+      userId: ctx.user.id,
+      provider: settings.provider,
+      kind: PaymentKind.MEMORIAL_PASS,
+      creditsGranted: 0,
+      amountKes: settings.memorialPassKes,
+      currency: settings.currency,
+      reference: paymentReference(),
+      status: PaymentStatus.PENDING,
+    },
+    select: { id: true },
+  });
+  redirect(`/pay/${payment.id}`);
 }
 
 /** Regenerate the eulogy draft from tree records. Overwrites only if asked. */

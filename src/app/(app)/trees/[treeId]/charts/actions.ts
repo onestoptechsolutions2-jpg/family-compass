@@ -62,8 +62,10 @@ export async function unlockGeneration(treeId: string, jobId: string) {
     select: {
       id: true,
       status: true,
+      kind: true,
       priceKes: true,
       tree: { select: { freeExportUsedAt: true, keeperUntil: true } },
+      centralPerson: { select: { memorial: { select: { passUntil: true } } } },
     },
   });
   if (!job) throw new Error("Generation not found");
@@ -72,6 +74,18 @@ export async function unlockGeneration(treeId: string, jobId: string) {
   }
   if (job.status !== "PREVIEW_READY" && job.status !== "AWAITING_PAYMENT") {
     throw new Error("Preview is not ready yet");
+  }
+
+  // 0a) an active Memorial Pass covers unlimited memorial-book prints
+  const passUntil = job.centralPerson?.memorial?.passUntil;
+  if (job.kind === "MEMORIAL_BOOK" && passUntil && passUntil.getTime() > Date.now()) {
+    await db.generationJob.update({
+      where: { id: jobId },
+      data: { status: "PAID", unlockedAt: new Date() },
+    });
+    await enqueue(QUEUE.renderOutput, { generationJobId: jobId });
+    revalidatePath(`/trees/${treeId}/charts`);
+    return;
   }
 
   // 0) active Family plan -> unlimited downloads

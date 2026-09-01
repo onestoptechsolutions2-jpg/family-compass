@@ -15,6 +15,7 @@ const KIND_LABEL: Record<string, string> = {
   KEEPER: "Family plan (1 year)",
   DEEP_SEARCH: "Deep search",
   RESEARCH_PARTNER: "Research Partner engagement",
+  MEMORIAL_PASS: "Memorial Pass — unlimited book & programme prints",
 };
 
 const fieldStyle = { borderColor: "var(--border)", background: "var(--bg)" } as const;

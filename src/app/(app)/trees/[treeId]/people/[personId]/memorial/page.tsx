@@ -6,6 +6,7 @@ import { publicOrigin } from "@/lib/origin";
 import { db } from "@/lib/db";
 import { displayName } from "@/lib/person";
 import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/memorial";
+import { getPaymentSettings } from "@/lib/payments";
 import { formatDate } from "@/lib/date";
 import { viewSummary } from "@/lib/queries/view-analytics";
 import { chamaEnabled } from "@/lib/chama/plugin";
@@ -47,6 +48,7 @@ import {
   confirmFundContribution,
   voidFundContribution,
   setMemorialFundOpen,
+  startMemorialPassPurchase,
 } from "./actions";
 
 const KES = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
@@ -127,6 +129,22 @@ export default async function MemorialEditorPage({
     },
   });
   const burialDateValue = burialEv ? formatDate(burialEv.event) : "";
+
+  const paySettings = await getPaymentSettings();
+  const passInfo = await db.memorial.findUnique({
+    where: { id: memorial.id },
+    select: {
+      passUntil: true,
+      passPayments: {
+        where: { status: { in: ["PENDING", "AWAITING_VERIFICATION"] } },
+        select: { id: true, status: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+  const passActive = !!passInfo?.passUntil && passInfo.passUntil.getTime() > Date.now();
+  const passPending = passInfo?.passPayments[0] ?? null;
   const reach = await viewSummary("memorial", memorial.slug);
   const order = normaliseOrder(memorial.program?.order);
   const orderDays = groupByDay(order);
@@ -257,6 +275,54 @@ export default async function MemorialEditorPage({
           tree manager unlocks it.
         </p>
       )}
+
+      {/* ---- Memorial Pass ---- */}
+      <div
+        id="pass"
+        className="rounded-xl border p-4"
+        style={{
+          borderColor: passActive ? "var(--success)" : "var(--color-brand-600)",
+          background: "var(--card)",
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">Memorial Pass</h2>
+          {passActive ? (
+            <span className="text-xs font-medium" style={{ color: "var(--success)" }}>
+              Active until {passInfo!.passUntil!.toISOString().slice(0, 10)}
+            </span>
+          ) : (
+            <span className="text-sm font-semibold">{KES(paySettings.memorialPassKes)}</span>
+          )}
+        </div>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          One payment covers <strong>unlimited clean prints</strong> of the memorial book and the
+          funeral programme for this memorial — regenerate as many times as the family needs while
+          arrangements change, for {paySettings.memorialPassDays} days. No per-download charge and no
+          watermark.
+        </p>
+        {passActive ? (
+          <p className="mt-2 text-sm">
+            The pass is active — memorial-book downloads unlock automatically.
+          </p>
+        ) : passPending ? (
+          <Link
+            href={`/pay/${passPending.id}`}
+            className="mt-3 inline-block rounded-lg border px-4 py-2 text-sm font-medium"
+            style={{ borderColor: "var(--border)" }}
+          >
+            {passPending.status === "AWAITING_VERIFICATION"
+              ? "Payment submitted — awaiting verification"
+              : "Finish payment"}
+          </Link>
+        ) : (
+          <form action={startMemorialPassPurchase.bind(null, treeId, memorial.id)} className="mt-3">
+            <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+              Get the Memorial Pass — {KES(paySettings.memorialPassKes)}
+            </button>
+          </form>
+        )}
+      </div>
 
       <Tabs
         items={[

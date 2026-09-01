@@ -76,6 +76,14 @@ export default async function AdminSettingsPage() {
             <span style={{ color: "var(--muted)" }}>Family plan price / year</span>
             <input type="number" name="keeperPriceKes" defaultValue={s.keeperPriceKes} className={field} style={style} />
           </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Memorial Pass price</span>
+            <input type="number" name="memorialPassKes" defaultValue={s.memorialPassKes} className={field} style={style} />
+          </label>
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Memorial Pass days</span>
+            <input type="number" name="memorialPassDays" defaultValue={s.memorialPassDays} className={field} style={style} />
+          </label>
 
           <div className="col-span-2 mt-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
             Size-based print pricing

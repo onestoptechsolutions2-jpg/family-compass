@@ -5,6 +5,8 @@ export type PaymentSettings = {
   currency: string;
   defaultPriceKes: number;
   keeperPriceKes: number;
+  memorialPassKes: number;
+  memorialPassDays: number;
   priceFreeGenerations: number;
   priceFreeNodes: number;
   pricePerGenerationKes: number;
@@ -33,6 +35,8 @@ const DEFAULTS: PaymentSettings = {
   currency: "KES",
   defaultPriceKes: 750,
   keeperPriceKes: 3000,
+  memorialPassKes: 1500,
+  memorialPassDays: 120,
   priceFreeGenerations: 4,
   priceFreeNodes: 60,
   pricePerGenerationKes: 150,
@@ -60,6 +64,8 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     currency: row.currency,
     defaultPriceKes: row.defaultPriceKes,
     keeperPriceKes: row.keeperPriceKes,
+    memorialPassKes: row.memorialPassKes,
+    memorialPassDays: row.memorialPassDays,
     priceFreeGenerations: row.priceFreeGenerations,
     priceFreeNodes: row.priceFreeNodes,
     pricePerGenerationKes: row.pricePerGenerationKes,
