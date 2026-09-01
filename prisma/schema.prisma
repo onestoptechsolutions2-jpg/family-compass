@@ -482,6 +482,8 @@ model Tree {
   claimPinHash     String?
   keeperUntil      DateTime?
   discoverable     Boolean   @default(false)
+  /// when discoverable, also feature this tree in the public homepage carousel
+  showcase         Boolean   @default(true)
   community        String?
   region           String?
   anniversaryReminders Boolean @default(true)

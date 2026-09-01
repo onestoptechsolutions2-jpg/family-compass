@@ -1,8 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+
+import { SHOWCASE_TAG } from "@/lib/queries/showcase";
 
 import { db } from "@/lib/db";
 import { requireTreeManage, loadTreeContext } from "@/lib/rbac";
@@ -30,6 +32,7 @@ export async function setHomePerson(treeId: string, formData: FormData) {
 
 const discoverySchema = z.object({
   discoverable: z.coerce.boolean().default(false),
+  showcase: z.coerce.boolean().default(false),
   community: z.string().trim().max(120).optional(),
   region: z.string().trim().max(120).optional(),
 });
@@ -58,10 +61,12 @@ export async function updateDiscovery(treeId: string, formData: FormData) {
     where: { id: treeId },
     data: {
       discoverable: d.discoverable,
+      showcase: d.showcase,
       community: d.community || null,
       region: d.region || null,
     },
   });
+  revalidateTag(SHOWCASE_TAG, "max");
   revalidatePath(`/trees/${treeId}/settings`);
 }
 

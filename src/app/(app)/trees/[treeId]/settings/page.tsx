@@ -34,6 +34,7 @@ export default async function TreeSettingsPage({
       homePersonId: true,
       adminUserId: true,
       discoverable: true,
+      showcase: true,
       community: true,
       region: true,
       anniversaryReminders: true,
@@ -150,6 +151,10 @@ export default async function TreeSettingsPage({
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="discoverable" value="true" defaultChecked={tree.discoverable} />
             List this tree in the research directory
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="showcase" value="true" defaultChecked={tree.showcase} />
+            Also feature it in the public homepage carousel (aggregate counts only)
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">

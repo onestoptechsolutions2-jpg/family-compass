@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 import { startDbSession } from "@/lib/session";
+import { homePathForUser } from "@/lib/home";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -25,5 +26,11 @@ export async function passwordSignIn(formData: FormData) {
   }
 
   await startDbSession(user.id);
-  redirect(callbackUrl.startsWith("/") ? callbackUrl : "/app");
+  // No explicit target → land on the person's own home (their profile if a
+  // claimed one exists), not a generic /app that just redirects again.
+  const dest =
+    callbackUrl && callbackUrl !== "/app" && callbackUrl.startsWith("/")
+      ? callbackUrl
+      : await homePathForUser(user.id);
+  redirect(dest);
 }

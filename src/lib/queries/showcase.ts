@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { db } from "@/lib/db";
 
 export type ShowcaseTree = {
@@ -15,15 +17,11 @@ export type PublicShowcase = {
   totals: { trees: number; people: number } | null;
 };
 
-/**
- * Public "proof of use" for the landing page. Only trees whose owner opted
- * into the directory (`discoverable`), and only aggregate counts — no names
- * of people, no tree content. Returns an empty `top` (and null totals) when
- * there isn't enough to show, so the caller can just render nothing.
- */
-export async function publicShowcase(): Promise<PublicShowcase> {
+export const SHOWCASE_TAG = "public-showcase";
+
+async function computeShowcase(): Promise<PublicShowcase> {
   const trees = await db.tree.findMany({
-    where: { discoverable: true },
+    where: { discoverable: true, showcase: true },
     select: {
       id: true,
       name: true,
@@ -62,3 +60,14 @@ export async function publicShowcase(): Promise<PublicShowcase> {
     totals: treeCount >= 3 ? { trees: treeCount, people: peopleCount } : null,
   };
 }
+
+/**
+ * Public "proof of use" for the landing page. Directory-opted-in trees only
+ * (`discoverable` + `showcase`), aggregate counts only. Cached for 10 minutes
+ * and on the `public-showcase` tag (revalidated when a tree's discovery
+ * settings change) so the landing page isn't 3 queries per hit.
+ */
+export const publicShowcase = unstable_cache(computeShowcase, ["public-showcase"], {
+  revalidate: 600,
+  tags: [SHOWCASE_TAG],
+});
