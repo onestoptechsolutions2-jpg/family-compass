@@ -8,7 +8,9 @@
 #     $PORT (default 3000) internally.
 #   * Locally: put them in a `.env` file next to this compose file.
 #
-# Required (compose refuses to start without them):
+# Required (the app validates these at boot in src/lib/env.ts and exits if
+# missing - they are plain ${VAR} here, not ${VAR:?}, because Coolify parses
+# this file before injecting the environment and ${VAR:?} aborts that parse):
 #   POSTGRES_PASSWORD, DATABASE_URL, AUTH_SECRET, AUTH_URL, APP_URL
 # Optional:
 #   POSTGRES_USER, POSTGRES_DB, APP_PORT, PORT, GOOGLE_CLIENT_ID/SECRET,
@@ -20,7 +22,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-familycompass}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-familycompass}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -39,10 +41,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET (openssl rand -base64 33)}
-      AUTH_URL: ${AUTH_URL:?set AUTH_URL to your public origin, e.g. https://host}
-      APP_URL: ${APP_URL:?set APP_URL to your public origin, e.g. https://host}
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL}
+      APP_URL: ${APP_URL}
       AUTH_TRUST_HOST: "true"
       PORT: ${PORT:-3000}
       RUN_MIGRATIONS: "true"
@@ -97,9 +99,9 @@ services:
         condition: service_started
     command: ["npm", "run", "worker"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
-      APP_URL: ${APP_URL:?set APP_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      APP_URL: ${APP_URL}
       RUN_MIGRATIONS: "false"
       EMAIL_SERVER: ${EMAIL_SERVER:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
