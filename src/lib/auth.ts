@@ -24,6 +24,9 @@ if (hasGoogleOAuth) {
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(db),
+  // Pass the secret explicitly — it may be derived (see src/lib/env.ts) rather
+  // than present in process.env, which is all Auth.js would otherwise read.
+  secret: env.AUTH_SECRET,
   session: { strategy: "database" },
   trustHost: true,
   pages: {

@@ -191,6 +191,15 @@ const source = isBuildPhase
   ? { ...BUILD_FALLBACKS, ...process.env }
   : deriveEnv(process.env);
 
+// Write the resolved values back to process.env so libraries that read it
+// directly — Auth.js (AUTH_SECRET / AUTH_URL), the Prisma CLI (DATABASE_URL) —
+// see the derived values, not the blank ones the platform passed.
+if (!isBuildPhase) {
+  for (const k of ["DATABASE_URL", "AUTH_SECRET", "AUTH_URL", "APP_URL"] as const) {
+    if (source[k] && !process.env[k]?.trim()) process.env[k] = source[k];
+  }
+}
+
 const parsed = schema.safeParse(source);
 
 if (!parsed.success) {
