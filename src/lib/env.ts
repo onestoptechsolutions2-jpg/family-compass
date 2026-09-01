@@ -166,6 +166,13 @@ function deriveEnv(raw: NodeJS.ProcessEnv): Record<string, string | undefined> {
     e.APP_URL = coolifyOrigin;
     made.push("APP_URL");
   }
+  if (!trimmed(e.APP_URL)) {
+    // Last resort so an origin-less service (e.g. the worker, which the
+    // platform may not hand a domain to) can't crash on this alone. Public
+    // links built from APP_URL will be wrong until it's set explicitly.
+    e.APP_URL = `http://localhost:${trimmed(e.PORT) ?? "3000"}`;
+    made.push("APP_URL(fallback — set APP_URL explicitly)");
+  }
   if (!trimmed(e.AUTH_URL) && trimmed(e.APP_URL)) {
     e.AUTH_URL = trimmed(e.APP_URL);
     made.push("AUTH_URL");
