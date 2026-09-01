@@ -86,20 +86,32 @@ export default async function GuidePage({
         "Send a living relative a claim link from their profile so they can confirm it's them and keep it updated — you approve every claim. If they're already on the tree, a manager can use “Mark as claimed → This is me / another member” instead.",
         "Claiming only applies to living people. Recording a death releases any account link — the profile becomes a memorial, and “This is you” / “Mark as claimed” no longer appear on it.",
         { text: "The Claims page has an “Account claims” section that groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there.", href: "/claims", label: "Claims" },
+        { text: "The Reports page opens with a “Family energy” bar — one 0–100 score for how living and complete the record is (connected people, dated lives, photos, events, memories, bonds), and the same broken down per household.", href: "/reports", label: "Reports" },
       ],
     },
     {
-      title: "5 · Memorials & funeral programmes",
+      title: "5 · Circle & shared history",
+      steps: [
+        { text: "On any person, open the Circle tab. A relationship here isn't a line — it's the history two people share.", href: "/people", label: "People" },
+        "“Add a memory” records something that happened — a title, the story, roughly when, and who else was there. Each person tagged can add their own side of it later.",
+        "“Add to circle” names a tie (friend, mentor, elder, chosen-sibling, co-parent…) and, in plain words, how it started — optionally “through” another person and a context (family / school / work / church…).",
+        "Closeness is read from that record — how many memories you share, how recent, whether both sides name it — never a number you set. It shows with its evidence.",
+        "The family you build counts as much as the one you come from: anyone can start their own tree and add the people who matter, related or not.",
+      ],
+    },
+    {
+      title: "6 · Memorials & funeral programmes",
       steps: [
         "On a deceased person's page, open the memorial. Pick a page style (classic / profile / modern / feed).",
         "Use the Biography wizard for education, work, faith, character, illness, last words and favourite scripture — the dates, places and family are pulled from the tree automatically. Then rebuild the eulogy.",
         "Use a programme template (Christian two-day / one-day, celebration of life, Muslim) then edit items with the overlay add / edit / reorder / remove — items can span multiple days and carry a map location.",
         "Invite relatives to contribute memories; review and merge each one; then Finalise & lock the copy (a manager can unlock it later).",
         "Publish to get the /m/… link (with a QR); the guestbook collects tributes.",
+        "The published memorial book opens in a page-turning viewer with a “Read fullscreen” button.",
       ],
     },
     {
-      title: "6 · Downloads & payments",
+      title: "7 · Downloads & payments",
       steps: [
         { text: "Generate a pedigree, fan, descendant chart, family book or the full memorial book. You see a watermarked preview first.", href: "/charts", label: "Charts" },
         "Pay per download to your M-Pesa Till, paste the transaction code, and an admin verifies it to unlock the clean file. A yearly Family plan gives unlimited downloads for one tree.",

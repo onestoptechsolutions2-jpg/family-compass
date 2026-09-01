@@ -43,6 +43,7 @@ Family plan, and commissioned research are paid (M-Pesa).
 | 5 | Role management + `/trees/…/sharing`, public `/s/[slug]` read-only tree (living-person redaction, optional password/expiry), `/updates` feed. **WhatsApp self-onboarding**: claim an existing node from a shared view → admin approves in `/trees/…/claims` → one-tap `wa.me` sign-in link (`/api/auth/wa/[token]`). No email/passwords required. | ✅ done |
 | 6 | Paid generation — watermarked preview → first-free / credit / M-Pesa Till bundle → admin verify → clean download. Pedigree/fan/descendant PDF, family-book PDF, GEDCOM + `.gramps` exports. Pluggable payment provider + `/admin/payments` + `/admin/settings` | ✅ done |
 | 7 | Marketing pages, rate limiting, audit log, backups, admin console | ⏳ planned |
+| R | **Relationships as shared history** — `Memory` / `MemoryParticipant` (co-owned, each side annotates), `RelationEdge` (derived closeness score, never a slider; carries the origin story — text + context + "through" person), `RelationAssertion` (per-side, so reciprocity is measurable). Person-page **Circle** tab; **Family energy** bar on Reports (tree-wide + per household); `GET /api/v1/trees/{id}/relationships`; `memory.added` / `relation.named` webhooks. | 🟡 in progress |
 
 Full plan: `.claude/plans/async-inventing-fountain.md` (or ask).
 

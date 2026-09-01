@@ -15,6 +15,8 @@ export const EVENTS = {
   "event.comment_added": "Someone opened or added to a discussion thread on an event (a fact query, correction, or note).",
   "person.privacy_changed": "A person's public visibility was changed (public / limited / hidden), optionally cascaded to descendants.",
   "family.created": "A family (couple / parent unit) was created.",
+  "memory.added": "A shared memory was recorded, tagging two or more people; `data.participantIds` lists them.",
+  "relation.named": "Someone named a chosen or kin tie between two people (friend, mentor, elder, chosen-sibling, co-parent, …), optionally with how it started; `data.role`, `data.originContext`.",
   "memorial.published": "A memorial page went live (published toggled on).",
   "memorial.updated": "A published memorial's tribute or programme changed.",
   "memorial.contribution_received": "An invited contributor submitted a memory, life detail, date correction or photos to a memorial.",

@@ -23,6 +23,8 @@ describe("events catalogue", () => {
       "chama.contribution_confirmed",
       "chama.fund_closed",
       "chama.external_event",
+      "memory.added",
+      "relation.named",
     ] as const) {
       expect(isEventName(name)).toBe(true);
     }

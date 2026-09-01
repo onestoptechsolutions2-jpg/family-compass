@@ -25,6 +25,14 @@ export default function AboutPage() {
           records: how clans spread across wards, how names and family sizes change over
           generations, how separate family trees connect.
         </p>
+        <p>
+          A relationship here is not a line between two names — it is the history two people
+          share, built over time through memories and conversations. Alongside the family you
+          are born into, you can record the family you <em>choose</em> — friends, mentors, the
+          aunty who isn&apos;t blood — and how each of those ties came to be (through a parent,
+          a sibling, school, work, church). The question the research turns on:{" "}
+          <em>when is the family you make more important than the family you come from?</em>
+        </p>
 
         <h2 className="mt-4 text-lg font-semibold">What we hold, and what we don&apos;t</h2>
         <ul className="ml-5 list-disc space-y-1">

@@ -48,6 +48,8 @@ const OBJECT_KIND: Record<string, ActivityKind> = {
   citation: "genealogy",
   note: "genealogy",
   clan: "genealogy",
+  memory: "genealogy",
+  relation: "genealogy",
   memorial: "memorial",
   guestbook: "memorial",
   contribution: "memorial",
