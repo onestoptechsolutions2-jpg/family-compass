@@ -2,19 +2,31 @@ import { z } from "zod";
 
 /**
  * Validated process environment. Import from server code only.
- * Throws at boot if a required variable is missing/malformed.
+ *
+ * Missing/invalid required vars no longer throw here — under an orchestrator
+ * with `restart: unless-stopped` that only produces an invisible crash loop.
+ * Instead we log loudly, boot DEGRADED with placeholders, and let
+ * `/api/health` report which vars are absent so it's diagnosable.
  *
  * Nothing here has an environment-specific default — public origin, database
  * and secrets must all be supplied by the deployment. The only baked values
- * are throwaway placeholders used during `next build` (see below).
+ * are throwaway placeholders used during `next build` and degraded boot.
  */
+
+// An optional URL that also accepts "" (a compose `${VAR:-}` on an unset var
+// hands us an empty string, not `undefined`).
+const optionalUrl = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.string().url().optional(),
+);
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   DATABASE_URL: z.string().url(),
 
   AUTH_SECRET: z.string().min(1, "AUTH_SECRET is required (openssl rand -base64 33)"),
-  AUTH_URL: z.string().url().optional(),
+  AUTH_URL: optionalUrl,
   // Public origin of the app, e.g. https://myroots.example.com — used to build
   // share links and payment references.
   APP_URL: z.string().url(),
@@ -22,7 +34,7 @@ const schema = z.object({
   // invites, WhatsApp sign-in). Set this when the browsing origin differs from
   // the canonical public origin, or when developing locally but sharing real
   // links. Falls back to the live request host, then APP_URL.
-  SHARE_ORIGIN: z.string().url().optional().default(""),
+  SHARE_ORIGIN: optionalUrl.transform((v) => v ?? ""),
   AUTH_TRUST_HOST: z
     .string()
     .optional()
@@ -125,14 +137,43 @@ const source = isBuildPhase ? { ...BUILD_FALLBACKS, ...process.env } : process.e
 
 const parsed = schema.safeParse(source);
 
+/**
+ * True when required runtime vars are missing/invalid. We used to `throw` here,
+ * but under an orchestrator with `restart: unless-stopped` that just produces
+ * an invisible crash loop. Instead: log loudly, boot in a degraded state, and
+ * let `/api/health` report which vars are absent (`env` booleans) so the
+ * misconfiguration is diagnosable. DB-backed pages already fail soft.
+ */
+export const envInvalid = !parsed.success && !isBuildPhase;
+
 if (!parsed.success) {
-  console.error("❌ Invalid environment variables:", z.treeifyError(parsed.error));
-  if (!isBuildPhase) throw new Error("Invalid environment variables");
+  console.error(
+    "❌ Invalid environment variables — booting DEGRADED. Set these as RUNTIME vars:",
+    z.treeifyError(parsed.error),
+  );
 }
 
-export const env = (parsed.success ? parsed.data : schema.parse(BUILD_FALLBACKS)) as z.infer<
-  typeof schema
->;
+// Degraded fallback: fill only the *empty/missing* required keys with
+// placeholders so schema.parse can't throw. Real values from process.env win.
+function degradedSource(): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = { ...process.env } as Record<string, string | undefined>;
+  for (const [k, v] of Object.entries(BUILD_FALLBACKS)) {
+    if (!out[k] || out[k] === "") out[k] = v;
+  }
+  return out;
+}
+
+function resolveEnv(): z.infer<typeof schema> {
+  if (parsed.success) return parsed.data;
+  try {
+    return schema.parse(degradedSource());
+  } catch {
+    // Last resort — the 3 hard-required keys plus schema defaults. Never throws.
+    return schema.parse(BUILD_FALLBACKS);
+  }
+}
+
+export const env = resolveEnv();
 
 export const hasGoogleOAuth = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 export const hasEmailProvider = Boolean(env.EMAIL_SERVER && env.EMAIL_FROM);
