@@ -4,11 +4,12 @@ import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { getTreeGraph } from "@/lib/queries/graph";
 import { personOptions } from "@/lib/queries/people";
-import { displayName, NAME_SELECT } from "@/lib/person";
+import { displayName, primaryName, NAME_SELECT } from "@/lib/person";
 import { bloodRelationship } from "@/lib/kinship";
 import { affinalRelationship } from "@/lib/affinity";
 import { howConnected } from "@/lib/queries/connection";
 import { PersonSelect } from "@/components/PersonSelect";
+import { DeepSearchDialog } from "@/components/DeepSearchDialog";
 
 export const metadata = { title: "Relationship check" };
 
@@ -151,14 +152,22 @@ export default async function RelationshipPage({
           )}
 
           {!k.related && !sameClan && (
-            <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
-              Only records in this tree were checked. For a check across other families and
-              clans,{" "}
-              <Link href="/discover" className="text-brand-600 hover:underline">
-                run a deep search
-              </Link>
-              .
-            </p>
+            <div className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+              <p>
+                Only records in this tree were checked. For a check across other families and clans,
+                run a deep search.
+              </p>
+              <div className="mt-2">
+                <DeepSearchDialog
+                  label="Deep search across families"
+                  buttonClass="rounded-lg border px-3 py-1.5 text-xs font-medium"
+                  prefill={{
+                    name: primaryName(pb.names)?.surname ?? primaryName(pb.names)?.first ?? nameB,
+                    clan: pb.clan?.name ?? undefined,
+                  }}
+                />
+              </div>
+            </div>
           )}
           <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
             Based on recorded genealogy only — not legal or medical advice.

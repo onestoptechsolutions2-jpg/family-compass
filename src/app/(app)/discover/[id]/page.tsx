@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { searchDirectory, type DirectoryQuery } from "@/lib/discovery";
+import { searchDirectory, teaserRows, type DirectoryQuery } from "@/lib/discovery";
 import { waLink } from "@/lib/wa";
 
 export const metadata = { title: "Deep search results" };
@@ -22,12 +22,41 @@ export default async function DeepSearchResultPage({
   if (!search) notFound();
 
   if (search.status !== "PAID") {
+    const teasers = teaserRows(await searchDirectory(search.query as DirectoryQuery));
     return (
       <main className="mx-auto max-w-md px-2 py-6">
-        <h1 className="text-lg font-semibold">Results locked</h1>
+        <Link href="/discover" className="text-sm hover:underline" style={{ color: "var(--muted)" }}>
+          ← Deep search
+        </Link>
+        <h1 className="mt-1 text-lg font-semibold">
+          {search.resultCount} possible match{search.resultCount === 1 ? "" : "es"}
+        </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          {search.resultCount} possible matches. Complete payment to see who and where.
+          Here&apos;s a glimpse. Full names, which tree each is in, and the family&apos;s WhatsApp
+          are unlocked once payment is verified.
         </p>
+        <ul className="mt-3 flex flex-col gap-1.5">
+          {teasers.map((t, i) => (
+            <li
+              key={i}
+              className="rounded-lg border px-3 py-2 text-sm"
+              style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}
+            >
+              <span className="font-medium">{t.label}</span>
+              <span style={{ color: "var(--muted)" }}>
+                {[t.clan && `${t.clan} clan`, t.bornDecade && `b. ${t.bornDecade}`, t.place, t.living ? "living" : null]
+                  .filter(Boolean)
+                  .map((s) => ` · ${s}`)
+                  .join("")}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {search.resultCount > teasers.length && (
+          <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+            + {search.resultCount - teasers.length} more not shown.
+          </p>
+        )}
         {search.paymentId && (
           <Link
             href={`/pay/${search.paymentId}`}

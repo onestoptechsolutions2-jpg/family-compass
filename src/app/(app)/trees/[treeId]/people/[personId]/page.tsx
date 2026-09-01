@@ -27,6 +27,7 @@ import { MediaThumb } from "@/components/media/MediaThumb";
 import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
 import { Dialog } from "@/components/Dialog";
+import { DeepSearchDialog } from "@/components/DeepSearchDialog";
 import { SearchSelect } from "@/components/SearchSelect";
 import { Tabs } from "@/components/Tabs";
 import { ActionMenu, actionItemClass } from "@/components/ActionMenu";
@@ -465,6 +466,15 @@ export default async function PersonDetailPage({
                   </button>
                 </form>
               </Dialog>
+
+              <DeepSearchDialog
+                label="Deep search across families"
+                buttonClass={actionItemClass}
+                prefill={{
+                  name: primaryName(person.names)?.surname ?? primaryName(person.names)?.first ?? undefined,
+                  clan: person.clan?.name ?? undefined,
+                }}
+              />
 
               <form action={deletePerson.bind(null, treeId, personId)}>
                 <button className={`${actionItemClass} text-red-600`}>Delete person</button>

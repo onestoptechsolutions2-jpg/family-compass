@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, NAME_SELECT, presumedLiving } from "@/lib/person";
+import { displayName, primaryName, NAME_SELECT, presumedLiving } from "@/lib/person";
 import { normalizeClan } from "@/lib/clan";
 
 export type DirectoryQuery = {
@@ -14,6 +14,8 @@ export type DirectoryQuery = {
 export type Candidate = {
   personId: string;
   name: string;
+  givenName: string | null;
+  surnameInitial: string | null;
   clan: string | null;
   community: string | null;
   region: string | null;
@@ -72,9 +74,12 @@ export async function searchDirectory(q: DirectoryQuery): Promise<Candidate[]> {
   const rows: Candidate[] = people.map((p) => {
     const birthYear = p.eventRefs.find((e) => e.event.type === "Birth")?.event.dateYear ?? null;
     const deathYear = p.eventRefs.find((e) => e.event.type === "Death")?.event.dateYear ?? null;
+    const pn = primaryName(p.names);
     return {
       personId: p.id,
       name: displayName(p.names),
+      givenName: pn?.first?.trim() || null,
+      surnameInitial: pn?.surname?.trim()?.[0]?.toUpperCase() || null,
       clan: p.clan?.name ?? null,
       community: p.tree.community,
       region: p.tree.region,
@@ -99,6 +104,33 @@ export async function searchDirectory(q: DirectoryQuery): Promise<Candidate[]> {
   });
 
   return filtered.slice(0, 60);
+}
+
+export type TeaserRow = {
+  /** first name + surname initial, e.g. "Joash O." — never the full surname */
+  label: string;
+  clan: string | null;
+  bornDecade: string | null;
+  place: string | null;
+  living: boolean;
+};
+
+/**
+ * The free preview shows each match as a teaser — enough to recognise a
+ * possible relative (given name, clan, rough era, area) but not enough to
+ * contact them or place them in a tree. Paying unlocks the full record and the
+ * family's WhatsApp. Capped so the list entices rather than satisfies.
+ */
+export function teaserRows(candidates: Candidate[], limit = 8): TeaserRow[] {
+  return candidates.slice(0, limit).map((c) => ({
+    label: [c.givenName ?? "—", c.surnameInitial ? `${c.surnameInitial}.` : null]
+      .filter(Boolean)
+      .join(" "),
+    clan: c.clan,
+    bornDecade: c.birthYear ? `${Math.floor(c.birthYear / 10) * 10}s` : null,
+    place: c.community ?? c.region,
+    living: c.living,
+  }));
 }
 
 /** Coarse, non-identifying summary for the free preview. */
