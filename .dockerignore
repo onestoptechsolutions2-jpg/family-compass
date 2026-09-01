@@ -9,6 +9,7 @@ _legacy
 npm-debug.log*
 Dockerfile
 docker-compose.yml
+docker-compose.yaml
 .dockerignore
 coverage
 .vscode
