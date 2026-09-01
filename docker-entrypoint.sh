@@ -15,12 +15,16 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     done
     npx prisma migrate deploy
   fi
+  echo "==> migrations up to date"
 
-  # Seed is idempotent (upserts). Runs every deploy so there are no manual
-  # terminal steps; set SKIP_SEED=true to opt out.
+  # Seed is idempotent (upserts). Run it in the BACKGROUND so a slow seed can
+  # never delay the app from binding its port and passing health checks.
+  # Set SKIP_SEED=true to opt out.
   if [ "${SKIP_SEED:-false}" != "true" ]; then
-    echo "==> seed"
-    npx tsx prisma/seed.ts || echo "seed failed (continuing)"
+    (
+      echo "==> seed (background)"
+      npx tsx prisma/seed.ts && echo "==> seed done" || echo "==> seed failed (continuing)"
+    ) &
   fi
 fi
 

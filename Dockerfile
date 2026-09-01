@@ -59,6 +59,13 @@ RUN chmod +x ./docker-entrypoint.sh && chown -R node:node /app
 USER node
 
 EXPOSE 3000
+
+# Give the boot sequence (prisma migrate deploy) room before failures count,
+# so a slow first deploy isn't killed and restarted mid-migration. The seed
+# runs in the background and never blocks readiness.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=150s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 ENTRYPOINT ["./docker-entrypoint.sh"]
 # Overridden to `npm run worker` for the worker service in docker-compose.
 CMD ["npm", "run", "start"]
