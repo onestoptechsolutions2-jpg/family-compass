@@ -28,9 +28,9 @@ export default async function NewFamilyPage({
         className="text-sm hover:underline"
         style={{ color: "var(--muted)" }}
       >
-        ← Families
+        ← Family units
       </Link>
-      <h2 className="text-lg font-semibold">Add a family</h2>
+      <h2 className="text-lg font-semibold">Add a family unit</h2>
       <p className="text-sm" style={{ color: "var(--muted)" }}>
         Search for each partner, or type a name and pick “＋ Add …” to create a new person on the
         spot.

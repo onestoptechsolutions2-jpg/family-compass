@@ -762,6 +762,10 @@ enum FamilyType {
   UNKNOWN
 }
 
+/// A *union* (GEDCOM `FAM`): 0–2 partners of a couple plus the children they
+/// share (`ChildRef`). NOT "a family" in the lay sense — the UI calls it a
+/// "family unit". A one-parent unit is valid; a zero-parent unit is not.
+/// See docs/data-model.md.
 model Family {
   id         String     @id @default(cuid())
   treeId     String
@@ -800,6 +804,9 @@ enum ChildRelation {
   UNKNOWN
 }
 
+/// A Person's membership in a Family as a **child**, with the relationship to
+/// each parent. Step / half / foster relationships are read from these
+/// fields — not inferred from tree structure.
 model ChildRef {
   id               String        @id @default(cuid())
   familyId         String

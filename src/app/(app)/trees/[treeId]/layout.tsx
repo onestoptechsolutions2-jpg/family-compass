@@ -29,7 +29,7 @@ export default async function TreeLayout({
     {
       label: "Records",
       tabs: [
-        { href: `${base}/families`, label: "Families" },
+        { href: `${base}/families`, label: "Family units" },
         { href: `${base}/events`, label: "Events" },
         { href: `${base}/places`, label: "Places" },
         { href: `${base}/sources`, label: "Sources" },

@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { FamilyType } from "@prisma/client";
+import { ChildRelation, FamilyType } from "@prisma/client";
+
+const childRelation = (v: FormDataEntryValue | null): ChildRelation =>
+  (Object.values(ChildRelation) as string[]).includes(String(v))
+    ? (String(v) as ChildRelation)
+    : ChildRelation.BIRTH;
 
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
@@ -59,6 +64,11 @@ export async function createFamily(treeId: string, formData: FormData) {
   const d = familySchema.parse(Object.fromEntries(formData));
   const p1 = await resolvePersonRef(treeId, ctx.user.id, d.partner1Id);
   const p2 = await resolvePersonRef(treeId, ctx.user.id, d.partner2Id);
+  if (!p1 && !p2) {
+    // A one-parent unit is fine (unmarried mother, unknown father); a
+    // zero-parent unit is not — it would just be orphaned children.
+    throw new Error("Add at least one parent (a single parent is fine).");
+  }
 
   const family = await db.family.create({
     data: { treeId, partner1Id: p1, partner2Id: p2, type: d.type },
@@ -98,12 +108,13 @@ export async function addChild(treeId: string, familyId: string, formData: FormD
   if (!owned) throw new Error("Family not found");
   const personId = await resolvePersonRef(treeId, ctx.user.id, String(formData.get("personId") ?? "").trim() || null);
   if (!personId) throw new Error("Choose or add a child");
+  const rel = childRelation(formData.get("childRelation"));
 
   const count = await db.childRef.count({ where: { familyId } });
   await db.childRef.upsert({
     where: { familyId_personId: { familyId, personId } },
-    update: {},
-    create: { familyId, personId, order: count },
+    update: { partner1Relation: rel, partner2Relation: rel },
+    create: { familyId, personId, order: count, partner1Relation: rel, partner2Relation: rel },
   });
   revalidatePath(`/trees/${treeId}/families/${familyId}`);
 }

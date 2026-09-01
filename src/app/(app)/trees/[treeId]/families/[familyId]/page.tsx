@@ -40,7 +40,7 @@ export default async function FamilyDetailPage({
             className="text-sm hover:underline"
             style={{ color: "var(--muted)" }}
           >
-            ← Families
+            ← Family units
           </Link>
           <h2 className="mt-1 text-xl font-semibold">Family</h2>
         </div>
@@ -125,10 +125,26 @@ export default async function FamilyDetailPage({
           )}
         </ul>
         {editable && childOptions.length > 0 && (
-          <form action={addChild.bind(null, treeId, familyId)} className="mt-3 flex items-end gap-2">
-            <label className="text-sm">
-              <span style={{ color: "var(--muted)" }}>Add existing person as child</span>
+          <form action={addChild.bind(null, treeId, familyId)} className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="min-w-48 flex-1 text-sm">
+              <span style={{ color: "var(--muted)" }}>Add a child (search or ＋Add)</span>
               <PersonSelect name="personId" options={childOptions} allowEmpty={false} allowCreate />
+            </label>
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Relationship to parents</span>
+              <select
+                name="childRelation"
+                defaultValue="BIRTH"
+                className="mt-1 block rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              >
+                <option value="BIRTH">birth</option>
+                <option value="ADOPTED">adopted</option>
+                <option value="STEPCHILD">stepchild</option>
+                <option value="FOSTER">foster</option>
+                <option value="SPONSORED">sponsored / guardian</option>
+                <option value="UNKNOWN">unknown</option>
+              </select>
             </label>
             <button className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
               Add

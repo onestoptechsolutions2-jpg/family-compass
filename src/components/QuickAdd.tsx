@@ -146,6 +146,17 @@ export function AddChildButton({
       <form action={action}>
         {back && <input type="hidden" name="back" value={back} />}
         <PersonFields people={people} />
+        <label className="mt-2 block text-sm">
+          <span style={{ color: "var(--muted)" }}>Relationship to parents</span>
+          <select name="childRelation" defaultValue="BIRTH" className={field} style={fs}>
+            <option value="BIRTH">birth</option>
+            <option value="ADOPTED">adopted</option>
+            <option value="STEPCHILD">stepchild</option>
+            <option value="FOSTER">foster</option>
+            <option value="SPONSORED">sponsored / guardian</option>
+            <option value="UNKNOWN">unknown</option>
+          </select>
+        </label>
         <Submit>Add child</Submit>
       </form>
     </Dialog>

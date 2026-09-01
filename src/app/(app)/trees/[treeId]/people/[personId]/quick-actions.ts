@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Gender, FamilyType, Role } from "@prisma/client";
+import { ChildRelation, Gender, FamilyType, Role } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
@@ -21,6 +21,11 @@ import {
 } from "@/lib/person-write";
 import { isPersonEventType } from "@/lib/event-types";
 import { linkPersonToUser, releaseClaimOnDeath, issueClaimInvite } from "@/lib/claims";
+
+const childRelationOf = (v: FormDataEntryValue | null): ChildRelation =>
+  (Object.values(ChildRelation) as string[]).includes(String(v))
+    ? (String(v) as ChildRelation)
+    : ChildRelation.BIRTH;
 
 const personBits = {
   first: z.string().trim().max(200).optional().default(""),
@@ -196,7 +201,7 @@ export async function addChildToFamily(treeId: string, familyId: string, formDat
   if (fam && (fam.partner1Id === child.id || fam.partner2Id === child.id)) {
     throw new Error("That person is a partner in this family and cannot also be its child");
   }
-  await addChildRef(familyId, child.id);
+  await addChildRef(familyId, child.id, childRelationOf(formData.get("childRelation")));
 
   await logActivity({
     treeId,
@@ -441,7 +446,7 @@ export async function addFirstChild(treeId: string, personId: string, formData: 
     data: { treeId, type: FamilyType.UNKNOWN, partner1Id: personId },
     select: { id: true },
   });
-  await addChildRef(family.id, child.id);
+  await addChildRef(family.id, child.id, childRelationOf(formData.get("childRelation")));
 
   await logActivity({
     treeId,

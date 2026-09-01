@@ -8,7 +8,7 @@ import { PersonSelect } from "@/components/PersonSelect";
 import { Dialog } from "@/components/Dialog";
 import { createFamily } from "./actions";
 
-export const metadata = { title: "Families" };
+export const metadata = { title: "Family units" };
 
 export default async function FamiliesPage({
   params,
@@ -28,12 +28,12 @@ export default async function FamiliesPage({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-sm" style={{ color: "var(--muted)" }}>
-          {families.length} families
+          {families.length} family unit{families.length === 1 ? "" : "s"} (each is one couple or parent + their children)
         </p>
         {editable && (
           <Dialog
-            title="Add a family"
-            label="＋ Add family"
+            title="Add a family unit"
+            label="＋ Add unit"
             buttonClass="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
           >
             <form action={createFamily.bind(null, treeId)} className="flex flex-col gap-4">

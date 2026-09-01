@@ -1,4 +1,4 @@
-import { DateModifier, DateQuality, Gender } from "@prisma/client";
+import { ChildRelation, DateModifier, DateQuality, FamilyType, Gender } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { parseISODateInput, dateSortKey } from "@/lib/date";
@@ -138,6 +138,12 @@ export async function ensureMarriageEvent(
     await db.event.create({
       data: { treeId, ...data, eventRefs: { create: { familyId, role: "FAMILY" } } },
     });
+
+  // A recorded marriage implies the union type — don't leave the two at odds.
+  await db.family.updateMany({
+    where: { id: familyId, type: FamilyType.UNKNOWN },
+    data: { type: FamilyType.MARRIED },
+  });
 }
 
 /** Add a standalone timeline event to a person (any type). Returns the new id. */
@@ -171,11 +177,18 @@ export async function createPersonEvent(
   return ev.id;
 }
 
-export async function addChildRef(familyId: string, personId: string): Promise<void> {
+export async function addChildRef(
+  familyId: string,
+  personId: string,
+  relation?: ChildRelation,
+): Promise<void> {
   const count = await db.childRef.count({ where: { familyId } });
+  const rel = relation
+    ? { partner1Relation: relation, partner2Relation: relation }
+    : {};
   await db.childRef.upsert({
     where: { familyId_personId: { familyId, personId } },
-    update: {},
-    create: { familyId, personId, order: count },
+    update: rel,
+    create: { familyId, personId, order: count, ...rel },
   });
 }
