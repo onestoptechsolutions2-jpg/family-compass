@@ -34,6 +34,23 @@ const discoverySchema = z.object({
   region: z.string().trim().max(120).optional(),
 });
 
+/** Set the tree's family admin — a workspace member who manages this tree
+ *  (claims, sharing, requests) regardless of their workspace role. */
+export async function setFamilyAdmin(treeId: string, formData: FormData) {
+  const ctx = await requireTreeManage(treeId);
+  const raw = String(formData.get("adminUserId") ?? "").trim();
+  const adminUserId = raw || null;
+  if (adminUserId) {
+    const member = await db.membership.findFirst({
+      where: { userId: adminUserId, workspaceId: ctx.workspace.id },
+      select: { userId: true },
+    });
+    if (!member) throw new Error("That person isn't a member of this workspace");
+  }
+  await db.tree.update({ where: { id: treeId }, data: { adminUserId } });
+  revalidatePath(`/trees/${treeId}/settings`);
+}
+
 export async function updateDiscovery(treeId: string, formData: FormData) {
   await requireTreeManage(treeId);
   const d = discoverySchema.parse(Object.fromEntries(formData));

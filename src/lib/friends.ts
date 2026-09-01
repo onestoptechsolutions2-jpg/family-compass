@@ -83,7 +83,7 @@ export async function ensureSelfTree(
       slug = `${base}-${randomToken(4)}`;
     }
     tree = await db.tree.create({
-      data: { workspaceId: ws.workspaceId, name: `${first}'s family`, slug },
+      data: { workspaceId: ws.workspaceId, name: `${first}'s family`, slug, adminUserId: userId },
       select: { id: true, homePersonId: true },
     });
   }

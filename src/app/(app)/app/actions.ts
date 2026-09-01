@@ -45,7 +45,7 @@ export async function createTree(formData: FormData) {
   }
 
   const tree = await db.tree.create({
-    data: { workspaceId, name, slug },
+    data: { workspaceId, name, slug, adminUserId: user.id },
     select: { id: true },
   });
 

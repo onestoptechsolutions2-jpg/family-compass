@@ -69,7 +69,16 @@ export async function requirePlatformAdmin(): Promise<SessionUser> {
 export type TreeContext = {
   user: SessionUser;
   workspace: { id: string; name: string; slug: string };
-  tree: { id: string; name: string; slug: string; homePersonId: string | null };
+  tree: {
+    id: string;
+    name: string;
+    slug: string;
+    homePersonId: string | null;
+    /** the designated family admin for this tree (may be null) */
+    familyAdminId: string | null;
+  };
+  /** this user is the family admin for the tree (own-tree manage rights) */
+  isFamilyAdmin: boolean;
   role: Role;
 };
 
@@ -90,6 +99,7 @@ export const loadTreeContext = cache(async function loadTreeContext(
       name: true,
       slug: true,
       homePersonId: true,
+      adminUserId: true,
       workspace: {
         select: {
           id: true,
@@ -106,7 +116,15 @@ export const loadTreeContext = cache(async function loadTreeContext(
 
   if (!tree) throw new AccessError(404, "Tree not found");
   const membership = tree.workspace.memberships[0];
-  if (!membership && !user.isPlatformAdmin) throw new AccessError(403, "No access to this tree");
+  const isFamilyAdmin = tree.adminUserId === user.id;
+  if (!membership && !isFamilyAdmin && !user.isPlatformAdmin) {
+    throw new AccessError(403, "No access to this tree");
+  }
+
+  // The designated family admin manages their own tree even if their
+  // workspace membership sits below EDITOR.
+  let role = membership?.role ?? Role.OWNER;
+  if (isFamilyAdmin && !roleAtLeast(role, Role.EDITOR)) role = Role.EDITOR;
 
   return {
     user,
@@ -115,8 +133,15 @@ export const loadTreeContext = cache(async function loadTreeContext(
       name: tree.workspace.name,
       slug: tree.workspace.slug,
     },
-    tree: { id: tree.id, name: tree.name, slug: tree.slug, homePersonId: tree.homePersonId },
-    role: membership?.role ?? Role.OWNER,
+    tree: {
+      id: tree.id,
+      name: tree.name,
+      slug: tree.slug,
+      homePersonId: tree.homePersonId,
+      familyAdminId: tree.adminUserId,
+    },
+    isFamilyAdmin,
+    role,
   };
 });
 

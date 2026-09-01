@@ -79,6 +79,7 @@ model User {
   eventCommentsResolved EventComment[]        @relation("EventCommentResolver")
   authoredMemories      Memory[]              @relation("MemoryAuthor")
   friendInvitesSent     FriendInvite[]        @relation("FriendInviteInviter")
+  treesAdministered     Tree[]                @relation("TreeFamilyAdmin")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -472,6 +473,9 @@ model Tree {
   description      String?   @db.Text
   slug             String
   homePersonId     String?
+  /// the designated "family admin" for this tree — manages its claims,
+  /// sharing links and requests even if their workspace role is lower.
+  adminUserId      String?
   freeExportUsedAt DateTime?
   contactWhatsapp  String?
   claimPinHash     String?
@@ -484,6 +488,7 @@ model Tree {
   updatedAt        DateTime  @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  admin     User?     @relation("TreeFamilyAdmin", fields: [adminUserId], references: [id], onDelete: SetNull)
 
   people         Person[]
   families       Family[]

@@ -114,6 +114,7 @@ export async function startCreate() {
   const tree = await db.tree.create({
     data: {
       workspaceId: ws.workspaceId,
+      adminUserId: user.id,
       name: `${d.first}'s family`,
       slug: treeSlug,
       community: d.community || null,
