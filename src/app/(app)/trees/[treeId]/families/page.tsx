@@ -39,11 +39,11 @@ export default async function FamiliesPage({
             <form action={createFamily.bind(null, treeId)} className="flex flex-col gap-4">
               <label className="text-sm">
                 <span style={{ color: "var(--muted)" }}>Partner 1</span>
-                <PersonSelect name="partner1Id" options={options} />
+                <PersonSelect name="partner1Id" options={options} allowCreate />
               </label>
               <label className="text-sm">
                 <span style={{ color: "var(--muted)" }}>Partner 2</span>
-                <PersonSelect name="partner2Id" options={options} />
+                <PersonSelect name="partner2Id" options={options} allowCreate />
               </label>
               <label className="text-sm">
                 <span style={{ color: "var(--muted)" }}>Relationship type</span>

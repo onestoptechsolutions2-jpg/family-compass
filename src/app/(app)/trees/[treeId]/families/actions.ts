@@ -8,8 +8,45 @@ import { FamilyType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireTreeEdit } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity";
+import { createBarePerson } from "@/lib/person-write";
+import { emitTreeEvent } from "@/lib/webhooks";
 
 const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+/**
+ * A person picker value is either an existing id, empty, or `new:<name>` from
+ * the "＋ Add …" row. Resolve it to a real person id, creating one if asked.
+ */
+async function resolvePersonRef(
+  treeId: string,
+  actorId: string,
+  raw: string | null,
+): Promise<string | null> {
+  if (!raw) return null;
+  if (raw.startsWith("new:")) {
+    const name = raw.slice(4).trim().slice(0, 120);
+    if (name.length < 2) throw new Error("Enter a name for the new person");
+    const [first, ...rest] = name.split(/\s+/);
+    const person = await createBarePerson(treeId, {
+      first: first || name,
+      surname: rest.join(" ") || undefined,
+      living: true,
+    });
+    await logActivity({
+      treeId,
+      actorId,
+      verb: "created",
+      objectType: "person",
+      objectId: person.id,
+      summary: `added ${name}`,
+    });
+    await emitTreeEvent(treeId, "person.created", { personId: person.id, name });
+    return person.id;
+  }
+  const p = await db.person.findFirst({ where: { id: raw, treeId }, select: { id: true } });
+  if (!p) throw new Error("Selected person is not in this tree");
+  return raw;
+}
 
 const familySchema = z.object({
   partner1Id: z.preprocess(emptyToNull, z.string().nullable()),
@@ -17,20 +54,14 @@ const familySchema = z.object({
   type: z.enum(FamilyType).default(FamilyType.UNKNOWN),
 });
 
-async function assertPersonInTree(treeId: string, id: string | null) {
-  if (!id) return;
-  const p = await db.person.findFirst({ where: { id, treeId }, select: { id: true } });
-  if (!p) throw new Error("Selected person is not in this tree");
-}
-
 export async function createFamily(treeId: string, formData: FormData) {
   const ctx = await requireTreeEdit(treeId);
   const d = familySchema.parse(Object.fromEntries(formData));
-  await assertPersonInTree(treeId, d.partner1Id);
-  await assertPersonInTree(treeId, d.partner2Id);
+  const p1 = await resolvePersonRef(treeId, ctx.user.id, d.partner1Id);
+  const p2 = await resolvePersonRef(treeId, ctx.user.id, d.partner2Id);
 
   const family = await db.family.create({
-    data: { treeId, partner1Id: d.partner1Id, partner2Id: d.partner2Id, type: d.type },
+    data: { treeId, partner1Id: p1, partner2Id: p2, type: d.type },
     select: { id: true },
   });
   await logActivity({
@@ -46,27 +77,27 @@ export async function createFamily(treeId: string, formData: FormData) {
 }
 
 export async function updateFamily(treeId: string, familyId: string, formData: FormData) {
-  await requireTreeEdit(treeId);
+  const ctx = await requireTreeEdit(treeId);
   const d = familySchema.parse(Object.fromEntries(formData));
-  await assertPersonInTree(treeId, d.partner1Id);
-  await assertPersonInTree(treeId, d.partner2Id);
   const owned = await db.family.findFirst({ where: { id: familyId, treeId }, select: { id: true } });
   if (!owned) throw new Error("Family not found");
+  const p1 = await resolvePersonRef(treeId, ctx.user.id, d.partner1Id);
+  const p2 = await resolvePersonRef(treeId, ctx.user.id, d.partner2Id);
 
   await db.family.update({
     where: { id: familyId },
-    data: { partner1Id: d.partner1Id, partner2Id: d.partner2Id, type: d.type },
+    data: { partner1Id: p1, partner2Id: p2, type: d.type },
   });
   revalidatePath(`/trees/${treeId}/families/${familyId}`);
   redirect(`/trees/${treeId}/families/${familyId}`);
 }
 
 export async function addChild(treeId: string, familyId: string, formData: FormData) {
-  await requireTreeEdit(treeId);
-  const personId = String(formData.get("personId") ?? "").trim();
+  const ctx = await requireTreeEdit(treeId);
   const owned = await db.family.findFirst({ where: { id: familyId, treeId }, select: { id: true } });
   if (!owned) throw new Error("Family not found");
-  await assertPersonInTree(treeId, personId);
+  const personId = await resolvePersonRef(treeId, ctx.user.id, String(formData.get("personId") ?? "").trim() || null);
+  if (!personId) throw new Error("Choose or add a child");
 
   const count = await db.childRef.count({ where: { familyId } });
   await db.childRef.upsert({

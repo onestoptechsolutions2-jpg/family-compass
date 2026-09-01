@@ -47,6 +47,7 @@ Family plan, and commissioned research are paid (M-Pesa).
 | R2 | **Friend links** — invite a non-relative → they get their own seeded tree and a cross-tree `FriendLink` joins the two people (`/f/<token>`, WhatsApp sign-in, no email). "From other families" on the Circle tab; `GET /api/v1/trees/{id}/friend-links`; `friend.invited` / `friend.linked` webhooks. | 🟡 in progress |
 | R3 | **Profile analyzer** — `analyzeProfile()` finds the gaps (birth, place, photo, clan, then parents → grandparents → great-grandparents) and a persistent `<ProfileGaps>` wizard on the person page works toward four generations (present vs a 14-ancestor target). | 🟡 in progress |
 | R4 | **Device notifications** — opt-in Web Push (`web-push` + VAPID, `public/sw.js`), `PushSubscription` + `User.notifyPrefs`. `<PushSetup>` in the claimed-profile wizard and on `/account` with a per-category mute form. Off until `VAPID_*` is set. | 🟡 in progress |
+| R5 | **Your profile is home** — `homePathForUser()` routes every sign-in (WhatsApp link, magic link, "Open app") to the claimed person's own profile; the tree view centres on them by default. Public landing carousel of the largest directory trees (`publicShowcase()` — aggregate counts only). Entity pickers are type-ahead (`<SearchSelect>`), with "＋ Add …" inline person-create in the family forms. | 🟡 in progress |
 
 Full plan: `.claude/plans/async-inventing-fountain.md` (or ask).
 
@@ -224,6 +225,11 @@ seed/family-compass.gramps original database, for importing
 - **Tabs over long pages.** Config screens with many sections use `<Tabs>`
   (`src/components/Tabs.tsx`) — accessible, arrow-key nav, the active tab is kept in the URL hash.
   The memorial editor is the reference (Content / Service / People helping / Tributes & fund).
+- **Search, not scroll.** Pick a person / place / clan / family with `<SearchSelect>`
+  (`src/components/SearchSelect.tsx`) — a type-ahead that submits like a native control. With
+  `allowCreate` a "＋ Add …" row submits `new:<name>` for the server action to create (see
+  `resolvePersonRef` in the families actions). `<PersonSelect>` wraps it. Small fixed enums stay
+  as `<select>`.
 - **Design tokens.** Colours come from CSS variables (`--surface`, `--accent`, `--muted`, …); never
   hard-code hex. Stories live next to components as `*.stories.tsx`.
 

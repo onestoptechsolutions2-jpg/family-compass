@@ -66,11 +66,11 @@ export default async function FamilyDetailPage({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm">
                 <span style={{ color: "var(--muted)" }}>Partner 1</span>
-                <PersonSelect name="partner1Id" options={options} defaultValue={family.partner1Id} />
+                <PersonSelect name="partner1Id" options={options} defaultValue={family.partner1Id} allowCreate />
               </label>
               <label className="text-sm">
                 <span style={{ color: "var(--muted)" }}>Partner 2</span>
-                <PersonSelect name="partner2Id" options={options} defaultValue={family.partner2Id} />
+                <PersonSelect name="partner2Id" options={options} defaultValue={family.partner2Id} allowCreate />
               </label>
             </div>
             <label className="text-sm">
@@ -128,7 +128,7 @@ export default async function FamilyDetailPage({
           <form action={addChild.bind(null, treeId, familyId)} className="mt-3 flex items-end gap-2">
             <label className="text-sm">
               <span style={{ color: "var(--muted)" }}>Add existing person as child</span>
-              <PersonSelect name="personId" options={childOptions} allowEmpty={false} />
+              <PersonSelect name="personId" options={childOptions} allowEmpty={false} allowCreate />
             </label>
             <button className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>
               Add

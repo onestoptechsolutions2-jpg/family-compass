@@ -57,7 +57,8 @@ export default async function GuidePage({
       title: "1 · Build a tree by hand",
       steps: [
         { text: "Add yourself first, then work outwards.", href: "/people/new", label: "Add a person" },
-        "On a person's page, use the + father / + mother / + partner / + child buttons. Each opens a small form — or link someone already in the tree from the picker at the top.",
+        "On a person's page, use the + father / + mother / + partner / + child buttons. Each opens a small form — start typing in the picker to link someone already in the tree, or fill the fields to create a new person.",
+        { text: "In the Families section you can build a couple directly: search for each partner (husband / wife), or type a name and choose “＋ Add …” to create them on the spot. Same for adding children.", href: "/families", label: "Families" },
         "Fill in birth, death and marriage dates and places. Charts, reports and the memorial book all read these.",
         "Each profile has a “Complete this profile” panel: it checks what's missing and asks the questions — who were the parents? where were they born? — working toward four generations (self, parents, grandparents, great-grandparents). Hide it and it stays reachable from a small link.",
         "Mark a person deceased with “Record a death” — that unlocks their memorial page.",

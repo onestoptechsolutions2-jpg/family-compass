@@ -15,6 +15,7 @@ export function PersonSelect({
   emptyLabel = "— none —",
   required = false,
   multiple = false,
+  allowCreate = false,
 }: {
   name: string;
   options: Option[];
@@ -23,6 +24,8 @@ export function PersonSelect({
   emptyLabel?: string;
   required?: boolean;
   multiple?: boolean;
+  /** show a "＋ Add …" row; submits `new:<name>` for the server to create */
+  allowCreate?: boolean;
 }) {
   return (
     <SearchSelect
@@ -33,6 +36,8 @@ export function PersonSelect({
       emptyLabel={emptyLabel}
       required={required}
       multiple={multiple}
+      allowCreate={allowCreate}
+      createLabel={(q) => `＋ Add “${q}” as a new person`}
       className="mt-1"
     />
   );

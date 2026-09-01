@@ -4,11 +4,17 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 export type SearchOption = { value: string; label: string; hint?: string };
 
+const CREATE_PREFIX = "new:";
+
 /**
  * A type-ahead replacement for a `<select>` when the list is a set of entities
  * (people, places, clans, families…). Submits like a native control: a hidden
  * input named `name` carries the chosen value(s), so it drops straight into a
  * server-action form. Keyboard: ↑ ↓ Enter Esc.
+ *
+ * With `allowCreate`, a "＋ Add …" row appears when the typed text matches no
+ * option; picking it submits `new:<text>` and the server action is expected to
+ * create the entity and resolve it.
  */
 export function SearchSelect({
   name,
@@ -19,6 +25,8 @@ export function SearchSelect({
   emptyLabel = "— none —",
   required = false,
   multiple = false,
+  allowCreate = false,
+  createLabel = (q: string) => `＋ Add “${q}”`,
   className,
 }: {
   name: string;
@@ -29,6 +37,8 @@ export function SearchSelect({
   emptyLabel?: string;
   required?: boolean;
   multiple?: boolean;
+  allowCreate?: boolean;
+  createLabel?: (q: string) => string;
   className?: string;
 }) {
   const listId = useId();
@@ -57,12 +67,23 @@ export function SearchSelect({
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const q = query.trim().toLowerCase();
+  const raw = query.trim();
+  const q = raw.toLowerCase();
   const matches = useMemo(() => {
     const pool = multiple ? options.filter((o) => !selected.includes(o.value)) : options;
     const hit = q ? pool.filter((o) => o.label.toLowerCase().includes(q)) : pool;
     return hit.slice(0, 50);
   }, [options, selected, q, multiple]);
+
+  const canCreate =
+    allowCreate && !multiple && raw.length > 1 && !options.some((o) => o.label.toLowerCase() === q);
+
+  type Row = { kind: "empty" } | { kind: "option"; o: SearchOption } | { kind: "create" };
+  const rows: Row[] = [
+    ...(allowEmpty && !multiple ? [{ kind: "empty" } as Row] : []),
+    ...matches.map((o) => ({ kind: "option", o }) as Row),
+    ...(canCreate ? [{ kind: "create" } as Row] : []),
+  ];
 
   useEffect(() => setActive(0), [q, open]);
 
@@ -84,8 +105,24 @@ export function SearchSelect({
     setQuery("");
     input.current?.focus();
   };
+  const runRow = (r: Row | undefined) => {
+    if (!r) return;
+    if (r.kind === "empty") {
+      clearSingle();
+      setOpen(false);
+    } else if (r.kind === "option") {
+      pick(r.o.value);
+    } else {
+      pick(`${CREATE_PREFIX}${raw}`);
+    }
+  };
 
-  const singleLabel = !multiple && selected[0] ? (byValue.get(selected[0])?.label ?? "") : "";
+  const single = !multiple ? selected[0] : undefined;
+  const singleLabel = single
+    ? single.startsWith(CREATE_PREFIX)
+      ? `＋ ${single.slice(CREATE_PREFIX.length)}`
+      : (byValue.get(single)?.label ?? "")
+    : "";
   const inputValue = open || multiple ? query : singleLabel;
 
   const box = "w-full rounded-lg border px-3 py-2 text-sm";
@@ -93,7 +130,6 @@ export function SearchSelect({
 
   return (
     <div ref={wrap} className={`relative ${className ?? ""}`}>
-      {/* hidden values for the form */}
       {(multiple ? selected : selected.slice(0, 1)).map((v) => (
         <input key={v} type="hidden" name={name} value={v} />
       ))}
@@ -125,9 +161,7 @@ export function SearchSelect({
           autoComplete="off"
           required={required && !multiple && selected.length === 0}
           value={inputValue}
-          placeholder={
-            !multiple && selected[0] && !open ? singleLabel : placeholder
-          }
+          placeholder={!multiple && selected[0] && !open ? singleLabel : placeholder}
           onFocus={() => setOpen(true)}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -137,20 +171,13 @@ export function SearchSelect({
             if (e.key === "ArrowDown") {
               e.preventDefault();
               setOpen(true);
-              setActive((i) => Math.min(i + 1, matches.length - 1 + (allowEmpty && !multiple ? 1 : 0)));
+              setActive((i) => Math.min(i + 1, rows.length - 1));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
               setActive((i) => Math.max(i - 1, 0));
             } else if (e.key === "Enter") {
               e.preventDefault();
-              const emptyRow = allowEmpty && !multiple ? 1 : 0;
-              if (emptyRow && active === matches.length) {
-                clearSingle();
-                setOpen(false);
-              } else {
-                const o = matches[active];
-                if (o) pick(o.value);
-              }
+              runRow(rows[active]);
             } else if (e.key === "Escape") {
               setOpen(false);
               setQuery("");
@@ -181,43 +208,68 @@ export function SearchSelect({
           className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border py-1 text-sm shadow-lg"
           style={{ borderColor: "var(--border)", background: "var(--surface, var(--bg))" }}
         >
-          {allowEmpty && !multiple && (
-            <li
-              role="option"
-              aria-selected={selected.length === 0}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                clearSingle();
-                setOpen(false);
-              }}
-              className="cursor-pointer px-3 py-1.5"
-              style={{ background: active === matches.length ? "var(--surface-2)" : undefined, color: "var(--muted)" }}
-            >
-              {emptyLabel}
-            </li>
-          )}
-          {matches.map((o, i) => (
-            <li
-              key={o.value}
-              role="option"
-              aria-selected={selected.includes(o.value)}
-              onMouseEnter={() => setActive(i)}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(o.value);
-              }}
-              className="flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5"
-              style={{ background: i === active ? "var(--surface-2)" : undefined }}
-            >
-              <span className="truncate">{o.label}</span>
-              {o.hint && (
-                <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>{o.hint}</span>
-              )}
-            </li>
-          ))}
-          {matches.length === 0 && (
+          {rows.map((r, i) => {
+            const on = i === active;
+            const bg = on ? "var(--surface-2)" : undefined;
+            if (r.kind === "empty") {
+              return (
+                <li
+                  key="__empty"
+                  role="option"
+                  aria-selected={selected.length === 0}
+                  onMouseEnter={() => setActive(i)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    runRow(r);
+                  }}
+                  className="cursor-pointer px-3 py-1.5"
+                  style={{ background: bg, color: "var(--muted)" }}
+                >
+                  {emptyLabel}
+                </li>
+              );
+            }
+            if (r.kind === "create") {
+              return (
+                <li
+                  key="__create"
+                  role="option"
+                  aria-selected={false}
+                  onMouseEnter={() => setActive(i)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    runRow(r);
+                  }}
+                  className="cursor-pointer px-3 py-1.5 font-medium"
+                  style={{ background: bg, color: "var(--color-brand-700)" }}
+                >
+                  {createLabel(raw)}
+                </li>
+              );
+            }
+            return (
+              <li
+                key={r.o.value}
+                role="option"
+                aria-selected={selected.includes(r.o.value)}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  runRow(r);
+                }}
+                className="flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5"
+                style={{ background: bg }}
+              >
+                <span className="truncate">{r.o.label}</span>
+                {r.o.hint && (
+                  <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>{r.o.hint}</span>
+                )}
+              </li>
+            );
+          })}
+          {rows.length === 0 && (
             <li className="px-3 py-1.5 text-xs" style={{ color: "var(--muted)" }}>
-              {q ? `No match for “${query.trim()}”` : "No options"}
+              {raw ? `No match for “${raw}”` : "No options"}
             </li>
           )}
         </ul>
