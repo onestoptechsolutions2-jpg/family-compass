@@ -59,6 +59,7 @@ export default async function GuidePage({
         { text: "Add yourself first, then work outwards.", href: "/people/new", label: "Add a person" },
         "On a person's page, use the + father / + mother / + partner / + child buttons. Each opens a small form — or link someone already in the tree from the picker at the top.",
         "Fill in birth, death and marriage dates and places. Charts, reports and the memorial book all read these.",
+        "Each profile has a “Complete this profile” panel: it checks what's missing and asks the questions — who were the parents? where were they born? — working toward four generations (self, parents, grandparents, great-grandparents). Hide it and it stays reachable from a small link.",
         "Mark a person deceased with “Record a death” — that unlocks their memorial page.",
       ],
     },
@@ -96,7 +97,8 @@ export default async function GuidePage({
         "“Add a memory” records something that happened — a title, the story, roughly when, and who else was there. Each person tagged can add their own side of it later.",
         "“Add to circle” names a tie (friend, mentor, elder, chosen-sibling, co-parent…) and, in plain words, how it started — optionally “through” another person and a context (family / school / work / church…).",
         "Closeness is read from that record — how many memories you share, how recent, whether both sides name it — never a number you set. It shows with its evidence.",
-        "The family you build counts as much as the one you come from: anyone can start their own tree and add the people who matter, related or not.",
+        "“Invite a friend” (for someone not on this tree and not related) sends a link. They start their own tree, centred on themselves — no email or password — and a cross-family link connects the two of you. Neither can see into the other's tree.",
+        "The family you build counts as much as the one you come from.",
       ],
     },
     {

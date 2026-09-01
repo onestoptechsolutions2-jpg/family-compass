@@ -9,7 +9,9 @@ import { personCircle, personMemories, RELATION_ROLES, RELATION_CONTEXTS } from 
 import { friendLinksForPerson, pendingFriendInvites } from "@/lib/friends";
 import { addMemoryAction, addToCircleAction, inviteFriendAction } from "./relationship-actions";
 import { isProfileClaimable } from "@/lib/claim-eligibility";
+import { analyzeProfile } from "@/lib/profile-analyzer";
 import { ClaimedWizard } from "@/components/ClaimedWizard";
+import { ProfileGaps } from "@/components/ProfileGaps";
 import { personMedia } from "@/lib/queries/media";
 import { commentsForEvents } from "@/lib/discussions";
 import { displayName, genderSymbol, genderColor, genderLabel } from "@/lib/person";
@@ -83,6 +85,7 @@ export default async function PersonDetailPage({
     pendingFriendInvites(treeId),
   ]);
   const myFriendPending = friendPending.filter((f) => f.fromPersonId === personId);
+  const analysis = canEdit(ctx.role) ? await analyzeProfile(treeId, personId, ctx.user.id) : null;
   const eventComments = await commentsForEvents(
     [...person.eventRefs].map((r) => r.event.id),
   );
@@ -203,6 +206,15 @@ export default async function PersonDetailPage({
               cta: "Explore",
             },
           ]}
+        />
+      )}
+
+      {analysis && !deceased && analysis.gaps.length > 0 && (
+        <ProfileGaps
+          personId={personId}
+          self={analysis.self}
+          ancestry={analysis.ancestry}
+          gaps={analysis.gaps}
         />
       )}
 
