@@ -45,42 +45,46 @@ model User {
   sessions          Session[]
   pushSubscriptions PushSubscription[]
 
-  memberships           Membership[]
-  invitationsSent       Invitation[]           @relation("InvitedBy")
-  uploadedMedia         MediaObject[]          @relation("MediaUploader")
-  generationJobs        GenerationJob[]        @relation("GenerationRequestedBy")
-  payments              Payment[]              @relation("PaymentUser")
-  paymentsVerified      Payment[]              @relation("PaymentVerifier")
-  sharedViews           SharedView[]           @relation("SharedViewCreator")
-  auditLogs             AuditLog[]
-  activityEvents        ActivityEvent[]
-  creditLedger          CreditLedger[]         @relation("CreditActor")
-  claimedPerson         Person?                @relation("PersonClaimedBy")
-  claimsDecided         PersonClaim[]          @relation("ClaimDecidedBy")
-  claimsCreatedFor      PersonClaim[]          @relation("ClaimCreatedUser")
-  claimInvitesCreated   ClaimInvite[]          @relation("ClaimInviteCreator")
-  loginTokens           LoginToken[]
-  deepSearches          DeepSearch[]           @relation("DeepSearchRequester")
-  engagementsRequested  ResearchEngagement[]   @relation("EngagementRequester")
-  engagementsAssigned   ResearchEngagement[]   @relation("EngagementAssignee")
-  consentEvents         ConsentEvent[]
-  memorialsCreated      Memorial[]             @relation("MemorialCreator")
-  memorialsLocked       Memorial[]             @relation("MemorialLocker")
-  memorialInvites       MemorialContributor[]  @relation("MemorialContributorInviter")
-  memorialReviews       MemorialContribution[] @relation("MemorialContributionReviewer")
-  programEdits          FuneralProgram[]       @relation("ProgramEditor")
-  programRevisions      ProgramRevision[]      @relation("ProgramReviser")
-  notifications         Notification[]
-  apiKeysCreated        ApiKey[]               @relation("ApiKeyCreator")
-  webhooksCreated       WebhookEndpoint[]      @relation("WebhookCreator")
-  chamasCreated         Chama[]                @relation("ChamaCreator")
-  chamaConfirmations    ChamaContribution[]    @relation("ChamaContribConfirmer")
-  eventCommentsAuthored EventComment[]         @relation("EventCommentAuthor")
-  eventCommentsResolved EventComment[]         @relation("EventCommentResolver")
-  authoredMemories      Memory[]               @relation("MemoryAuthor")
-  friendInvitesSent     FriendInvite[]         @relation("FriendInviteInviter")
-  treesAdministered     Tree[]                 @relation("TreeFamilyAdmin")
-  lifeUpdates           LifeUpdate[]           @relation("LifeUpdateAuthor")
+  memberships                   Membership[]
+  invitationsSent               Invitation[]            @relation("InvitedBy")
+  uploadedMedia                 MediaObject[]           @relation("MediaUploader")
+  generationJobs                GenerationJob[]         @relation("GenerationRequestedBy")
+  payments                      Payment[]               @relation("PaymentUser")
+  paymentsVerified              Payment[]               @relation("PaymentVerifier")
+  sharedViews                   SharedView[]            @relation("SharedViewCreator")
+  auditLogs                     AuditLog[]
+  activityEvents                ActivityEvent[]
+  creditLedger                  CreditLedger[]          @relation("CreditActor")
+  claimedPerson                 Person?                 @relation("PersonClaimedBy")
+  claimedIdentity               Identity?               @relation("IdentityClaimedBy")
+  claimsDecided                 PersonClaim[]           @relation("ClaimDecidedBy")
+  claimsCreatedFor              PersonClaim[]           @relation("ClaimCreatedUser")
+  identityMergesProposed        IdentityMergeRequest[]  @relation("IdentityMergeProposedBy")
+  identityMergesApproved        IdentityMergeApproval[] @relation("IdentityMergeApprovedBy")
+  identityRelationshipsAsserted IdentityRelationship[]  @relation("IdentityRelationshipAssertedBy")
+  claimInvitesCreated           ClaimInvite[]           @relation("ClaimInviteCreator")
+  loginTokens                   LoginToken[]
+  deepSearches                  DeepSearch[]            @relation("DeepSearchRequester")
+  engagementsRequested          ResearchEngagement[]    @relation("EngagementRequester")
+  engagementsAssigned           ResearchEngagement[]    @relation("EngagementAssignee")
+  consentEvents                 ConsentEvent[]
+  memorialsCreated              Memorial[]              @relation("MemorialCreator")
+  memorialsLocked               Memorial[]              @relation("MemorialLocker")
+  memorialInvites               MemorialContributor[]   @relation("MemorialContributorInviter")
+  memorialReviews               MemorialContribution[]  @relation("MemorialContributionReviewer")
+  programEdits                  FuneralProgram[]        @relation("ProgramEditor")
+  programRevisions              ProgramRevision[]       @relation("ProgramReviser")
+  notifications                 Notification[]
+  apiKeysCreated                ApiKey[]                @relation("ApiKeyCreator")
+  webhooksCreated               WebhookEndpoint[]       @relation("WebhookCreator")
+  chamasCreated                 Chama[]                 @relation("ChamaCreator")
+  chamaConfirmations            ChamaContribution[]     @relation("ChamaContribConfirmer")
+  eventCommentsAuthored         EventComment[]          @relation("EventCommentAuthor")
+  eventCommentsResolved         EventComment[]          @relation("EventCommentResolver")
+  authoredMemories              Memory[]                @relation("MemoryAuthor")
+  friendInvitesSent             FriendInvite[]          @relation("FriendInviteInviter")
+  treesAdministered             Tree[]                  @relation("TreeFamilyAdmin")
+  lifeUpdates                   LifeUpdate[]            @relation("LifeUpdateAuthor")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -481,31 +485,39 @@ enum ClanInheritance {
 }
 
 model Tree {
-  id                   String          @id @default(cuid())
-  workspaceId          String
-  name                 String
-  description          String?         @db.Text
-  slug                 String
-  homePersonId         String?
+  id                    String          @id @default(cuid())
+  workspaceId           String
+  name                  String
+  description           String?         @db.Text
+  slug                  String
+  homePersonId          String?
   /// default lineage rule for clan (and family-name) inheritance on new children
-  clanInheritance      ClanInheritance @default(PATRILINEAL)
+  clanInheritance       ClanInheritance @default(PATRILINEAL)
   /// also copy the lineage parent's surname to a new child when it's blank
-  inheritSurname       Boolean         @default(true)
+  inheritSurname        Boolean         @default(true)
   /// the designated "family admin" for this tree — manages its claims,
   /// sharing links and requests even if their workspace role is lower.
-  adminUserId          String?
-  freeExportUsedAt     DateTime?
-  contactWhatsapp      String?
-  claimPinHash         String?
-  keeperUntil          DateTime?
-  discoverable         Boolean         @default(false)
+  adminUserId           String?
+  freeExportUsedAt      DateTime?
+  contactWhatsapp       String?
+  claimPinHash          String?
+  keeperUntil           DateTime?
+  /// opted into proactive M-Pesa STK renewal prompts before keeperUntil lapses
+  /// — set explicitly at purchase/settings time, never a silent default.
+  keeperAutoRenew       Boolean         @default(false)
+  keeperRenewalPhone    String?
+  /// STK attempts made for the CURRENT keeperUntil cycle; reset to 0 on renewal
+  keeperRenewalAttempts Int             @default(0)
+  /// the T-14-day reminder already sent for the current cycle; reset on renewal
+  keeperReminderSentAt  DateTime?
+  discoverable          Boolean         @default(false)
   /// when discoverable, also feature this tree in the public homepage carousel
-  showcase             Boolean         @default(true)
-  community            String?
-  region               String?
-  anniversaryReminders Boolean         @default(true)
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  showcase              Boolean         @default(true)
+  community             String?
+  region                String?
+  anniversaryReminders  Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   admin     User?     @relation("TreeFamilyAdmin", fields: [adminUserId], references: [id], onDelete: SetNull)
@@ -526,7 +538,7 @@ model Tree {
   importJobs             ImportJob[]
   personClaims           PersonClaim[]
   claimInvites           ClaimInvite[]
-  payments               Payment[]             @relation("TreePayments")
+  payments               Payment[]               @relation("TreePayments")
   clans                  Clan[]
   memorials              Memorial[]
   anniversaryReminderLog AnniversaryReminder[]
@@ -535,9 +547,10 @@ model Tree {
   memories               Memory[]
   relationEdges          RelationEdge[]
   lifeUpdates            LifeUpdate[]
-  friendInvitesFrom      FriendInvite[]        @relation("FriendInviteFromTree")
-  friendLinksAsA         FriendLink[]          @relation("FriendLinkATree")
-  friendLinksAsB         FriendLink[]          @relation("FriendLinkBTree")
+  friendInvitesFrom      FriendInvite[]          @relation("FriendInviteFromTree")
+  friendLinksAsA         FriendLink[]            @relation("FriendLinkATree")
+  friendLinksAsB         FriendLink[]            @relation("FriendLinkBTree")
+  identityMergeApprovals IdentityMergeApproval[]
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -643,14 +656,19 @@ model Person {
   /// the relative this person was named after (a Kenyan naming custom — often a
   /// grandparent). Same-tree pointer; informational, not a lineage link.
   namedAfterId        String?
+  /// the global human this Person represents, once matched/claimed/linked.
+  /// null is normal — most Person rows stay unlinked stubs until a deep
+  /// search, claim or merge links them. See docs/identity-model.md.
+  identityId          String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  tree       Tree     @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  claimedBy  User?    @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
-  clan       Clan?    @relation(fields: [clanId], references: [id], onDelete: SetNull)
-  namedAfter Person?  @relation("NamedAfter", fields: [namedAfterId], references: [id], onDelete: SetNull)
-  namesakes  Person[] @relation("NamedAfter")
+  tree       Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  claimedBy  User?     @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  clan       Clan?     @relation(fields: [clanId], references: [id], onDelete: SetNull)
+  namedAfter Person?   @relation("NamedAfter", fields: [namedAfterId], references: [id], onDelete: SetNull)
+  namesakes  Person[]  @relation("NamedAfter")
+  identity   Identity? @relation(fields: [identityId], references: [id], onDelete: SetNull)
 
   names        Name[]
   eventRefs    EventRef[]
@@ -688,6 +706,7 @@ model Person {
 
   @@unique([treeId, grampsId])
   @@index([treeId])
+  @@index([identityId])
 }
 
 enum ClaimStatus {
@@ -704,6 +723,11 @@ model PersonClaim {
   id                   String      @id @default(cuid())
   treeId               String
   personId             String?
+  /// set when this claim targets an existing global Identity rather than
+  /// only a tree-local Person — self-claim at onboarding, or a relative
+  /// claiming that a newly-entered Person is someone already on the
+  /// platform. See docs/identity-dedup-claim-workflow.md.
+  targetIdentityId     String?
   claimantName         String
   phone                String
   note                 String?     @db.Text
@@ -719,13 +743,15 @@ model PersonClaim {
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
-  tree        Tree    @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  person      Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
-  decidedBy   User?   @relation("ClaimDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-  createdUser User?   @relation("ClaimCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+  tree           Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  person         Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  targetIdentity Identity? @relation("IdentityClaims", fields: [targetIdentityId], references: [id], onDelete: SetNull)
+  decidedBy      User?     @relation("ClaimDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  createdUser    User?     @relation("ClaimCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
 
   @@index([treeId, status])
   @@index([code])
+  @@index([targetIdentityId])
 }
 
 /// A tokenised "this is your profile — claim it" link that a tree editor
@@ -750,6 +776,159 @@ model ClaimInvite {
 
   @@index([treeId])
   @@index([personId])
+}
+
+// ---------------------------------------------------------------------------
+// Identity layer — one real human, many tree-scoped Person representations.
+//
+// Person stays tree-scoped (Tree/Workspace remain the privacy & billing
+// boundary — unchanged). Identity is the global record that says "these
+// Person rows, across however many trees, are the same human." Linking is
+// metadata only: it never copies facts between Person rows, never grants
+// cross-tree access, and is never created automatically — only via a
+// verified Claim or a corroborated, reversible Merge.
+// See docs/identity-model.md, docs/relationship-rules.md,
+// docs/onboarding-state-machine.md, docs/identity-dedup-claim-workflow.md.
+// ---------------------------------------------------------------------------
+
+/// The real human. Global — not owned by a Workspace. Exists once regardless
+/// of how many family trees have entered a Person for them. Most rows are
+/// unclaimed (no living User attached) — the deceased, and living relatives
+/// who haven't joined yet.
+model Identity {
+  id              String    @id @default(cuid())
+  claimedByUserId String?   @unique
+  /// best-known display name, for search/claim UI only — never a source of
+  /// truth for any tree's biography. Each linked Person keeps its own Name rows.
+  displayName     String?
+  /// denormalized signals used by deep-search / claim matching (see
+  /// docs/identity-dedup-claim-workflow.md) — not authoritative facts.
+  birthYearHint   Int?
+  genderHint      Gender?
+  /// set when this Identity was merged away into another — soft-deleted,
+  /// never hard-deleted, so old links/URLs can redirect. See merge workflow doc.
+  mergedIntoId    String?
+  mergedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  claimedBy  User?      @relation("IdentityClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  mergedInto Identity?  @relation("IdentityMergedInto", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom Identity[] @relation("IdentityMergedInto")
+
+  people            Person[]
+  claims            PersonClaim[]          @relation("IdentityClaims")
+  relationshipsA    IdentityRelationship[] @relation("IdentityRelA")
+  relationshipsB    IdentityRelationship[] @relation("IdentityRelB")
+  mergeRequestsFrom IdentityMergeRequest[] @relation("IdentityMergeFrom")
+  mergeRequestsInto IdentityMergeRequest[] @relation("IdentityMergeInto")
+
+  @@index([mergedIntoId])
+}
+
+enum IdentityRelationshipKind {
+  /// cached/derived from Family + ChildRef via linked Person.identityId rows
+  /// — never hand-authored, regenerated when the underlying links change.
+  BLOOD_ECHO
+  /// explicit, hand-authored via a claim/verification flow — the one tie
+  /// that crosses tenancy boundaries by nature (see relationship-rules.md).
+  MARRIAGE
+  /// explicit, hand-authored — friend/mentor/community, mirrored from
+  /// RelationEdge/FriendLink once both sides have Identities.
+  CHOSEN
+}
+
+enum IdentityRelationshipStatus {
+  /// one side asserted it; not yet corroborated
+  PROPOSED
+  /// both sides' claimed users confirmed, or a tree admin verified it
+  CONFIRMED
+  /// a party flagged it as wrong; hidden from cross-tree bridging pending review
+  DISPUTED
+}
+
+model IdentityRelationship {
+  id             String                     @id @default(cuid())
+  /// canonical order: aIdentityId < bIdentityId (string compare)
+  aIdentityId    String
+  bIdentityId    String
+  kind           IdentityRelationshipKind
+  status         IdentityRelationshipStatus @default(PROPOSED)
+  /// which Family row this was sourced from, when derived (BLOOD_ECHO) or
+  /// when a MARRIAGE was entered as a family event and then echoed up
+  sourceTreeId   String?
+  sourceFamilyId String?
+  assertedById   String?
+  confirmedAt    DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  aIdentity  Identity @relation("IdentityRelA", fields: [aIdentityId], references: [id], onDelete: Cascade)
+  bIdentity  Identity @relation("IdentityRelB", fields: [bIdentityId], references: [id], onDelete: Cascade)
+  assertedBy User?    @relation("IdentityRelationshipAssertedBy", fields: [assertedById], references: [id], onDelete: SetNull)
+
+  @@unique([aIdentityId, bIdentityId, kind])
+  @@index([aIdentityId])
+  @@index([bIdentityId])
+}
+
+enum IdentityMergeStatus {
+  PROPOSED
+  CORROBORATING
+  EXECUTED
+  REVERTED
+  REJECTED
+}
+
+/// A recovery-path proposal that two independently-created Identities are
+/// the same human. Requires approval from a manager of every Tree that has a
+/// Person linked to `fromIdentityId` (this app's actual admin boundary —
+/// see Tree.adminUserId / requireTreeManage) before it executes, and is
+/// reversible for 14 days after execution via `snapshot`. See
+/// docs/identity-dedup-claim-workflow.md.
+model IdentityMergeRequest {
+  id              String              @id @default(cuid())
+  fromIdentityId  String
+  intoIdentityId  String
+  status          IdentityMergeStatus @default(PROPOSED)
+  evidence        String?             @db.Text
+  proposedById    String
+  /// pre-execution state of every repointed Person / IdentityRelationship
+  /// row (plus any transferred Identity.claimedByUserId) — restored
+  /// verbatim if reverted within the grace window.
+  snapshot        Json?
+  executedAt      DateTime?
+  revertibleUntil DateTime?
+  revertedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  fromIdentity Identity                @relation("IdentityMergeFrom", fields: [fromIdentityId], references: [id], onDelete: Cascade)
+  intoIdentity Identity                @relation("IdentityMergeInto", fields: [intoIdentityId], references: [id], onDelete: Cascade)
+  proposedBy   User                    @relation("IdentityMergeProposedBy", fields: [proposedById], references: [id])
+  approvals    IdentityMergeApproval[]
+
+  @@index([fromIdentityId])
+  @@index([intoIdentityId])
+  @@index([status])
+}
+
+/// One Tree manager's sign-off on a merge request — required from every Tree
+/// that has a Person linked to `fromIdentityId` before the merge executes.
+model IdentityMergeApproval {
+  id           String   @id @default(cuid())
+  requestId    String
+  treeId       String
+  approvedById String
+  approvedAt   DateTime @default(now())
+
+  request    IdentityMergeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tree       Tree                 @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  approvedBy User                 @relation("IdentityMergeApprovedBy", fields: [approvedById], references: [id])
+
+  @@unique([requestId, treeId])
+  @@index([requestId])
+  @@index([treeId])
 }
 
 enum NameType {
