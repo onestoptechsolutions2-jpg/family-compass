@@ -1,3 +1,5 @@
+"use client";
+
 import { SearchSelect } from "./SearchSelect";
 
 type Option = { id: string; label: string };
