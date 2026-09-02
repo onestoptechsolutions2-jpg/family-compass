@@ -6,7 +6,10 @@ export async function getChartsData(treeId: string, workspaceId: string) {
       where: { id: workspaceId },
       select: { exportCredits: true },
     }),
-    db.tree.findUniqueOrThrow({ where: { id: treeId }, select: { keeperUntil: true } }),
+    db.tree.findUniqueOrThrow({
+      where: { id: treeId },
+      select: { keeperUntil: true, keeperAutoRenew: true, keeperRenewalPhone: true },
+    }),
     db.generationJob.findMany({
       where: { treeId },
       orderBy: { createdAt: "desc" },
@@ -63,5 +66,13 @@ export async function getChartsData(treeId: string, workspaceId: string) {
 
   const keeperUntil = tree.keeperUntil;
   const keeperActive = Boolean(keeperUntil && keeperUntil.getTime() > Date.now());
-  return { credits: workspace.exportCredits, keeperUntil, keeperActive, jobs, payments };
+  return {
+    credits: workspace.exportCredits,
+    keeperUntil,
+    keeperActive,
+    keeperAutoRenew: tree.keeperAutoRenew,
+    keeperRenewalPhone: tree.keeperRenewalPhone,
+    jobs,
+    payments,
+  };
 }

@@ -12,12 +12,14 @@ import {
 } from "@/lib/pricing";
 import { getPaymentSettings } from "@/lib/payments";
 import { getProvider } from "@/lib/payments";
+import { displayPhone } from "@/lib/wa";
 import { PersonSelect } from "@/components/PersonSelect";
 import {
   createGeneration,
   unlockGeneration,
   startCreditPurchase,
   startKeeperPurchase,
+  updateKeeperAutoRenew,
   submitMpesaCode,
   cancelPayment,
 } from "./actions";
@@ -45,8 +47,11 @@ export default async function ChartsPage({
   const editable = canEdit(ctx.role);
   const canBuy = canManageTree(ctx.role);
 
-  const [{ credits, keeperUntil, keeperActive, jobs, payments }, options, settings] =
-    await Promise.all([
+  const [
+    { credits, keeperUntil, keeperActive, keeperAutoRenew, keeperRenewalPhone, jobs, payments },
+    options,
+    settings,
+  ] = await Promise.all([
       getChartsData(treeId, ctx.workspace.id),
       personOptions(treeId),
       getPaymentSettings(),
@@ -139,6 +144,39 @@ export default async function ChartsPage({
           </div>
         )}
       </div>
+
+      {/* auto-renew opt-in — only relevant once the tree has bought Keeper before */}
+      {canBuy && keeperUntil && (
+        <form
+          action={updateKeeperAutoRenew.bind(null, treeId)}
+          className="flex flex-wrap items-center gap-3 rounded-xl border p-4 text-sm"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="keeperAutoRenew"
+              defaultChecked={keeperAutoRenew}
+              className="h-4 w-4"
+            />
+            <span className="font-medium">Auto-renew the family plan</span>
+          </label>
+          <input
+            name="keeperRenewalPhone"
+            placeholder="07XX XXX XXX"
+            defaultValue={keeperRenewalPhone ? displayPhone(keeperRenewalPhone) : ""}
+            className="w-40 rounded-md border px-2 py-1"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          />
+          <button className="rounded-md border px-3 py-1.5 font-medium" style={{ borderColor: "var(--border)" }}>
+            Save
+          </button>
+          <p className="w-full text-xs" style={{ color: "var(--muted)" }}>
+            A few days before it expires, we&apos;ll send an M-Pesa prompt to this number — nothing
+            charges until you approve it with your PIN.
+          </p>
+        </form>
+      )}
 
       {/* active payment */}
       {pending && checkout && (

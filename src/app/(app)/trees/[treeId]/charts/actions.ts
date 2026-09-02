@@ -12,6 +12,7 @@ import { paymentReference } from "@/lib/slug";
 import { enqueue, QUEUE } from "@/lib/queue";
 import { BUNDLES, KEEPER_PLAN, GENERATION_NEEDS_CENTRAL, creditsForPrice } from "@/lib/pricing";
 import { getPaymentSettings } from "@/lib/payments";
+import { mpesaMsisdn } from "@/lib/payments/daraja";
 
 const createSchema = z.object({
   kind: z.enum(GenerationKind),
@@ -192,6 +193,38 @@ export async function startKeeperPurchase(treeId: string) {
       reference: paymentReference(),
       status: PaymentStatus.PENDING,
     },
+  });
+  revalidatePath(`/trees/${treeId}/charts`);
+}
+
+/**
+ * Opt in/out of proactive M-Pesa STK renewal prompts before Keeper lapses.
+ * Explicit per-tree choice, never a default — see worker/jobs/keeper-renewal.ts.
+ */
+export async function updateKeeperAutoRenew(treeId: string, formData: FormData) {
+  const ctx = await requireTreeManage(treeId);
+  const enabled = formData.get("keeperAutoRenew") === "on";
+
+  if (!enabled) {
+    await db.tree.update({ where: { id: treeId }, data: { keeperAutoRenew: false } });
+    revalidatePath(`/trees/${treeId}/charts`);
+    return;
+  }
+
+  const phone = mpesaMsisdn(String(formData.get("keeperRenewalPhone") ?? ""));
+  if (!phone) throw new Error("Enter a valid Safaricom number (07… or 2547…)");
+
+  await db.tree.update({
+    where: { id: treeId },
+    data: { keeperAutoRenew: true, keeperRenewalPhone: phone },
+  });
+  await logActivity({
+    treeId,
+    actorId: ctx.user.id,
+    verb: "updated",
+    objectType: "payment",
+    objectId: treeId,
+    summary: "turned on auto-renew for the family plan",
   });
   revalidatePath(`/trees/${treeId}/charts`);
 }

@@ -61,7 +61,16 @@ export async function fulfilPayment(
       tree?.keeperUntil && tree.keeperUntil.getTime() > Date.now() ? tree.keeperUntil : new Date();
     const until = new Date(from);
     until.setMonth(until.getMonth() + KEEPER_PLAN.months);
-    await db.tree.update({ where: { id: treeId }, data: { keeperUntil: until } });
+    await db.tree.update({
+      where: { id: treeId },
+      data: {
+        keeperUntil: until,
+        // New cycle — clear the previous cycle's reminder/attempt tracking so
+        // the renewal-scan worker starts fresh against the new keeperUntil.
+        keeperRenewalAttempts: 0,
+        keeperReminderSentAt: null,
+      },
+    });
     summary = `Family plan active until ${until.toISOString().slice(0, 10)}`;
   } else if (payment.kind === PaymentKind.DEEP_SEARCH) {
     await db.deepSearch.updateMany({ where: { paymentId: payment.id }, data: { status: "PAID" } });

@@ -9,6 +9,7 @@ import { handleWebhookDeliver } from "./jobs/webhook";
 import { handleAnniversaryScan } from "./jobs/anniversary";
 import { handleSystemHealth } from "./jobs/system";
 import { handleGenerationGc } from "./jobs/generation";
+import { handleKeeperRenewalScan } from "./jobs/keeper-renewal";
 
 async function main() {
   const boss = new PgBoss({
@@ -33,6 +34,7 @@ async function main() {
   await boss.work(QUEUE.anniversaryScan, handleAnniversaryScan);
   await boss.work(QUEUE.systemHealth, handleSystemHealth);
   await boss.work(QUEUE.generationGc, handleGenerationGc);
+  await boss.work(QUEUE.keeperRenewalScan, handleKeeperRenewalScan);
 
   // daily sweep for upcoming birthdays / death & wedding anniversaries
   await boss.schedule(QUEUE.anniversaryScan, "0 6 * * *", {}, { tz: "Africa/Nairobi" });
@@ -40,6 +42,9 @@ async function main() {
   await boss.schedule(QUEUE.systemHealth, "0 7 * * *", {}, { tz: "Africa/Nairobi" });
   // nightly purge of expired generation artifacts
   await boss.schedule(QUEUE.generationGc, "0 3 * * *", {}, { tz: "Africa/Nairobi" });
+  // morning sweep for Keeper renewals — reminders + proactive STK prompts for
+  // opted-in trees, while people are awake to see the M-Pesa prompt
+  await boss.schedule(QUEUE.keeperRenewalScan, "0 8 * * *", {}, { tz: "Africa/Nairobi" });
 
   console.log("[worker] ready — listening on", Object.values(QUEUE).join(", "));
 
