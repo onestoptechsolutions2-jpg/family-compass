@@ -30,6 +30,10 @@ export type Candidate = {
 /** Search PRIVATE-excluded people across trees that opted into the directory. */
 export async function searchDirectory(q: DirectoryQuery): Promise<Candidate[]> {
   const name = q.name?.trim();
+  // Tokenize so a "First Surname" query matches a person whose first/surname
+  // fields hold each part separately — a naive whole-string `contains` never
+  // matches a two-word query against a single field.
+  const nameTokens = name ? name.split(/\s+/).filter(Boolean) : [];
   const clanN = q.clan ? normalizeClan(q.clan) : "";
   const win = q.window ?? 5;
 
@@ -41,16 +45,19 @@ export async function searchDirectory(q: DirectoryQuery): Promise<Candidate[]> {
         ...(q.community ? { community: { contains: q.community, mode: "insensitive" } } : {}),
         ...(q.region ? { region: { contains: q.region, mode: "insensitive" } } : {}),
       },
-      ...(name
+      ...(nameTokens.length
         ? {
-            names: {
-              some: {
-                OR: [
-                  { first: { contains: name, mode: "insensitive" } },
-                  { surname: { contains: name, mode: "insensitive" } },
-                ],
+            AND: nameTokens.map((tok) => ({
+              names: {
+                some: {
+                  OR: [
+                    { first: { contains: tok, mode: "insensitive" as const } },
+                    { surname: { contains: tok, mode: "insensitive" as const } },
+                    { nick: { contains: tok, mode: "insensitive" as const } },
+                  ],
+                },
               },
-            },
+            })),
           }
         : {}),
       ...(clanN ? { clan: { normalized: { contains: clanN } } } : {}),

@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 
 import { env } from "@/lib/env";
 import { getSessionUser } from "@/lib/rbac";
-import { searchDirectory } from "@/lib/discovery";
+import { matchIdentityCandidates } from "@/lib/identity";
 import { PeanutArt } from "@/components/GradientArt";
-import { startCheck, startCreate, readStartDraft } from "./actions";
+import { startCheck, startCreate, startClaimIdentity, readStartDraft } from "./actions";
 
 export const metadata: Metadata = {
   title: "Start your family tree",
@@ -38,26 +38,27 @@ export default async function StartPage({
   if (await getSessionUser()) redirect("/app");
   const { step, err } = await searchParams;
 
-  // ---------- review / dedup ----------
+  // ---------- review / mandatory identity search ----------
+  // Every new sign-in passes through this before a Tree/Identity is ever
+  // created for them — see docs/onboarding-state-machine.md. A brand-new
+  // Identity is a last resort, never a silent default: the visitor must
+  // explicitly say "none of these are me."
   if (step === "review") {
     const d = await readStartDraft();
     if (!d) redirect("/start");
 
-    const candidates = await searchDirectory({
+    const candidates = await matchIdentityCandidates({
       name: `${d.first} ${d.surname}`,
+      clan: undefined,
       community: d.community || undefined,
       region: d.region || undefined,
       birthYear: d.birthYear,
-      window: 8,
     }).catch(() => []);
-    const close = candidates
-      .filter((c) => c.name.toLowerCase().includes(d.surname.toLowerCase()))
-      .slice(0, 5);
 
     return (
       <Frame>
         <h1 className="font-serif text-2xl">
-          {close.length ? "You might already be in a family tree" : "Looks new — let's set it up"}
+          {candidates.length ? "You might already be in a family tree" : "Looks new — let's set it up"}
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
           Starting as <strong>{d.first} {d.surname}</strong>
@@ -65,33 +66,41 @@ export default async function StartPage({
           {d.community ? `, ${d.community}` : ""}.
         </p>
 
-        {close.length > 0 && (
+        {err && (
+          <p className="mt-3 text-sm" style={{ color: "var(--danger)" }}>{decodeURIComponent(err)}</p>
+        )}
+
+        {candidates.length > 0 && (
           <ul className="mt-4 flex flex-col gap-2">
-            {close.map((c) => (
+            {candidates.map((c) => (
               <li
                 key={c.personId}
                 className="rounded-xl border p-3 text-sm"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
-                <div className="font-medium">{c.name}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-medium">{c.name}</div>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] uppercase"
+                    style={{
+                      background: "var(--bg)",
+                      color: c.tier === "likely" ? "#16a34a" : "var(--muted)",
+                    }}
+                  >
+                    {c.tier === "likely" ? "likely you" : "possible match"}
+                  </span>
+                </div>
                 <div className="text-xs" style={{ color: "var(--muted)" }}>
                   {[c.treeName, c.clan && `${c.clan} clan`, c.community, c.birthYear && `b. ${c.birthYear}`]
                     .filter(Boolean)
                     .join(" · ")}
                 </div>
-                {c.ownerWhatsapp && (
-                  <a
-                    href={`https://wa.me/${c.ownerWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
-                      `Hi — I think I'm in your "${c.treeName}" family tree (as ${c.name}). Could you add or link me?`,
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-block rounded-md px-2.5 py-1 text-xs font-medium text-white"
-                    style={{ background: "#25D366" }}
-                  >
-                    That&apos;s my family — message them
-                  </a>
-                )}
+                <form action={startClaimIdentity} className="mt-2 inline-block">
+                  <input type="hidden" name="personId" value={c.personId} />
+                  <button className="rounded-md bg-brand-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700">
+                    This is me
+                  </button>
+                </form>
               </li>
             ))}
           </ul>
@@ -100,7 +109,7 @@ export default async function StartPage({
         <div className="mt-5 flex flex-wrap gap-2">
           <form action={startCreate}>
             <button className="rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
-              {close.length ? "None of these are me — create my tree" : "Create my family tree"}
+              {candidates.length ? "None of these are me — create my tree" : "Create my family tree"}
             </button>
           </form>
           <Link href="/start" className="rounded-full border px-5 py-2.5 text-sm font-medium" style={{ borderColor: "var(--border)" }}>

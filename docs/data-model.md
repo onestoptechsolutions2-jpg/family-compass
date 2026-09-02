@@ -61,4 +61,17 @@ that grouping is emergent from the friend-link graph.
 - **Lineage as a table** — while lineage = surname + clan is enough. Add an
   optional `Lineage` row only when a research question needs "size of the
   Sakwa lineage across trees".
-- **A family-group of trees** — covered by the friend-link graph.
+
+## Identity layer (design, not yet implemented)
+
+The "deliberately no family-group-of-trees entity" note above predates a 2026-09-02
+decision to add exactly that, scoped narrowly: a global **Identity** record above
+tree-scoped `Person`, so the same real human isn't re-entered as a duplicate `Person`
+when two family trees connect through marriage. `Tree`/`Workspace` remain the privacy,
+billing and editing boundary — Identity only records "these Person rows, across
+however many trees, are the same human." See:
+
+- [identity-model.md](identity-model.md) — Identity vs Person vs Relationship vs Tree
+- [relationship-rules.md](relationship-rules.md) — blood / marriage / chosen ties, kept distinct
+- [onboarding-state-machine.md](onboarding-state-machine.md) — mandatory deep search before a new Identity
+- [identity-dedup-claim-workflow.md](identity-dedup-claim-workflow.md) — matching, claim, and (non-destructive, reversible) merge

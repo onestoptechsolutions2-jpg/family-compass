@@ -490,6 +490,12 @@ export default async function PersonDetailPage({
                 }}
               />
 
+              {manages && (
+                <Link href={`/trees/${treeId}/merges?dup=${personId}`} className={actionItemClass}>
+                  Same person as a profile elsewhere?
+                </Link>
+              )}
+
               <form action={deletePerson.bind(null, treeId, personId)}>
                 <button className={`${actionItemClass} text-red-600`}>Delete person</button>
               </form>

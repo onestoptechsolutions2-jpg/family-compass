@@ -9,11 +9,8 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getSessionUser } from "@/lib/rbac";
 import { startDbSession } from "@/lib/session";
-import { ensurePersonalWorkspace } from "@/lib/workspace";
-import { createBarePerson, setVitalEvent } from "@/lib/person-write";
-import { slugify, randomToken } from "@/lib/slug";
 import { isValidPhone, normalizePhone } from "@/lib/wa";
-import { logActivity } from "@/lib/activity";
+import { requestIdentityClaim, provisionSelfTree } from "@/lib/identity";
 
 const COOKIE = "fc_start";
 
@@ -63,6 +60,12 @@ export async function startCheck(formData: FormData) {
   redirect("/start?step=review");
 }
 
+/**
+ * Reached only after the mandatory identity search on step=review has shown
+ * its candidates (if any) and the user explicitly clicked "none of these are
+ * me" — see docs/onboarding-state-machine.md (NEW_IDENTITY_CREATED is never
+ * a silent default). Mints a brand-new Identity for the self-Person.
+ */
 export async function startCreate() {
   if (!env.SELF_START) redirect("/login");
   if (await getSessionUser()) redirect("/app");
@@ -94,59 +97,50 @@ export async function startCreate() {
     user = { id: created.id, memberships: [] };
   }
 
-  await ensurePersonalWorkspace(user.id, name);
-  const ws = await db.membership.findFirstOrThrow({
-    where: { userId: user.id, role: "OWNER" },
-    select: { workspaceId: true },
-  });
-
-  const base = slugify(`${d.first}-family`) || "family";
-  let treeSlug = base;
-  for (let i = 0; i < 5; i++) {
-    const clash = await db.tree.findFirst({
-      where: { workspaceId: ws.workspaceId, slug: treeSlug },
-      select: { id: true },
-    });
-    if (!clash) break;
-    treeSlug = `${base}-${randomToken(4)}`;
-  }
-
-  const tree = await db.tree.create({
-    data: {
-      workspaceId: ws.workspaceId,
-      adminUserId: user.id,
-      name: `${d.first}'s family`,
-      slug: treeSlug,
-      community: d.community || null,
-      region: d.region || null,
-    },
-    select: { id: true },
-  });
-
-  const person = await createBarePerson(tree.id, {
+  const { treeId, personId } = await provisionSelfTree(user.id, name, {
     first: d.first,
     surname: d.surname,
     gender: Gender[d.gender],
-    living: true,
-  });
-  if (d.birthYear) {
-    await setVitalEvent(tree.id, person.id, "Birth", String(d.birthYear), "");
-  }
-  await db.tree.update({ where: { id: tree.id }, data: { homePersonId: person.id } });
-  await db.person.update({
-    where: { id: person.id },
-    data: { claimedByUserId: user.id, phone },
-  });
-  await logActivity({
-    treeId: tree.id,
-    actorId: user.id,
-    verb: "created",
-    objectType: "tree",
-    objectId: tree.id,
-    summary: `${name} started their family tree`,
+    birthYear: d.birthYear,
+    community: d.community,
+    region: d.region,
+    phone,
   });
 
   await startDbSession(user.id);
   (await cookies()).delete(COOKIE);
-  redirect(`/trees/${tree.id}/people/${person.id}`);
+  redirect(`/trees/${treeId}/people/${personId}`);
+}
+
+/**
+ * File a self-claim against a candidate surfaced by the mandatory identity
+ * search — "this is me" on an existing, unclaimed Identity rather than
+ * creating a duplicate. Verified out of band (WhatsApp code, tree-admin
+ * approval), same as any other PersonClaim. See
+ * docs/identity-dedup-claim-workflow.md.
+ */
+export async function startClaimIdentity(formData: FormData) {
+  if (!env.SELF_START) redirect("/login");
+  if (await getSessionUser()) redirect("/app");
+
+  const d = await readStartDraft();
+  if (!d) redirect("/start");
+  const personId = String(formData.get("personId") ?? "").trim();
+  if (!personId) redirect("/start?step=review");
+
+  const name = `${d.first} ${d.surname}`.trim();
+  let claimId: string;
+  try {
+    const res = await requestIdentityClaim({
+      candidatePersonId: personId,
+      claimantName: name,
+      phone: d.phone,
+    });
+    claimId = res.claimId;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not file that claim";
+    redirect(`/start?step=review&err=${encodeURIComponent(msg)}`);
+  }
+
+  redirect(`/start/claimed?c=${claimId}`);
 }

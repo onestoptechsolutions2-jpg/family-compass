@@ -39,7 +39,11 @@ export default async function ClaimsPage({
       rejectionReason: true,
       signInToken: true,
       createdAt: true,
+      targetIdentityId: true,
       person: { select: { id: true, names: { select: NAME_SELECT } } },
+      targetIdentity: {
+        select: { people: { take: 1, select: { id: true, treeId: true, names: { select: NAME_SELECT } } } },
+      },
     },
   });
 
@@ -48,7 +52,13 @@ export default async function ClaimsPage({
   const rest = claims.filter((c) => c.status !== "PENDING");
 
   const Card = ({ c }: { c: (typeof claims)[number] }) => {
-    const target = c.person ? displayName(c.person.names) : "wants to join the tree";
+    const identityPerson = c.targetIdentity?.people[0] ?? null;
+    const isIdentityClaim = Boolean(c.targetIdentityId) && !c.person;
+    const target = c.person
+      ? displayName(c.person.names)
+      : identityPerson
+        ? displayName(identityPerson.names)
+        : "wants to join the tree";
     const signInUrl = c.signInToken ? `${origin}/api/auth/wa/${c.signInToken}` : null;
     return (
       <div
@@ -59,13 +69,22 @@ export default async function ClaimsPage({
           <div>
             <span className="font-medium">{c.claimantName}</span>{" "}
             <span style={{ color: "var(--muted)" }}>
-              → {c.person ? "claims " : ""}
+              → {c.person || isIdentityClaim ? "claims to be " : ""}
               {c.person ? (
                 <Link href={`/trees/${treeId}/people/${c.person.id}`} className="hover:underline">
                   {target}
                 </Link>
+              ) : isIdentityClaim && identityPerson ? (
+                <Link href={`/trees/${identityPerson.treeId}/people/${identityPerson.id}`} className="hover:underline">
+                  {target}
+                </Link>
               ) : (
                 target
+              )}
+              {isIdentityClaim && (
+                <span className="ml-1 rounded-full px-1.5 py-0.5 text-[10px] uppercase" style={{ background: "var(--bg)" }}>
+                  identity claim
+                </span>
               )}
             </span>
           </div>
@@ -94,19 +113,21 @@ export default async function ClaimsPage({
         {c.status === "PENDING" && (
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <form action={approveClaimAction.bind(null, treeId, c.id)} className="flex items-end gap-2">
-              <label className="text-xs">
-                <span style={{ color: "var(--muted)" }}>Role</span>
-                <select
-                  name="role"
-                  defaultValue={Role.CONTRIBUTOR}
-                  className="ml-1 rounded-md border px-2 py-1"
-                  style={{ borderColor: "var(--border)", background: "var(--bg)" }}
-                >
-                  <option value={Role.CONTRIBUTOR}>contributor</option>
-                  <option value={Role.EDITOR}>editor</option>
-                  <option value={Role.VIEWER}>viewer</option>
-                </select>
-              </label>
+              {!isIdentityClaim && (
+                <label className="text-xs">
+                  <span style={{ color: "var(--muted)" }}>Role</span>
+                  <select
+                    name="role"
+                    defaultValue={Role.CONTRIBUTOR}
+                    className="ml-1 rounded-md border px-2 py-1"
+                    style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+                  >
+                    <option value={Role.CONTRIBUTOR}>contributor</option>
+                    <option value={Role.EDITOR}>editor</option>
+                    <option value={Role.VIEWER}>viewer</option>
+                  </select>
+                </label>
+              )}
               <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
                 Approve
               </button>
@@ -261,8 +282,11 @@ export default async function ClaimsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Claims &amp; join requests</h2>
+        <Link href={`/trees/${treeId}/merges`} className="text-sm hover:underline" style={{ color: "var(--link)" }}>
+          Found a duplicate person across trees? Merge identities →
+        </Link>
       </div>
       <Tabs
         items={[
