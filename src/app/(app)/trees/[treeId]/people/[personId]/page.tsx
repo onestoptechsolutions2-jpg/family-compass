@@ -874,13 +874,15 @@ export default async function PersonDetailPage({
                     </div>
                     {entry.parents.length > 0 && (
                       <p className="mt-1 pl-4 text-xs" style={{ color: "var(--muted)" }}>
-                        Parents: {entry.parents.map((p) => p.name).join(" & ")}
+                        {entry.parents.map((p) => `${p.name} (${p.term})`).join(" & ")}
                       </p>
                     )}
                     {entry.children.length > 0 && (
                       <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-sm" style={{ color: "var(--muted)" }}>
                         {entry.children.map((c) => (
-                          <li key={c.personId}>{c.name}</li>
+                          <li key={c.personId}>
+                            {c.name} <span className="text-xs">({c.term})</span>
+                          </li>
                         ))}
                       </ul>
                     )}

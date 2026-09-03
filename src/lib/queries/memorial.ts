@@ -9,6 +9,7 @@ const MINI = {
   id: true,
   living: true,
   privacy: true,
+  gender: true,
   names: { select: NAME_SELECT },
   // a recorded Death/Burial is the only reliable "deceased" signal —
   // Person.living defaults to false on import.
@@ -21,6 +22,11 @@ const MINI = {
 /** True only when the person has a recorded Death or Burial event. */
 function kinDeceased(p: { eventRefs?: { id: string }[] } | null | undefined): boolean {
   return !!p?.eventRefs && p.eventRefs.length > 0;
+}
+
+/** Direct relation term, gendered where known — "father"/"mother"/"parent" etc. */
+function relTerm(gender: string | null | undefined, male: string, female: string, neutral: string): string {
+  return gender === "MALE" ? male : gender === "FEMALE" ? female : neutral;
 }
 
 export type ProgramItem = {
@@ -293,26 +299,28 @@ export async function getPublicMemorial(slug: string) {
 
   const kin: { name: string; deceased: boolean; private: boolean }[] = [];
   const push = (
-    p?: { privacy: string; names: unknown[]; eventRefs?: { id: string }[] } | null,
+    p?: { privacy: string; names: unknown[]; gender?: string | null; eventRefs?: { id: string }[] } | null,
+    relation?: string,
   ) => {
     if (!p) return;
+    const base = displayName(p.names as never);
     kin.push({
-      name: displayName(p.names as never),
+      name: relation ? `${base} (${relation})` : base,
       deceased: kinDeceased(p),
       private: p.privacy === "PRIVATE",
     });
   };
   rel?.childRefs.forEach((c) => {
-    push(c.family.partner1);
-    push(c.family.partner2);
+    push(c.family.partner1, relTerm(c.family.partner1?.gender, "father", "mother", "parent"));
+    push(c.family.partner2, relTerm(c.family.partner2?.gender, "father", "mother", "parent"));
   });
   rel?.familiesAsPartner1.forEach((f) => {
-    push(f.partner2);
-    f.childRefs.forEach((c) => push(c.person));
+    push(f.partner2, relTerm(f.partner2?.gender, "husband", "wife", "spouse"));
+    f.childRefs.forEach((c) => push(c.person, relTerm(c.person?.gender, "son", "daughter", "child")));
   });
   rel?.familiesAsPartner2.forEach((f) => {
-    push(f.partner1);
-    f.childRefs.forEach((c) => push(c.person));
+    push(f.partner1, relTerm(f.partner1?.gender, "husband", "wife", "spouse"));
+    f.childRefs.forEach((c) => push(c.person, relTerm(c.person?.gender, "son", "daughter", "child")));
   });
 
   const survivors = kin.filter((k) => !k.deceased && !k.private).map((k) => k.name);
@@ -423,11 +431,13 @@ export async function getMemorialBookData(treeId: string, personId: string) {
 
   const kin: { name: string; deceased: boolean; private: boolean }[] = [];
   const push = (
-    p?: { privacy: string; names: unknown[]; eventRefs?: { id: string }[] } | null,
+    p?: { privacy: string; names: unknown[]; gender?: string | null; eventRefs?: { id: string }[] } | null,
+    relation?: string,
   ) => {
     if (!p) return;
+    const base = displayName(p.names as never);
     kin.push({
-      name: displayName(p.names as never),
+      name: relation ? `${base} (${relation})` : base,
       deceased: kinDeceased(p),
       private: p.privacy === "PRIVATE",
     });
@@ -438,29 +448,29 @@ export async function getMemorialBookData(treeId: string, personId: string) {
   const nameOf = (p?: { names: unknown[] } | null) => (p ? displayName(p.names as never) : null);
 
   rel?.childRefs.forEach((c) => {
-    push(c.family.partner1);
-    push(c.family.partner2);
+    push(c.family.partner1, relTerm(c.family.partner1?.gender, "father", "mother", "parent"));
+    push(c.family.partner2, relTerm(c.family.partner2?.gender, "father", "mother", "parent"));
     [c.family.partner1, c.family.partner2].forEach((p) => {
       const n = nameOf(p);
       if (n) parents.push(n);
     });
   });
   rel?.familiesAsPartner1.forEach((f) => {
-    push(f.partner2);
+    push(f.partner2, relTerm(f.partner2?.gender, "husband", "wife", "spouse"));
     const s = nameOf(f.partner2);
     if (s) spouses.push(s);
     f.childRefs.forEach((c) => {
-      push(c.person);
+      push(c.person, relTerm(c.person?.gender, "son", "daughter", "child"));
       const n = nameOf(c.person);
       if (n) children.push(n);
     });
   });
   rel?.familiesAsPartner2.forEach((f) => {
-    push(f.partner1);
+    push(f.partner1, relTerm(f.partner1?.gender, "husband", "wife", "spouse"));
     const s = nameOf(f.partner1);
     if (s) spouses.push(s);
     f.childRefs.forEach((c) => {
-      push(c.person);
+      push(c.person, relTerm(c.person?.gender, "son", "daughter", "child"));
       const n = nameOf(c.person);
       if (n) children.push(n);
     });

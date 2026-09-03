@@ -255,7 +255,7 @@ export async function marriageLinkStatusForFamily(
 // this is exactly the bridging visibility a CONFIRMED edge unlocks.
 // ---------------------------------------------------------------------------
 
-export type ConnectedChild = { personId: string; treeId: string; name: string; redacted: boolean };
+export type ConnectedChild = { personId: string; treeId: string; name: string; redacted: boolean; term: string };
 export type ConnectedFamilyEntry = {
   spouseIdentityId: string;
   spousePersonId: string;
@@ -307,17 +307,17 @@ export async function connectedFamilyAcrossTrees(
         names: { select: NAME_SELECT },
         tree: { select: { name: true } },
         familiesAsPartner1: {
-          select: { childRefs: { select: { person: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } } } } },
+          select: { childRefs: { select: { person: { select: { id: true, treeId: true, privacy: true, gender: true, names: { select: NAME_SELECT } } } } } },
         },
         familiesAsPartner2: {
-          select: { childRefs: { select: { person: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } } } } },
+          select: { childRefs: { select: { person: { select: { id: true, treeId: true, privacy: true, gender: true, names: { select: NAME_SELECT } } } } } },
         },
         childRefs: {
           select: {
             family: {
               select: {
-                partner1: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } },
-                partner2: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } },
+                partner1: { select: { id: true, treeId: true, privacy: true, gender: true, names: { select: NAME_SELECT } } },
+                partner2: { select: { id: true, treeId: true, privacy: true, gender: true, names: { select: NAME_SELECT } } },
               },
             },
           },
@@ -337,6 +337,7 @@ export async function connectedFamilyAcrossTrees(
           treeId: c.treeId,
           name: c.privacy === "REDACTED" ? "a family member" : displayName(c.names),
           redacted: c.privacy === "REDACTED",
+          term: c.gender === "MALE" ? "son" : c.gender === "FEMALE" ? "daughter" : "child",
         }));
 
       const parents: ConnectedChild[] = sp.childRefs
@@ -347,6 +348,7 @@ export async function connectedFamilyAcrossTrees(
           treeId: p.treeId,
           name: p.privacy === "REDACTED" ? "a family member" : displayName(p.names),
           redacted: p.privacy === "REDACTED",
+          term: p.gender === "MALE" ? "father-in-law" : p.gender === "FEMALE" ? "mother-in-law" : "parent-in-law",
         }));
 
       entries.push({
