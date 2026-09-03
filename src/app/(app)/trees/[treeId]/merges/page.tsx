@@ -386,6 +386,20 @@ export default async function MergesPage({
                 ))}
               </div>
 
+              {diff && (() => {
+                const clans = new Set(
+                  [...diff.from, ...diff.into].map((p) => p.clan).filter((c): c is string => !!c),
+                );
+                return clans.size > 1 ? (
+                  <p className="mt-2 text-xs text-red-600">
+                    ⚠ These profiles record different clans ({[...clans].join(", ")}) — the same person
+                    can&apos;t really belong to two. Check the table below before approving; a clan
+                    mismatch usually means these aren&apos;t actually the same person, not that one side
+                    is wrong.
+                  </p>
+                ) : null;
+              })()}
+
               {diff && (diff.from.length > 0 || diff.into.length > 0) && (
                 <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
                   <table className="w-full text-xs">

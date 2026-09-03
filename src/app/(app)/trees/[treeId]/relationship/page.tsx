@@ -2,8 +2,8 @@ import Link from "next/link";
 
 import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { getTreeGraph } from "@/lib/queries/graph";
 import { personOptions } from "@/lib/queries/people";
+import { buildCrossTreeGraph } from "@/lib/queries/cross-tree-graph";
 import { displayName, primaryName, NAME_SELECT } from "@/lib/person";
 import { bloodRelationship } from "@/lib/kinship";
 import { affinalRelationship } from "@/lib/affinity";
@@ -24,6 +24,23 @@ export default async function RelationshipPage({
   const { a, b } = await searchParams;
   await loadTreeContext(treeId);
   const options = await personOptions(treeId);
+
+  // Bridges through every CONFIRMED marriage link reachable from this tree,
+  // so "person B" can be picked from a connected family too — e.g. checking
+  // how a niece here relates to an in-law's father in their own tree. See
+  // lib/queries/cross-tree-graph.ts: only CONFIRMED links bridge, and a
+  // bridged tree's PRIVATE people are dropped, REDACTED ones shown nameless.
+  const cross = await buildCrossTreeGraph(treeId);
+  const bOptions = Object.entries(cross.graph.persons)
+    .map(([id, p]) => ({
+      id,
+      label:
+        cross.personTree[id] === treeId
+          ? p.name
+          : `${p.name} — ${cross.treeNames[cross.personTree[id]!] ?? "a connected family"}`,
+    }))
+    .sort((x, y) => x.label.localeCompare(y.label));
+  const otherTreesCount = cross.treeIds.filter((id) => id !== treeId).length;
 
   let result: React.ReactNode = null;
   let connection: React.ReactNode = null;
@@ -55,17 +72,22 @@ export default async function RelationshipPage({
       );
     }
 
-    const [pa, pb, graph] = await Promise.all([
+    const graph = cross.graph;
+    const [paRaw, pbRaw] = await Promise.all([
       db.person.findFirst({
         where: { id: a, treeId },
         select: { id: true, names: { select: NAME_SELECT }, clan: { select: { name: true } } },
       }),
       db.person.findFirst({
-        where: { id: b, treeId },
+        where: { id: b },
         select: { id: true, names: { select: NAME_SELECT }, clan: { select: { name: true } } },
       }),
-      getTreeGraph(treeId, a),
     ]);
+    // b may belong to a bridged tree — only trust it if it survived that
+    // tree's privacy sanitization (i.e. it's actually present in the graph).
+    const pa = paRaw && graph.persons[paRaw.id] ? paRaw : null;
+    const pb = pbRaw && graph.persons[pbRaw.id] ? pbRaw : null;
+    const crossTree = !!pb && cross.personTree[pb.id] !== treeId;
 
     if (pa && pb) {
       const k = bloodRelationship(graph, pa.id, pb.id);
@@ -123,7 +145,14 @@ export default async function RelationshipPage({
             </p>
           ) : (
             <p className="mt-2 text-sm">
-              No blood relationship or shared clan found <em>in this tree</em>.
+              No blood relationship or shared clan found
+              {crossTree ? " across the connected families checked" : " in this tree"}.
+            </p>
+          )}
+          {crossTree && (
+            <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+              {displayName(pb.names)} is from {cross.treeNames[cross.personTree[pb.id]!] ?? "a connected family"} —
+              checked through the confirmed marriage link between the trees.
             </p>
           )}
 
@@ -151,11 +180,12 @@ export default async function RelationshipPage({
             </div>
           )}
 
-          {!k.related && !sameClan && (
+          {!k.related && !aff?.found && !sameClan && (
             <div className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
               <p>
-                Only records in this tree were checked. For a check across other families and clans,
-                run a deep search.
+                {otherTreesCount > 0
+                  ? `Checked this tree and ${otherTreesCount} connected ${otherTreesCount === 1 ? "family" : "families"} reachable through confirmed marriage links. For a wider check, run a deep search.`
+                  : "Only records in this tree were checked — no marriage links connect it to another family tree yet. For a check across other families and clans, run a deep search."}
               </p>
               <div className="mt-2">
                 <DeepSearchDialog
@@ -195,9 +225,11 @@ export default async function RelationshipPage({
           </div>
         </label>
         <label className="text-sm">
-          <span style={{ color: "var(--muted)" }}>Person B</span>
+          <span style={{ color: "var(--muted)" }}>
+            Person B{otherTreesCount > 0 ? ` (or from ${otherTreesCount === 1 ? "the connected family" : `${otherTreesCount} connected families`})` : ""}
+          </span>
           <div className="w-56">
-            <PersonSelect name="b" options={options} defaultValue={b} allowEmpty={false} />
+            <PersonSelect name="b" options={bOptions} defaultValue={b} allowEmpty={false} />
           </div>
         </label>
         <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">

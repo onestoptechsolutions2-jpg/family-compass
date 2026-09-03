@@ -16,6 +16,8 @@ export type EulogyFacts = {
   subClan?: string | null;
   community?: string | null;
   parents?: string[];
+  /** parents' own parents — one generation further, for "grandchild of ..." */
+  grandparents?: string[];
   spouses?: string[];
   children?: string[];
   siblingsCount?: number | null;
@@ -81,6 +83,9 @@ export function buildEulogyDraft(f: EulogyFacts): string {
     let s = bits.join(" ") + ".";
     if (f.parents && f.parents.length) {
       s += ` ${p.subj} ${p.was} born to ${list(f.parents)}.`;
+    }
+    if (f.grandparents && f.grandparents.length) {
+      s += ` ${p.subj} ${p.was} the grandchild of ${list(f.grandparents)}.`;
     }
     if (f.clan) {
       s += ` ${p.subj} belonged to the ${f.clan}${f.subClan ? ` (${f.subClan})` : ""} clan`;

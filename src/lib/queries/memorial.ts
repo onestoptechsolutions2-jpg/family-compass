@@ -566,7 +566,25 @@ export async function gatherEulogyFacts(
         },
       },
       childRefs: {
-        select: { family: { select: { partner1: { select: MINI }, partner2: { select: MINI } } } },
+        select: {
+          family: {
+            select: {
+              partner1: {
+                select: {
+                  ...MINI,
+                  childRefs: { select: { family: { select: { partner1: { select: MINI }, partner2: { select: MINI } } } } },
+                },
+              },
+              partner2: {
+                select: {
+                  ...MINI,
+                  childRefs: { select: { family: { select: { partner1: { select: MINI }, partner2: { select: MINI } } } } },
+                },
+              },
+              childRefs: { select: { personId: true } },
+            },
+          },
+        },
       },
       familiesAsPartner1: {
         select: { partner2: { select: MINI }, childRefs: { select: { person: { select: MINI } } } },
@@ -588,6 +606,16 @@ export async function gatherEulogyFacts(
   const parents = [
     ...p.childRefs.flatMap((c) => [nameOf(c.family.partner1), nameOf(c.family.partner2)]),
   ].filter(Boolean) as string[];
+  const grandparents = [
+    ...p.childRefs.flatMap((c) =>
+      [c.family.partner1, c.family.partner2].flatMap((parent) =>
+        (parent?.childRefs ?? []).flatMap((gc) => [nameOf(gc.family.partner1), nameOf(gc.family.partner2)]),
+      ),
+    ),
+  ].filter(Boolean) as string[];
+  const siblingsCount = new Set(
+    p.childRefs.flatMap((c) => c.family.childRefs.map((cr) => cr.personId)).filter((id) => id !== personId),
+  ).size;
   const spouses = [
     ...p.familiesAsPartner1.map((f) => nameOf(f.partner2)),
     ...p.familiesAsPartner2.map((f) => nameOf(f.partner1)),
@@ -615,9 +643,10 @@ export async function gatherEulogyFacts(
     subClan: p.subClan ?? null,
     community: p.clan?.community ?? null,
     parents: [...new Set(parents)],
+    grandparents: [...new Set(grandparents)],
     spouses: [...new Set(spouses)],
     children: [...new Set(children)],
-    siblingsCount: null,
+    siblingsCount,
     notes: (mem?.bioNotes as EulogyFacts["notes"]) ?? null,
   };
 }
