@@ -126,9 +126,12 @@ export function kinTermToward(k: Kinship, subjectGender?: string | null): string
   if (a === 1 && b === 1) return g("brother", "sister", "sibling", subjectGender);
   if (a === 1 && b >= 2) return `${greats(b - 2)}${g("uncle", "aunt", "aunt or uncle", subjectGender)}`;
   if (b === 1 && a >= 2) return `${greats(a - 2)}${g("nephew", "niece", "niece or nephew", subjectGender)}`;
+  // cousinDegree=1 means "first cousins" (both 2 generations from the shared
+  // ancestor) — matches bloodRelationship's own ordinal(cousinDegree) above,
+  // which is 1-indexed the same way ("zeroth", "first", "second", …).
   const cousinDegree = Math.min(a, b) - 1;
   const removed = Math.abs(a - b);
-  return `${["first", "second", "third", "fourth", "fifth"][cousinDegree] ?? `${cousinDegree + 1}th`} cousin${
+  return `${["zeroth", "first", "second", "third", "fourth", "fifth"][cousinDegree] ?? `${cousinDegree}th`} cousin${
     removed ? ` ${removed === 1 ? "once" : removed === 2 ? "twice" : `${removed}×`} removed` : ""
   }`;
 }

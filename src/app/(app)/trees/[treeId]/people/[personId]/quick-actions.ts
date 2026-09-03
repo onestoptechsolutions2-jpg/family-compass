@@ -245,7 +245,12 @@ export async function addChildToFamily(treeId: string, familyId: string, formDat
     throw new Error("That person is a partner in this family and cannot also be its child");
   }
   await addChildRef(familyId, child.id, childRelationOf(formData.get("childRelation")));
-  const inherited = child.created ? await applyLineageInheritance(treeId, familyId, child.id) : null;
+  // Applies regardless of whether the child was just created or already
+  // existed in the tree — applyLineageInheritance only ever fills a blank
+  // clan/surname, so it's always safe, and an existing person picked here
+  // (the common case via QuickAdd's search) deserves it just as much as a
+  // brand-new one.
+  const inherited = await applyLineageInheritance(treeId, familyId, child.id);
 
   await logActivity({
     treeId,
@@ -506,7 +511,8 @@ export async function addFirstChild(treeId: string, personId: string, formData: 
     select: { id: true },
   });
   await addChildRef(family.id, child.id, childRelationOf(formData.get("childRelation")));
-  const inherited = child.created ? await applyLineageInheritance(treeId, family.id, child.id) : null;
+  // See the comment in addChildToFamily — safe and correct unconditionally.
+  const inherited = await applyLineageInheritance(treeId, family.id, child.id);
 
   await logActivity({
     treeId,

@@ -92,22 +92,38 @@ export async function updateLineage(treeId: string, formData: FormData) {
  * Bring existing children in line with the lineage rule: for every child with
  * no clan (and, if enabled, no family name) recorded, copy it from the lineage
  * parent. Only fills blanks — never changes a clan already set.
+ *
+ * Runs as a fixed-point sweep, not a single pass: a grandchild's blank clan
+ * can only be filled once their own parent's clan has been filled, but a
+ * single pass processes childRefs in no particular (let alone ancestor-first)
+ * order — so a one-pass version would randomly miss later generations
+ * depending on row order. Repeating until a full pass changes nothing makes
+ * the backfill actually follow the whole lineage top to bottom, however many
+ * generations deep, in one click.
  */
 export async function backfillLineage(treeId: string) {
   await requireTreeManage(treeId);
-  const children = await db.childRef.findMany({
-    where: { family: { treeId }, person: { clanId: null } },
-    select: { familyId: true, personId: true },
-  });
 
   let filled = 0;
-  for (const c of children) {
-    const applied = await applyLineageInheritance(treeId, c.familyId, c.personId);
-    if (applied?.clan || applied?.surname) filled++;
+  for (let pass = 0; pass < 20; pass++) {
+    const children = await db.childRef.findMany({
+      where: { family: { treeId }, person: { clanId: null } },
+      select: { familyId: true, personId: true },
+    });
+    if (children.length === 0) break;
+
+    let passFilled = 0;
+    for (const c of children) {
+      const applied = await applyLineageInheritance(treeId, c.familyId, c.personId);
+      if (applied?.clan || applied?.surname) passFilled++;
+    }
+    filled += passFilled;
+    if (passFilled === 0) break; // converged — nothing left to propagate
   }
+
   await flashOk(
     filled > 0
-      ? `Filled clan/name for ${filled} ${filled === 1 ? "child" : "children"} from the lineage parent.`
+      ? `Filled clan/name for ${filled} ${filled === 1 ? "child" : "children"} across the lineage.`
       : "Nothing to fill — every child already has a clan, or no parent has one recorded.",
   );
   revalidatePath(`/trees/${treeId}/settings`);
