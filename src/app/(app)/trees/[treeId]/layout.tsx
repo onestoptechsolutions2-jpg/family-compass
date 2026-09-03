@@ -34,6 +34,7 @@ export default async function TreeLayout({
         { href: `${base}/places`, label: "Places" },
         { href: `${base}/sources`, label: "Sources" },
         { href: `${base}/clans`, label: "Clans" },
+        { href: `${base}/surnames`, label: "Surnames" },
       ],
     },
     {

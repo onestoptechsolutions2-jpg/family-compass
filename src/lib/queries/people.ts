@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { displayName, sortableName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
+import { getTreeGraph } from "@/lib/queries/graph";
+import { bloodRelationship, kinTermToward } from "@/lib/kinship";
 
 const NAME_SELECT = {
   id: true,
@@ -427,6 +429,53 @@ export async function getPersonRelations(treeId: string, personId: string) {
       return { id: f.id, type: f.type, spouse, children: f.childRefs.map((c) => c.person) };
     }),
   };
+}
+
+export type ExtendedFamilyPerson = {
+  id: string;
+  name: string;
+  gender: "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
+  living: boolean;
+  term: string | null;
+};
+
+/**
+ * Grandparents, aunts/uncles, and first cousins — the tier beyond what
+ * getPersonRelations covers (parents/siblings/children). Walks the same
+ * in-memory tree graph the interactive tree view uses, via the existing
+ * blood-relationship engine (lib/kinship.ts) rather than new traversal code.
+ * Bucketed by exact generation distance, not string-matching the label, so
+ * "great-grandparent" and "grand-uncle" don't leak into the wrong bucket.
+ */
+export async function extendedFamily(
+  treeId: string,
+  personId: string,
+): Promise<{ grandparents: ExtendedFamilyPerson[]; auntsUncles: ExtendedFamilyPerson[]; cousins: ExtendedFamilyPerson[] }> {
+  const graph = await getTreeGraph(treeId, personId);
+  const grandparents: ExtendedFamilyPerson[] = [];
+  const auntsUncles: ExtendedFamilyPerson[] = [];
+  const cousins: ExtendedFamilyPerson[] = [];
+
+  for (const otherId of Object.keys(graph.persons)) {
+    if (otherId === personId) continue;
+    const other = graph.persons[otherId]!;
+    // aId=otherId, bId=personId — "what otherId is to personId"
+    const k = bloodRelationship(graph, otherId, personId);
+    if (!k.related) continue;
+
+    const entry: ExtendedFamilyPerson = {
+      id: otherId,
+      name: other.name,
+      gender: other.gender,
+      living: other.living,
+      term: kinTermToward(k, other.gender),
+    };
+    if (k.degreeA === 0 && k.degreeB === 2) grandparents.push(entry);
+    else if (k.degreeA === 1 && k.degreeB === 2) auntsUncles.push(entry);
+    else if (k.degreeA === 2 && k.degreeB === 2) cousins.push(entry);
+  }
+
+  return { grandparents, auntsUncles, cousins };
 }
 
 /** Minimal id+name list for pickers (partners, children, central person). */

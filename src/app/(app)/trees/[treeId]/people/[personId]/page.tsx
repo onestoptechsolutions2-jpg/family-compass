@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { loadTreeContext, canEdit, canManageTree } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
-import { getPersonDetail, getPersonRelations, personOptions, claimableRelatives } from "@/lib/queries/people";
+import { getPersonDetail, getPersonRelations, extendedFamily, personOptions, claimableRelatives } from "@/lib/queries/people";
 import { personCircle, personMemories, RELATION_ROLES, RELATION_CONTEXTS } from "@/lib/relationships";
 import { friendLinksForPerson, pendingFriendInvites } from "@/lib/friends";
 import { personLifeNow, personLifeReel, LIFE_CATEGORIES, lifeCategoryMeta } from "@/lib/life";
 import { getSelfNode, SELF_QUESTIONS } from "@/lib/self-node";
+import { connectedFamilyAcrossTrees } from "@/lib/identity-relationships";
 import { addMemoryAction, addToCircleAction, inviteFriendAction } from "./relationship-actions";
 import { addLifeUpdateAction, endLifeUpdateAction } from "./life-actions";
 import { saveSelfNodeAction } from "./self-actions";
@@ -86,6 +87,8 @@ export default async function PersonDetailPage({
   const person = await getPersonDetail(treeId, personId);
   if (!person) notFound();
   const relations = await getPersonRelations(treeId, personId);
+  const extended = await extendedFamily(treeId, personId);
+  const connectedFamily = await connectedFamilyAcrossTrees(personId, treeId);
   const media = await personMedia(treeId, personId);
   const [circle, relMemories, friendLinks, friendPending, lifeNow, lifeReel] = await Promise.all([
     personCircle(treeId, personId),
@@ -139,7 +142,6 @@ export default async function PersonDetailPage({
       : !deceased && person.living
         ? "living"
         : null,
-    person.clan ? `${person.clan.name} clan${person.subClan ? ` (${person.subClan})` : ""}` : null,
     person.namedAfter ? `named after ${displayName(person.namedAfter.names)}` : null,
     ...(deceased
       ? []
@@ -305,6 +307,12 @@ export default async function PersonDetailPage({
                 </p>
               )}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {person.clan && (
+                  <Pill>
+                    {person.clan.name} clan
+                    {person.subClan ? ` (${person.subClan})` : ""}
+                  </Pill>
+                )}
                 {deceased && <Pill>† deceased</Pill>}
                 {!deceased && person.claimedByUserId === ctx.user.id && <Pill accent>This is you</Pill>}
                 {person.privacy === "PRIVATE" && <Pill>hidden from public</Pill>}
@@ -331,15 +339,15 @@ export default async function PersonDetailPage({
           </div>
         {editable && (
           <div className="flex flex-wrap items-start gap-2">
-            {!deceased && person.claimedByUserId === ctx.user.id && (
-              <Link
-                href={`/trees/${treeId}/tree?focus=${personId}`}
-                className="rounded-lg border px-3 py-1.5 text-sm"
-                style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
-              >
-                Tree centred on you
-              </Link>
-            )}
+            <Link
+              href={`/trees/${treeId}/tree?focus=${personId}`}
+              className="rounded-lg border px-3 py-1.5 text-sm"
+              style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
+            >
+              {person.claimedByUserId === ctx.user.id
+                ? "Tree centred on you"
+                : `Tree centred on ${displayName(person.names)}`}
+            </Link>
             {deceased && (
               <Link
                 href={`/trees/${treeId}/people/${personId}/memorial`}
@@ -733,6 +741,33 @@ export default async function PersonDetailPage({
                 </div>
               ) : null,
             )}
+            {(
+              [
+                ["Grandparents", extended.grandparents],
+                ["Aunts & uncles", extended.auntsUncles],
+                ["Cousins", extended.cousins],
+              ] as const
+            ).map(([label, list]) =>
+              list.length > 0 ? (
+                <div key={label}>
+                  <h4 className="mt-3 text-sm font-medium">{label}</h4>
+                  <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    {list.map((p) => (
+                      <li key={p.id}>
+                        <Link href={`/trees/${treeId}/people/${p.id}`} className="hover:underline">
+                          {p.name}
+                        </Link>
+                        {p.term && (
+                          <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>
+                            ({p.term})
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null,
+            )}
           </div>
 
           <div
@@ -797,6 +832,32 @@ export default async function PersonDetailPage({
                     <PersonChip key={c.id} person={c} treeId={treeId} />
                   ))}
                 </div>
+              </div>
+            )}
+            {connectedFamily.length > 0 && (
+              <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
+                <h4 className="text-sm font-medium">Connected family — recorded elsewhere</h4>
+                <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                  Confirmed via a connected marriage. Read-only — this tree&apos;s own records are
+                  unaffected; open the other tree to edit.
+                </p>
+                {connectedFamily.map((entry) => (
+                  <div key={entry.spousePersonId} className="mt-3">
+                    <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
+                      <span className="font-medium">{entry.spouseName}</span>
+                      <span className="text-xs" style={{ color: "var(--muted)" }}>
+                        — from {entry.spouseTreeName}
+                      </span>
+                    </div>
+                    {entry.children.length > 0 && (
+                      <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-sm" style={{ color: "var(--muted)" }}>
+                        {entry.children.map((c) => (
+                          <li key={c.personId}>{c.name}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
