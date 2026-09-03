@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, NAME_SELECT } from "@/lib/person";
+import { displayName, NAME_SELECT, checkNameCompleteness } from "@/lib/person";
 
 /**
  * Looks at one profile and works out what's missing, aiming at a complete
@@ -90,6 +90,7 @@ export async function analyzeProfile(
     select: {
       claimedByUserId: true,
       clanId: true,
+      names: { select: NAME_SELECT },
       _count: { select: { mediaRefs: true } },
       eventRefs: {
         where: { event: { type: { in: ["Birth", "Death", "Burial"] } } },
@@ -124,6 +125,32 @@ export async function analyzeProfile(
   const gaps: Gap[] = [];
 
   // --- core (about this person) ---
+  const nameCheck = checkNameCompleteness(person.names);
+  if (!nameCheck.hasFamilyName) {
+    gaps.push({
+      id: "name-family",
+      kind: "core",
+      question: `What's ${self ? "your" : "their"} family name?`,
+      href: `${base}/edit`,
+      cta: "Add name",
+    });
+  } else if (nameCheck.duplicateTokens) {
+    gaps.push({
+      id: "name-duplicate",
+      kind: "core",
+      question: `${self ? "Your" : "Their"} given name and family name look the same — check ${self ? "your" : "their"} name is entered correctly.`,
+      href: `${base}/edit`,
+      cta: "Check name",
+    });
+  } else if (nameCheck.tokenCount < 3) {
+    gaps.push({
+      id: "name-incomplete",
+      kind: "core",
+      question: `${self ? "Your" : "Their"} name has only ${nameCheck.tokenCount} part${nameCheck.tokenCount === 1 ? "" : "s"} — most names here carry at least three (a given name, a second/traditional name, and a family name).`,
+      href: `${base}/edit`,
+      cta: "Add name",
+    });
+  }
   if (!birth?.dateYear) {
     gaps.push({
       id: "birth-year",

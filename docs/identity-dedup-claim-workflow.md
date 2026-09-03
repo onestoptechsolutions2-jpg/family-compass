@@ -106,6 +106,13 @@ independently created an unlinked Person for the same ancestor years apart, neit
 searched). When someone notices ("wait, my Identity #A12 and my cousin's Identity #B77 are
 both grandma"):
 
+Every open (PROPOSED/CORROBORATING) request shows a **side-by-side reference table**
+(`identityMergeDiff` in `lib/identity-merge.ts`) — each linked Person's name, birth year,
+clan, event/photo counts, and a rough "detail score" so the reviewing admin can see which
+side is more filled in before approving. It is read-only: nothing is copied between
+profiles because of it, and the table never changes execute's behavior — it exists purely
+so a human can judge, not so the merge can auto-prefer the richer side.
+
 1. **Propose.** Either side's tree admin files a merge proposal:
    `IdentityMergeRequest { fromIdentityId, intoIdentityId, proposedById, evidence }`.
    `evidence` is free text + optionally attached `Citation`/`MediaObject` references — same

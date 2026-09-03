@@ -5,7 +5,7 @@ import { requireTreeManage } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { displayName, NAME_SELECT } from "@/lib/person";
 import { matchIdentityCandidates } from "@/lib/identity";
-import { requiredTreesForMerge } from "@/lib/identity-merge";
+import { requiredTreesForMerge, identityMergeDiff, type MergeSidePerson } from "@/lib/identity-merge";
 import { pendingMarriageLinksFor } from "@/lib/identity-relationships";
 import {
   proposeMergeAction,
@@ -123,7 +123,14 @@ export default async function MergesPage({
     : [];
 
   const withRequired = await Promise.all(
-    requests.map(async (r) => ({ r, required: await requiredTreesForMerge(r.fromIdentityId) })),
+    requests.map(async (r) => ({
+      r,
+      required: await requiredTreesForMerge(r.fromIdentityId),
+      diff:
+        r.status === "PROPOSED" || r.status === "CORROBORATING"
+          ? await identityMergeDiff(r.fromIdentityId, r.intoIdentityId)
+          : null,
+    })),
   );
 
   const label = (identity: (typeof requests)[number]["fromIdentity"]) =>
@@ -326,7 +333,7 @@ export default async function MergesPage({
         {withRequired.length === 0 && (
           <p className="text-sm" style={{ color: "var(--muted)" }}>Nothing here.</p>
         )}
-        {withRequired.map(({ r, required }) => {
+        {withRequired.map(({ r, required, diff }) => {
           const approvedTreeIds = new Set(r.approvals.map((a) => a.treeId));
           const thisTreeRequired = required.some((t) => t.treeId === treeId);
           const thisTreeApproved = approvedTreeIds.has(treeId);
@@ -378,6 +385,58 @@ export default async function MergesPage({
                   </span>
                 ))}
               </div>
+
+              {diff && (diff.from.length > 0 || diff.into.length > 0) && (
+                <div className="mt-3 overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Side</th>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Profile</th>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Born</th>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Clan</th>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Events</th>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Photos</th>
+                        <th className="px-2 py-1.5 font-medium" style={{ color: "var(--muted)" }}>Detail</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ...diff.from.map((p) => ({ side: "duplicate" as const, p })),
+                        ...diff.into.map((p) => ({ side: "correct" as const, p })),
+                      ].map(({ side, p }: { side: "duplicate" | "correct"; p: MergeSidePerson }) => {
+                        const winner =
+                          (side === "duplicate" ? diff.from : diff.into).length > 0 &&
+                          p.detailScore ===
+                            Math.max(...diff.from.map((x) => x.detailScore), ...diff.into.map((x) => x.detailScore));
+                        return (
+                          <tr key={p.personId} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                            <td className="px-2 py-1.5" style={{ color: "var(--muted)" }}>{side}</td>
+                            <td className="px-2 py-1.5">
+                              <Link href={`/trees/${p.treeId}/people/${p.personId}`} className="hover:underline">
+                                {p.name}
+                              </Link>
+                              <span style={{ color: "var(--muted)" }}> · {p.treeName}</span>
+                            </td>
+                            <td className="px-2 py-1.5">{p.birthYear ?? "—"}</td>
+                            <td className="px-2 py-1.5">{p.clan ?? "—"}</td>
+                            <td className="px-2 py-1.5">{p.eventCount}</td>
+                            <td className="px-2 py-1.5">{p.mediaCount}</td>
+                            <td className="px-2 py-1.5 font-medium" style={winner ? { color: "#16a34a" } : undefined}>
+                              {p.detailScore}
+                              {winner ? " ✓ more detail" : ""}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <p className="px-2 py-1.5 text-xs" style={{ color: "var(--muted)" }}>
+                    Reference only — merging never copies fields between profiles. Whichever side has
+                    less here, edit it directly if you want it filled in too.
+                  </p>
+                </div>
+              )}
 
               {open && thisTreeRequired && (
                 <div className="mt-3 flex flex-wrap items-end gap-2">

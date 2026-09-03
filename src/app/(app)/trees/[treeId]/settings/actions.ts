@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { requireTreeManage, loadTreeContext } from "@/lib/rbac";
 import { canManageWorkspace } from "@/lib/rbac";
 import { applyLineageInheritance } from "@/lib/lineage";
+import { checkNameCompleteness, NAME_SELECT } from "@/lib/person";
 import { flashOk } from "@/lib/flash";
 
 export async function renameTree(treeId: string, formData: FormData) {
@@ -121,11 +122,28 @@ export async function backfillLineage(treeId: string) {
     if (passFilled === 0) break; // converged — nothing left to propagate
   }
 
-  await flashOk(
+  // Filling the clan/surname doesn't guarantee a *complete* name (given name +
+  // second name + family name, none repeated) — report who still needs a
+  // look, same rule checkNameCompleteness applies on each person's own
+  // profile, so backfilling never quietly leaves a bare or duplicated name
+  // unflagged.
+  const everyone = await db.person.findMany({
+    where: { treeId },
+    select: { names: { select: NAME_SELECT } },
+  });
+  const incomplete = everyone.filter((p) => !checkNameCompleteness(p.names).ok).length;
+
+  const parts = [
     filled > 0
       ? `Filled clan/name for ${filled} ${filled === 1 ? "child" : "children"} across the lineage.`
       : "Nothing to fill — every child already has a clan, or no parent has one recorded.",
-  );
+  ];
+  if (incomplete > 0) {
+    parts.push(
+      `${incomplete} ${incomplete === 1 ? "person still needs" : "people still need"} a fuller name — each profile's "Complete this profile" checklist flags it.`,
+    );
+  }
+  await flashOk(parts.join(" "));
   revalidatePath(`/trees/${treeId}/settings`);
 }
 

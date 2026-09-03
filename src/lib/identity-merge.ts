@@ -2,6 +2,7 @@ import type { IdentityRelationshipKind, IdentityRelationshipStatus } from "@pris
 
 import { db } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
+import { displayName, NAME_SELECT } from "@/lib/person";
 
 const GRACE_WINDOW_DAYS = 14;
 const STATUS_RANK: Record<IdentityRelationshipStatus, number> = {
@@ -76,6 +77,87 @@ export async function requiredTreesForMerge(
     distinct: ["treeId"],
   });
   return rows.map((r) => ({ treeId: r.tree.id, treeName: r.tree.name }));
+}
+
+export type MergeSidePerson = {
+  personId: string;
+  treeId: string;
+  treeName: string;
+  name: string;
+  birthYear: number | null;
+  birthPlace: string | null;
+  deathYear: number | null;
+  clan: string | null;
+  eventCount: number;
+  mediaCount: number;
+  noteCount: number;
+  attributeCount: number;
+  /** simple sum of the counts above, plus 1 each for birth/death/clan known —
+   *  not a scientific measure, just enough to eyeball "which side has more
+   *  filled in" without the admin counting fields themselves */
+  detailScore: number;
+};
+
+async function personDetailSummary(personId: string): Promise<MergeSidePerson> {
+  const p = await db.person.findUniqueOrThrow({
+    where: { id: personId },
+    select: {
+      id: true,
+      treeId: true,
+      tree: { select: { name: true } },
+      names: { select: NAME_SELECT },
+      clan: { select: { name: true } },
+      eventRefs: {
+        select: { event: { select: { type: true, dateYear: true, place: { select: { title: true } } } } },
+      },
+      _count: { select: { mediaRefs: true, noteRefs: true, attributes: true } },
+    },
+  });
+  const birth = p.eventRefs.find((r) => r.event.type === "Birth")?.event ?? null;
+  const death = p.eventRefs.find((r) => r.event.type === "Death")?.event ?? null;
+  const detailScore =
+    p.eventRefs.length +
+    p._count.mediaRefs +
+    p._count.noteRefs +
+    p._count.attributes +
+    (birth ? 1 : 0) +
+    (death ? 1 : 0) +
+    (p.clan ? 1 : 0);
+
+  return {
+    personId: p.id,
+    treeId: p.treeId,
+    treeName: p.tree.name,
+    name: displayName(p.names),
+    birthYear: birth?.dateYear ?? null,
+    birthPlace: birth?.place?.title ?? null,
+    deathYear: death?.dateYear ?? null,
+    clan: p.clan?.name ?? null,
+    eventCount: p.eventRefs.length,
+    mediaCount: p._count.mediaRefs,
+    noteCount: p._count.noteRefs,
+    attributeCount: p._count.attributes,
+    detailScore,
+  };
+}
+
+/** Every Person linked to an Identity, with just enough detail to eyeball
+ *  which side of a proposed merge has more filled in — a side-by-side
+ *  reference for the admin reviewing it, never used to decide anything
+ *  automatically and never copied into either tree's own records. */
+export async function identityMergeDiff(
+  fromIdentityId: string,
+  intoIdentityId: string,
+): Promise<{ from: MergeSidePerson[]; into: MergeSidePerson[] }> {
+  const [fromPeople, intoPeople] = await Promise.all([
+    db.person.findMany({ where: { identityId: fromIdentityId }, select: { id: true } }),
+    db.person.findMany({ where: { identityId: intoIdentityId }, select: { id: true } }),
+  ]);
+  const [from, into] = await Promise.all([
+    Promise.all(fromPeople.map((p) => personDetailSummary(p.id))),
+    Promise.all(intoPeople.map((p) => personDetailSummary(p.id))),
+  ]);
+  return { from, into };
 }
 
 /**
