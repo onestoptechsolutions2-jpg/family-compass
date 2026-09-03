@@ -872,6 +872,11 @@ export default async function PersonDetailPage({
                         — from {entry.spouseTreeName}
                       </span>
                     </div>
+                    {entry.parents.length > 0 && (
+                      <p className="mt-1 pl-4 text-xs" style={{ color: "var(--muted)" }}>
+                        Parents: {entry.parents.map((p) => p.name).join(" & ")}
+                      </p>
+                    )}
                     {entry.children.length > 0 && (
                       <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-sm" style={{ color: "var(--muted)" }}>
                         {entry.children.map((c) => (

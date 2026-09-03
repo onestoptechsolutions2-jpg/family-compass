@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { displayName, NAME_SELECT } from "@/lib/person";
+import { displayName, primaryName, NAME_SELECT } from "@/lib/person";
 import { ensureIdentityForPerson } from "@/lib/identity";
 import { notifyTreeManagers } from "@/lib/notify";
 
@@ -102,6 +102,69 @@ export async function decideMarriageLink(
         ? { status: "CONFIRMED", confirmedAt: new Date() }
         : { status: "DISPUTED" },
   });
+
+  if (decision === "confirm") await applyMarriedName(rel.aIdentityId, rel.bIdentityId);
+}
+
+/**
+ * On a confirmed marriage between a husband and wife, give the wife a
+ * MARRIED name carrying her husband's family surname — additive, not a
+ * rewrite: her BIRTH name (and any other existing name) stays on her
+ * record untouched, this only adds a new preferred Name row alongside it.
+ * Skipped entirely when gender isn't recorded for both sides, or the couple
+ * isn't male+female, rather than guessing. Idempotent — running it again
+ * (e.g. re-confirming) won't add a second copy of the same married name.
+ * Never touches editing rights or any other tree's data — see
+ * docs/identity-dedup-claim-workflow.md ("What merge never does").
+ */
+async function applyMarriedName(aIdentityId: string, bIdentityId: string): Promise<void> {
+  const people = await db.person.findMany({
+    where: { identityId: { in: [aIdentityId, bIdentityId] } },
+    select: { id: true, identityId: true, gender: true, names: { select: { id: true, ...NAME_SELECT } } },
+  });
+
+  const aGenders = new Set(people.filter((p) => p.identityId === aIdentityId).map((p) => p.gender));
+  const bGenders = new Set(people.filter((p) => p.identityId === bIdentityId).map((p) => p.gender));
+  const aIsMale = aGenders.size === 1 && aGenders.has("MALE");
+  const aIsFemale = aGenders.size === 1 && aGenders.has("FEMALE");
+  const bIsMale = bGenders.size === 1 && bGenders.has("MALE");
+  const bIsFemale = bGenders.size === 1 && bGenders.has("FEMALE");
+
+  const husbandIdentityId = aIsMale && bIsFemale ? aIdentityId : bIsMale && aIsFemale ? bIdentityId : null;
+  if (!husbandIdentityId) return; // unknown/mixed/same-sex — don't guess
+
+  const wifeIdentityId = husbandIdentityId === aIdentityId ? bIdentityId : aIdentityId;
+  const husbandPeople = people.filter((p) => p.identityId === husbandIdentityId);
+  const wifePeople = people.filter((p) => p.identityId === wifeIdentityId);
+
+  const husbandSurname = husbandPeople
+    .map((p) => primaryName(p.names)?.surname?.trim())
+    .find((s): s is string => !!s);
+  if (!husbandSurname) return; // nothing to inherit
+
+  for (const wife of wifePeople) {
+    const already = wife.names.some(
+      (n) => n.type === "MARRIED" && (n.surname ?? "").trim().toLowerCase() === husbandSurname.toLowerCase(),
+    );
+    if (already) continue;
+
+    const given = primaryName(wife.names)?.first ?? null;
+    const maxOrder = wife.names.reduce((max, n) => Math.max(max, n.order), -1);
+
+    await db.$transaction([
+      db.name.updateMany({ where: { personId: wife.id }, data: { preferred: false } }),
+      db.name.create({
+        data: {
+          personId: wife.id,
+          type: "MARRIED",
+          preferred: true,
+          order: maxOrder + 1,
+          first: given,
+          surname: husbandSurname,
+        },
+      }),
+    ]);
+  }
 }
 
 /** Proposed marriage links awaiting this Tree's decision — i.e. the other
@@ -201,6 +264,10 @@ export type ConnectedFamilyEntry = {
   spouseName: string;
   spouseRedacted: boolean;
   children: ConnectedChild[];
+  /** the spouse's own parents — one generation further than children, e.g. a
+   *  "step-grandparent" reachable from the in-laws' side. Same read-only,
+   *  privacy-respecting rules as everything else here. */
+  parents: ConnectedChild[];
 };
 
 /** For a Person, every spouse + children reachable through a CONFIRMED
@@ -245,6 +312,16 @@ export async function connectedFamilyAcrossTrees(
         familiesAsPartner2: {
           select: { childRefs: { select: { person: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } } } } },
         },
+        childRefs: {
+          select: {
+            family: {
+              select: {
+                partner1: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } },
+                partner2: { select: { id: true, treeId: true, privacy: true, names: { select: NAME_SELECT } } },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -262,6 +339,16 @@ export async function connectedFamilyAcrossTrees(
           redacted: c.privacy === "REDACTED",
         }));
 
+      const parents: ConnectedChild[] = sp.childRefs
+        .flatMap((cr) => [cr.family.partner1, cr.family.partner2])
+        .filter((p): p is NonNullable<typeof p> => !!p && p.privacy !== "PRIVATE")
+        .map((p) => ({
+          personId: p.id,
+          treeId: p.treeId,
+          name: p.privacy === "REDACTED" ? "a family member" : displayName(p.names),
+          redacted: p.privacy === "REDACTED",
+        }));
+
       entries.push({
         spouseIdentityId,
         spousePersonId: sp.id,
@@ -270,6 +357,7 @@ export async function connectedFamilyAcrossTrees(
         spouseName: redacted ? "a family member" : displayName(sp.names),
         spouseRedacted: redacted,
         children,
+        parents,
       });
     }
   }

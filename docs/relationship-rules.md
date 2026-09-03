@@ -109,6 +109,32 @@ own data is usable.
 grandfather married") — it hides the edge from cross-tree bridging without deleting it, and
 surfaces it to both sides' tree admins the same way an `EventComment` does today.
 
+## What a confirmed marriage adds — and what it never touches
+
+Two small, deliberately-scoped additions land the moment a `MARRIAGE` edge is `CONFIRMED`,
+both in `lib/identity-relationships.ts`:
+
+- **A married name, not a rewrite.** If both partners' gender is known and it's a
+  male/female couple, the wife gets a new `Name` row (`type: MARRIED`, her husband's family
+  surname, marked preferred) on every Person she's linked to. Her `BIRTH` name — and any
+  other name already on file — stays exactly as it was; nothing is deleted or overwritten,
+  same non-destructive pattern as `applyLineageInheritance`. Skipped entirely (no guess) when
+  gender isn't recorded on both sides, or it isn't a male/female pairing.
+- **One more generation of read-only visibility.** `connectedFamilyAcrossTrees` already
+  showed a spouse and their children from the other tree; it now also surfaces the spouse's
+  own parents (a "step-grandparent," reachable from the in-laws' side) — still read-only,
+  still privacy-respecting (`PRIVATE` excluded, `REDACTED` shown nameless), still per-Person
+  live data, never copied into the viewer's own `Family`/`ChildRef` rows.
+
+**What this still never does:** neither addition moves editing rights. A Person row stays
+owned and edited exactly where it already was — by whoever's tree it lives in, or whoever
+claimed it — regardless of who anyone married. "The husband's side dominates" was
+considered and explicitly rejected for editing rights: it would mean one family losing
+control of their own daughter's record the moment she marries, which is exactly the harm the
+Identity/Person split was built to prevent. The two additions above are the parts of that
+request that don't carry that cost — a name convention, and a deeper (but still read-only)
+view — and that's deliberately where the line is drawn.
+
 ## Chosen ties stay exactly as designed
 
 No changes to the semantics in [relationships-layer.md](relationships-layer.md): a
