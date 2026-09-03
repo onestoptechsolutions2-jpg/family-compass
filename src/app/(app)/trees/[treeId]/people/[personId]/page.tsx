@@ -291,8 +291,19 @@ export default async function PersonDetailPage({
             </span>
             <div>
               <h2 className="text-2xl font-semibold leading-tight">
-                {deceased && (
-                  <span className="mr-1.5 align-middle text-lg" title="Deceased" style={{ color: "var(--muted)" }}>†</span>
+                {deceased ? (
+                  <span className="mr-1.5 align-middle text-lg font-bold" title="Deceased" style={{ color: "#000" }}>
+                    ✝
+                  </span>
+                ) : (
+                  <span
+                    className="mr-1.5 inline-block h-2.5 w-2.5 animate-pulse rounded-full align-middle"
+                    title="Living"
+                    style={{ background: "#16a34a" }}
+                  />
+                )}
+                {!deceased && lifeNow.some((l) => l.category === "health") && (
+                  <span className="mr-1.5 align-middle text-lg" title="Has a current health update">🚑</span>
                 )}
                 {genderSymbol(person.gender) && (
                   <span className="mr-1.5 align-middle text-lg" title={genderLabel(person.gender)} style={{ color: genderColor(person.gender) }}>
@@ -746,6 +757,9 @@ export default async function PersonDetailPage({
                 ["Grandparents", extended.grandparents],
                 ["Aunts & uncles", extended.auntsUncles],
                 ["Cousins", extended.cousins],
+                ["Nieces & nephews", extended.niecesNephews],
+                ["Grandchildren", extended.grandchildren],
+                ["In-laws", extended.inLaws],
               ] as const
             ).map(([label, list]) =>
               list.length > 0 ? (
@@ -765,6 +779,15 @@ export default async function PersonDetailPage({
                       </li>
                     ))}
                   </ul>
+                  {label === "In-laws" && (
+                    <Link
+                      href={`/trees/${treeId}/tree?focus=${personId}`}
+                      className="mt-1 inline-block text-xs hover:underline"
+                      style={{ color: "var(--link)" }}
+                    >
+                      This is the immediate layer — see further in the tree view →
+                    </Link>
+                  )}
                 </div>
               ) : null,
             )}

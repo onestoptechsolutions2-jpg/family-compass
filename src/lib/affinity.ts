@@ -101,6 +101,13 @@ export function affinalRelationship(graph: TreeGraph, aId: string, bId: string):
 
   const labels = path.map((s) => s.label).join("");
   const bG = (graph.persons[bId]?.gender ?? "UNKNOWN") as G;
+  // Some `bToA` terms describe A's role toward B (step-parent, parent-in-law,
+  // aunt/uncle-by-marriage) rather than B's role toward A — those must gender
+  // off A, not B. Using `mkFF` (B's gender) for both directions was the bug:
+  // it made e.g. every parent-in-law "father-in-law" regardless of whether
+  // the actual in-law was the mother.
+  const aG = (graph.persons[aId]?.gender ?? "UNKNOWN") as G;
+  const mkFA = aG === "FEMALE";
 
   // human-readable chain: "A's <w1>'s <w2>'s ..."
   const chain = path
@@ -136,14 +143,14 @@ export function affinalRelationship(graph: TreeGraph, aId: string, bId: string):
       return set(
         mkFF ? "step-daughter" : "step-son",
         "mtoto wa kambo",
-        mkFF ? "step-mother" : "step-father",
+        mkFA ? "step-mother" : "step-father",
         "mzazi wa kambo",
       );
     case "CS": // child's spouse
       return set(
         mkFF ? "daughter-in-law" : "son-in-law",
         "mkwe",
-        mkFF ? "mother-in-law" : "father-in-law",
+        mkFA ? "mother-in-law" : "father-in-law",
         "mkwe",
       );
     case "SB": // spouse's sibling
@@ -151,7 +158,7 @@ export function affinalRelationship(graph: TreeGraph, aId: string, bId: string):
       return set(
         mkFF ? "sister-in-law" : "brother-in-law",
         mkFF ? "wifi (shemeji)" : "shemeji",
-        "sibling-in-law",
+        mkFA ? "sister-in-law" : "brother-in-law",
         "shemeji",
       );
     case "BS": // sibling's spouse
@@ -159,7 +166,7 @@ export function affinalRelationship(graph: TreeGraph, aId: string, bId: string):
       return set(
         mkFF ? "sister-in-law" : "brother-in-law",
         "shemeji",
-        "sibling-in-law",
+        mkFA ? "sister-in-law" : "brother-in-law",
         "shemeji",
       );
     case "SS": // co-spouse (polygynous)
@@ -199,8 +206,8 @@ export function affinalRelationship(graph: TreeGraph, aId: string, bId: string):
       return set(
         "niece/nephew (by marriage)",
         "mpwa",
-        mkFF ? "aunt (by marriage)" : "uncle (by marriage)",
-        mkFF ? "shangazi/mama" : "baba mdogo/mkubwa",
+        mkFA ? "aunt (by marriage)" : "uncle (by marriage)",
+        mkFA ? "shangazi/mama" : "baba mdogo/mkubwa",
       );
     default:
       return set(

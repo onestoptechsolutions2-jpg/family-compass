@@ -58,12 +58,33 @@ describe("affinalRelationship", () => {
     expect(r.bToA.en).toBe("child-in-law");
   });
 
-  it("names a sibling's spouse as a sibling-in-law (shemeji), gendered by the other person", () => {
-    const r = affinalRelationship(g, "mA", "wY"); // wY is a woman
+  it("names a child's spouse's in-laws by the PARENT's own gender, not the child's spouse's", () => {
+    // Reverse direction of the "spouse's parent" case above: from the
+    // parent's side, looking at their child's spouse. Both F (father) and M
+    // (mother) are wX's parents-in-law — bToA must follow F/M's own gender,
+    // not wX's (constant FEMALE), or M would wrongly come out "father-in-law"
+    // too. This is the exact bug this regression test was added to catch.
+    const fromFather = affinalRelationship(g, "F", "wX");
+    expect(fromFather.found).toBe(true);
+    expect(fromFather.aToB.en).toBe("daughter-in-law"); // what F calls wX
+    expect(fromFather.bToA.en).toBe("father-in-law"); // what wX calls F
+
+    const fromMother = affinalRelationship(g, "M", "wX");
+    expect(fromMother.found).toBe(true);
+    expect(fromMother.aToB.en).toBe("daughter-in-law"); // what M calls wX
+    expect(fromMother.bToA.en).toBe("mother-in-law"); // what wX calls M — NOT "father-in-law"
+  });
+
+  it("names a sibling's spouse as a sibling-in-law (shemeji), gendered by each person's own gender", () => {
+    const r = affinalRelationship(g, "mA", "wY"); // mA is a man, wY is a woman
     expect(r.found).toBe(true);
+    // aToB: what mA calls wY (his brother's wife) — gendered by wY (FEMALE)
     expect(r.aToB.en.toLowerCase()).toContain("sister-in-law");
     expect(r.aToB.sw).toContain("shemeji");
-    expect(r.bToA.en).toBe("sibling-in-law");
+    // bToA: what wY calls mA (her husband's brother) — gendered by mA (MALE),
+    // not by wY. A same-gender-for-both-directions reading would wrongly
+    // give "sister-in-law" here too.
+    expect(r.bToA.en.toLowerCase()).toContain("brother-in-law");
   });
 
   it("names a parent's brother's wife as an aunt by marriage (mama …)", () => {

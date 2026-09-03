@@ -5,6 +5,7 @@ import { displayName, sortableName } from "@/lib/person";
 import { formatDate } from "@/lib/date";
 import { getTreeGraph } from "@/lib/queries/graph";
 import { bloodRelationship, kinTermToward } from "@/lib/kinship";
+import { affinalRelationship } from "@/lib/affinity";
 
 const NAME_SELECT = {
   id: true,
@@ -447,14 +448,25 @@ export type ExtendedFamilyPerson = {
  * Bucketed by exact generation distance, not string-matching the label, so
  * "great-grandparent" and "grand-uncle" don't leak into the wrong bucket.
  */
-export async function extendedFamily(
-  treeId: string,
-  personId: string,
-): Promise<{ grandparents: ExtendedFamilyPerson[]; auntsUncles: ExtendedFamilyPerson[]; cousins: ExtendedFamilyPerson[] }> {
+export type ExtendedFamily = {
+  grandparents: ExtendedFamilyPerson[];
+  auntsUncles: ExtendedFamilyPerson[];
+  cousins: ExtendedFamilyPerson[];
+  niecesNephews: ExtendedFamilyPerson[];
+  grandchildren: ExtendedFamilyPerson[];
+  /** immediate layer only (spouse's parents/siblings, siblings' spouses) —
+   *  the interactive tree view is the "see further" path past this, rather
+   *  than growing this into full in-law algebra. */
+  inLaws: ExtendedFamilyPerson[];
+};
+
+export async function extendedFamily(treeId: string, personId: string): Promise<ExtendedFamily> {
   const graph = await getTreeGraph(treeId, personId);
   const grandparents: ExtendedFamilyPerson[] = [];
   const auntsUncles: ExtendedFamilyPerson[] = [];
   const cousins: ExtendedFamilyPerson[] = [];
+  const niecesNephews: ExtendedFamilyPerson[] = [];
+  const grandchildren: ExtendedFamilyPerson[] = [];
 
   for (const otherId of Object.keys(graph.persons)) {
     if (otherId === personId) continue;
@@ -473,9 +485,35 @@ export async function extendedFamily(
     if (k.degreeA === 0 && k.degreeB === 2) grandparents.push(entry);
     else if (k.degreeA === 1 && k.degreeB === 2) auntsUncles.push(entry);
     else if (k.degreeA === 2 && k.degreeB === 2) cousins.push(entry);
+    else if (k.degreeA === 2 && k.degreeB === 1) niecesNephews.push(entry);
+    else if (k.degreeA === 2 && k.degreeB === 0) grandchildren.push(entry);
   }
 
-  return { grandparents, auntsUncles, cousins };
+  const inLawIds = new Set<string>();
+  const addInLaw = (id: string) => {
+    if (id !== personId && graph.persons[id]) inLawIds.add(id);
+  };
+  for (const spouseId of graph.spouses[personId] ?? []) {
+    for (const parentId of graph.up[spouseId] ?? []) {
+      addInLaw(parentId); // spouse's parent
+      for (const sibId of graph.down[parentId] ?? []) if (sibId !== spouseId) addInLaw(sibId); // spouse's sibling
+    }
+  }
+  for (const parentId of graph.up[personId] ?? []) {
+    for (const sibId of graph.down[parentId] ?? []) {
+      if (sibId === personId) continue;
+      for (const sibSpouseId of graph.spouses[sibId] ?? []) addInLaw(sibSpouseId); // sibling's spouse
+    }
+  }
+  const inLaws: ExtendedFamilyPerson[] = [...inLawIds].map((id) => {
+    const other = graph.persons[id]!;
+    // aId=id (the other person), bId=personId (me) — I want what I call
+    // THEM, i.e. bToA ("what B calls A"), not the reverse.
+    const a = affinalRelationship(graph, id, personId);
+    return { id, name: other.name, gender: other.gender, living: other.living, term: a.found ? a.bToA.en : "in-law" };
+  });
+
+  return { grandparents, auntsUncles, cousins, niecesNephews, grandchildren, inLaws };
 }
 
 /** Minimal id+name list for pickers (partners, children, central person). */
