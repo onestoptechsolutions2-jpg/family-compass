@@ -9,6 +9,8 @@ import { getSystemStats, systemAlerts } from "@/lib/system-stats";
 import { notifyPlatformAdmins } from "@/lib/notify";
 import { purgeExpiredGeneratedFiles } from "@/lib/generation/gc";
 import { env } from "@/lib/env";
+import { createBackup, deleteBackup } from "@/lib/backup";
+import { flashOk, flashErr } from "@/lib/flash";
 
 const PATH = "/admin/system";
 
@@ -175,5 +177,30 @@ export async function runHealthCheck() {
     targetType: "system",
     meta: { alerts: alerts.map((a) => a.key), memPct: stats.osInfo.memUsedPct },
   });
+  revalidatePath(PATH);
+}
+
+/** Trigger a pg_dump into BACKUP_DIR right now, outside the nightly schedule. */
+export async function runBackupNow() {
+  const me = await requirePlatformAdmin();
+  const result = await createBackup("manual", me.id);
+  if (result.ok) {
+    await flashOk(`Backup saved: ${result.name}`);
+  } else {
+    await flashErr(`Backup failed: ${result.error?.slice(0, 400) ?? "unknown error"}`);
+  }
+  revalidatePath(PATH);
+}
+
+/** Remove one stored backup file from disk. */
+export async function deleteStoredBackup(name: string) {
+  const me = await requirePlatformAdmin();
+  try {
+    await deleteBackup(name);
+    await writeAudit({ actorId: me.id, action: "backup.deleted", targetType: "system", meta: { name } });
+    await flashOk(`Deleted ${name}.`);
+  } catch (e) {
+    await flashErr(e instanceof Error ? e.message : "Could not delete that backup.");
+  }
   revalidatePath(PATH);
 }

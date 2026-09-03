@@ -77,8 +77,15 @@ services:
       SELF_START: ${SELF_START:-true}
       CHAMA_ENABLED: ${CHAMA_ENABLED:-true}
       SYSTEM_DB_ALERT_GB: ${SYSTEM_DB_ALERT_GB:-5}
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      BACKUP_RETENTION: ${BACKUP_RETENTION:-14}
       ALLOWED_SIGNUP_EMAILS: ${ALLOWED_SIGNUP_EMAILS:-}
       ALLOWED_SIGNUP_DOMAINS: ${ALLOWED_SIGNUP_DOMAINS:-}
+    volumes:
+      # Named volume by default so scheduled backups survive a redeploy. Bind-
+      # mount a host path instead (e.g. `./backups:/app/backups`) to move the
+      # copy location off the Docker host's own disk.
+      - backups:/app/backups
     expose:
       - "${PORT:-3000}"
     ports:
@@ -119,6 +126,12 @@ services:
       RUN_MIGRATIONS: "false"
       EMAIL_SERVER: ${EMAIL_SERVER:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      BACKUP_RETENTION: ${BACKUP_RETENTION:-14}
+    volumes:
+      # Same volume as `app` — the scheduled backup job runs here.
+      - backups:/app/backups
 
 volumes:
   pgdata:
+  backups:

@@ -95,6 +95,20 @@ const schema = z.object({
       const n = Number(v);
       return Number.isFinite(n) && n > 0 ? n : 5;
     }),
+  // --- Backups -------------------------------------------------------------
+  // Where scheduled backups are written on disk. Only durable across
+  // redeploys if this path is on a mounted volume (docker-compose's `backups`
+  // volume maps here by default) — point it elsewhere if you mount your own.
+  BACKUP_DIR: z.string().optional().default("/app/backups"),
+  // How many scheduled backups to keep before pruning the oldest.
+  BACKUP_RETENTION: z
+    .string()
+    .optional()
+    .default("14")
+    .transform((v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 14;
+    }),
   // --- Web Push (installed-app device notifications) --------------------
   // All optional: push stays disabled until a VAPID key pair is supplied.
   // Generate once with:  npx web-push generate-vapid-keys

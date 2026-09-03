@@ -4,8 +4,12 @@
 # Debian (glibc) rather than Alpine — sharp / @resvg/resvg-js / tailwind-oxide /
 # unrs-resolver all ship glibc prebuilds and this avoids musl edge cases.
 FROM node:22-bookworm-slim AS base
+# postgresql-client: pg_dump/pg_restore for the in-app backup & restore
+# feature (src/app/api/admin/backup, worker/jobs/backup.ts). A client/server
+# minor-version gap is fine for dump/restore; only matters across major
+# versions, and the compose Postgres service is pinned to 16.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \

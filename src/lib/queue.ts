@@ -14,6 +14,7 @@ export const QUEUE = {
   systemHealth: "system.health",
   generationGc: "generation.gc",
   keeperRenewalScan: "keeper.renewal_scan",
+  backupScheduled: "backup.scheduled",
 } as const;
 
 export type QueueName = (typeof QUEUE)[keyof typeof QUEUE];
@@ -34,6 +35,7 @@ export type JobPayloads = {
   [QUEUE.systemHealth]: Record<string, never>;
   [QUEUE.generationGc]: Record<string, never>;
   [QUEUE.keeperRenewalScan]: Record<string, never>;
+  [QUEUE.backupScheduled]: Record<string, never>;
 };
 
 const globalForBoss = globalThis as unknown as { boss?: PgBoss; bossStarted?: Promise<PgBoss> };

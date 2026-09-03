@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { getSystemStats, systemAlerts, humanBytes } from "@/lib/system-stats";
 import { queueJobs, pendingGenerations, pendingImports } from "@/lib/queries/jobs";
 import { listAudit } from "@/lib/audit";
+import { listBackups, backupStatus } from "@/lib/backup";
 import { activityKind, activityKindMeta } from "@/lib/activity";
 import { Tabs } from "@/components/Tabs";
 import {
@@ -19,6 +20,8 @@ import {
   retryFailedJobs,
   requeueGeneration,
   runHealthCheck,
+  runBackupNow,
+  deleteStoredBackup,
 } from "./actions";
 
 export const metadata = { title: "System" };
@@ -51,12 +54,14 @@ function Bar({ pct }: { pct: number }) {
 
 export default async function AdminSystemPage() {
   await requirePlatformAdmin();
-  const [s, audit, qJobs, genJobs, impJobs] = await Promise.all([
+  const [s, audit, qJobs, genJobs, impJobs, backups, bStatus] = await Promise.all([
     getSystemStats(),
     listAudit(120),
     queueJobs(),
     pendingGenerations(),
     pendingImports(),
+    listBackups(),
+    backupStatus(),
   ]);
   const alerts = systemAlerts(s, { dbAlertGB: env.SYSTEM_DB_ALERT_GB });
   const failedCount = qJobs?.filter((j) => j.state === "failed").length ?? 0;
@@ -272,32 +277,156 @@ export default async function AdminSystemPage() {
     </div>
   );
 
+  const fmtDate = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : "never");
+  const backupStale =
+    !bStatus.lastSuccessAt || Date.now() - bStatus.lastSuccessAt.getTime() > 36 * 3600 * 1000;
+
   const backup = (
-    <div className="flex flex-col gap-3 text-sm">
+    <div className="flex flex-col gap-4 text-sm">
+      {backupStale && (
+        <div className="rounded-lg border p-3" style={{ borderColor: "var(--danger)", background: "var(--danger-soft, var(--surface-2))" }}>
+          <p className="font-medium" style={{ color: "var(--danger)" }}>
+            No successful backup in the last 36 hours — last success {fmtDate(bStatus.lastSuccessAt)}.
+          </p>
+        </div>
+      )}
+
       <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
-        <div className="font-medium">Download a backup</div>
-        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-          Streams a <code>pg_dump</code> (custom format). Needs the Postgres client tools in the
-          app container; otherwise run the command below from a host that has them.
+        <div className="font-medium">Status</div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Copy location</div>
+            <div className="font-mono text-xs">{bStatus.dir}</div>
+          </div>
+          <div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Retention</div>
+            <div>last {bStatus.retention} kept, older pruned automatically</div>
+          </div>
+          <div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Last successful backup</div>
+            <div>{fmtDate(bStatus.lastSuccessAt)}</div>
+          </div>
+          <div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Last failure</div>
+            <div style={bStatus.lastFailureAt ? { color: "var(--danger)" } : undefined}>{fmtDate(bStatus.lastFailureAt)}</div>
+          </div>
+        </div>
+        <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+          Runs nightly at 02:00 Africa/Nairobi. Set <code>BACKUP_DIR</code> to change where copies are
+          written (point it at a mounted volume so they survive a redeploy) and{" "}
+          <code>BACKUP_RETENTION</code> to change how many are kept.
         </p>
+        <form action={runBackupNow} className="mt-3">
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            Run backup now
+          </button>
+        </form>
+      </div>
+
+      <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+        <div className="font-medium">Stored backups ({backups.length})</div>
+        <div className="mt-2 flex flex-col gap-1.5">
+          {backups.map((b) => (
+            <div
+              key={b.name}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-2.5 py-1.5"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div>
+                <span className="font-mono text-xs">{b.name}</span>
+                <span className="ml-2 text-xs" style={{ color: "var(--muted)" }}>
+                  {humanBytes(b.sizeBytes)} · {fmtDate(b.createdAt)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a href={`/api/admin/backup/${b.name}`} className="text-xs hover:underline" style={{ color: "var(--link)" }}>
+                  Download
+                </a>
+                <form action={deleteStoredBackup.bind(null, b.name)}>
+                  <button className="text-xs hover:underline" style={{ color: "var(--danger)" }}>
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+          {backups.length === 0 && <p style={{ color: "var(--muted)" }}>No stored backups yet.</p>}
+        </div>
         <a
           href="/api/admin/backup"
-          className="mt-2 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="mt-3 inline-block text-xs hover:underline"
+          style={{ color: "var(--link)" }}
         >
-          Download .dump
+          Or stream a fresh one straight to your browser →
         </a>
       </div>
-      <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
-        <div className="font-medium">Manual backup / restore</div>
-        <pre className="mt-2 overflow-x-auto rounded bg-black/5 p-2 text-xs">{`pg_dump --no-owner --no-privileges -Fc "$DATABASE_URL" > backup.dump
 
-# restore into an EMPTY database (destructive):
-pg_restore --no-owner --clean --if-exists -d "$DATABASE_URL" backup.dump`}</pre>
-        <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
-          Restore is not run from this app — do it from the host, then redeploy. Media is stored in
-          the database, so a dump is a complete backup.
+      <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-brand-600)" }}>
+        <div className="font-medium">Restore</div>
+        <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+          Drops and recreates the whole database from the file you choose. An automatic safety
+          backup is taken first regardless, so a wrong file is always recoverable — but a restore
+          is still live the moment it finishes. Restart the app process afterward.
         </p>
+        <form
+          action="/api/admin/backup/restore"
+          method="post"
+          encType="multipart/form-data"
+          className="mt-3 flex flex-col gap-3"
+        >
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>Upload a .dump file</span>
+            <input
+              type="file"
+              name="file"
+              accept=".dump"
+              className="mt-1 block w-full text-sm"
+            />
+          </label>
+          {backups.length > 0 && (
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>…or restore from a stored backup instead</span>
+              <select
+                name="sourceName"
+                defaultValue=""
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+              >
+                <option value="">— none —</option>
+                {backups.map((b) => (
+                  <option key={b.name} value={b.name}>
+                    {b.name} ({humanBytes(b.sizeBytes)})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="text-sm">
+            <span style={{ color: "var(--muted)" }}>
+              Type <strong>RESTORE</strong> to confirm
+            </span>
+            <input
+              name="confirm"
+              required
+              placeholder="RESTORE"
+              className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-sm"
+              style={{ borderColor: "var(--border)", background: "var(--bg)" }}
+            />
+          </label>
+          <button className="self-start rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ background: "var(--danger)" }}>
+            Restore database
+          </button>
+        </form>
       </div>
+
+      <details className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+        <summary className="cursor-pointer text-xs font-medium" style={{ color: "var(--muted)" }}>
+          Manual CLI equivalent (only needed if pg_dump/pg_restore aren&apos;t available in this
+          container)
+        </summary>
+        <pre className="mt-2 overflow-x-auto rounded bg-black/5 p-2 text-xs">{`pg_dump --no-owner --no-privileges -Fc "$DATABASE_URL" > backup.dump
+pg_restore --no-owner --clean --if-exists -d "$DATABASE_URL" backup.dump`}</pre>
+      </details>
     </div>
   );
 
