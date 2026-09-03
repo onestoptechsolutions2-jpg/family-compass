@@ -6,7 +6,14 @@ import { db } from "@/lib/db";
 import { displayName, NAME_SELECT } from "@/lib/person";
 import { matchIdentityCandidates } from "@/lib/identity";
 import { requiredTreesForMerge } from "@/lib/identity-merge";
-import { proposeMergeAction, approveMergeAction, rejectMergeAction, revertMergeAction } from "./actions";
+import { pendingMarriageLinksFor } from "@/lib/identity-relationships";
+import {
+  proposeMergeAction,
+  approveMergeAction,
+  rejectMergeAction,
+  revertMergeAction,
+  decideMarriageLinkAction,
+} from "./actions";
 
 export const metadata = { title: "Identity merges" };
 
@@ -28,6 +35,10 @@ export default async function MergesPage({
     orderBy: { createdAt: "asc" },
     take: 500,
   });
+
+  const pendingMarriageLinks = await pendingMarriageLinksFor(treeId);
+  const identityLabel = (identity: (typeof pendingMarriageLinks)[number]["aIdentity"]) =>
+    identity.people[0] ? displayName(identity.people[0].names) : identity.displayName || "(unnamed)";
 
   // ---- step 2: searching for the duplicate's match elsewhere ----
   let search: {
@@ -270,6 +281,43 @@ export default async function MergesPage({
           </form>
         </details>
       </section>
+
+      {pendingMarriageLinks.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+            Family connections waiting on this tree ({pendingMarriageLinks.length})
+          </h3>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Another family recorded a marriage that connects to someone here. Confirming shares a
+            read-only view of that marriage and its children both ways — neither tree&apos;s own
+            data changes, and each keeps its own privacy and editors.
+          </p>
+          {pendingMarriageLinks.map((r) => (
+            <div key={r.id} className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              <div>
+                <span className="font-medium">{identityLabel(r.aIdentity)}</span>
+                <span style={{ color: "var(--muted)" }}> married to </span>
+                <span className="font-medium">{identityLabel(r.bIdentity)}</span>
+              </div>
+              <div className="mt-1" style={{ color: "var(--muted)" }}>
+                proposed from {r.sourceTreeName ?? "another tree"} · {r.createdAt.toISOString().slice(0, 10)}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <form action={decideMarriageLinkAction.bind(null, treeId, r.id, "confirm")}>
+                  <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
+                    Confirm
+                  </button>
+                </form>
+                <form action={decideMarriageLinkAction.bind(null, treeId, r.id, "dispute")}>
+                  <button className="rounded-md border px-3 py-1.5 text-red-600" style={{ borderColor: "var(--border)" }}>
+                    Dispute
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>

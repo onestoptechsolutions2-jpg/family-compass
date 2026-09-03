@@ -5,13 +5,15 @@ import { FamilyType } from "@prisma/client";
 import { loadTreeContext, canEdit } from "@/lib/rbac";
 import { getFamilyDetail } from "@/lib/queries/families";
 import { personOptions } from "@/lib/queries/people";
+import { displayName } from "@/lib/person";
 import { formatDate, dateSortKey } from "@/lib/date";
 import { PersonChip } from "@/components/PersonChip";
 import { PersonSelect } from "@/components/PersonSelect";
 import { marriageSteps } from "@/lib/marriage-checklist";
 import { namesakeSuggestions } from "@/lib/lineage";
 import { MarriageWizard } from "@/components/MarriageWizard";
-import { updateFamily, addChild, removeChild, deleteFamily } from "../actions";
+import { marriageLinkStatusForFamily } from "@/lib/identity-relationships";
+import { updateFamily, addChild, removeChild, deleteFamily, proposeMarriageLinkAction } from "../actions";
 
 export default async function FamilyDetailPage({
   params,
@@ -41,6 +43,8 @@ export default async function FamilyDetailPage({
   const events = family.eventRefs
     .map((r) => r.event)
     .sort((a, b) => dateSortKey(a).localeCompare(dateSortKey(b)));
+
+  const linkStatus = family.partner1Id && family.partner2Id ? await marriageLinkStatusForFamily(treeId, familyId) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,6 +116,46 @@ export default async function FamilyDetailPage({
           <div className="mt-2 flex flex-wrap gap-2">
             <PersonChip person={family.partner1} treeId={treeId} />
             <PersonChip person={family.partner2} treeId={treeId} />
+          </div>
+        )}
+
+        {editable && family.partner1Id && family.partner2Id && (
+          <div className="mt-4 border-t pt-3 text-sm" style={{ borderColor: "var(--hairline)" }}>
+            {!linkStatus && (
+              <>
+                <p style={{ color: "var(--muted)" }}>
+                  Is one of these partners already recorded in a different family&apos;s tree? Connect
+                  the two — each family keeps its own tree; you&apos;ll just both see this marriage and
+                  the children as one shared record instead of two.
+                </p>
+                <form action={proposeMarriageLinkAction.bind(null, treeId, familyId)} className="mt-2 flex flex-wrap gap-2">
+                  <input type="hidden" name="personId" value={family.partner1Id} />
+                  <button className="rounded-md border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--border)" }}>
+                    Connect via {family.partner1 ? displayName(family.partner1.names) : "partner 1"}
+                  </button>
+                </form>
+              </>
+            )}
+            {linkStatus?.status === "PROPOSED" && linkStatus.proposedByThisTree && (
+              <p style={{ color: "var(--muted)" }}>
+                Waiting on {linkStatus.otherTreeNames.join(", ") || "the other family"} to confirm this marriage.
+              </p>
+            )}
+            {linkStatus?.status === "PROPOSED" && !linkStatus.proposedByThisTree && (
+              <p style={{ color: "var(--muted)" }}>
+                {linkStatus.otherTreeNames.join(", ") || "Another family"} wants to connect this marriage —
+                decide on the <Link href={`/trees/${treeId}/merges`} className="hover:underline" style={{ color: "var(--link)" }}>connections page</Link>.
+              </p>
+            )}
+            {linkStatus?.status === "CONFIRMED" && (
+              <p style={{ color: "#16a34a" }}>
+                ✓ Connected — this marriage and its children are also recorded in{" "}
+                {linkStatus.otherTreeNames.join(", ") || "another tree"}.
+              </p>
+            )}
+            {linkStatus?.status === "DISPUTED" && (
+              <p style={{ color: "var(--danger)" }}>The other family disputed this connection.</p>
+            )}
           </div>
         )}
       </section>

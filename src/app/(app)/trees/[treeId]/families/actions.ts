@@ -16,6 +16,8 @@ import { logActivity } from "@/lib/activity";
 import { createBarePerson } from "@/lib/person-write";
 import { applyLineageInheritance } from "@/lib/lineage";
 import { emitTreeEvent } from "@/lib/webhooks";
+import { flashOk, flashErr } from "@/lib/flash";
+import { proposeMarriageLink } from "@/lib/identity-relationships";
 
 const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
@@ -146,4 +148,23 @@ export async function deleteFamily(treeId: string, familyId: string) {
   await db.family.delete({ where: { id: familyId } });
   revalidatePath(`/trees/${treeId}/families`);
   redirect(`/trees/${treeId}/families`);
+}
+
+/** Propose that this marriage bridges to the partner's other tree, if
+ *  they're already recorded elsewhere as a linked Identity. See
+ *  docs/relationship-rules.md and src/lib/identity-relationships.ts. */
+export async function proposeMarriageLinkAction(treeId: string, familyId: string, formData: FormData) {
+  const ctx = await requireTreeEdit(treeId);
+  const personId = String(formData.get("personId") ?? "");
+  try {
+    const { alreadyExisted } = await proposeMarriageLink({ treeId, personId, familyId, actorId: ctx.user.id });
+    await flashOk(
+      alreadyExisted
+        ? "A connection request already exists for this marriage."
+        : "Sent — the other family's tree will see a request to confirm this marriage.",
+    );
+  } catch (e) {
+    await flashErr(e instanceof Error ? e.message : "Could not send that connection request.");
+  }
+  revalidatePath(`/trees/${treeId}/families/${familyId}`);
 }

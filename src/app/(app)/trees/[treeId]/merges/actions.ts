@@ -12,6 +12,7 @@ import {
   rejectIdentityMerge,
   revertIdentityMerge,
 } from "@/lib/identity-merge";
+import { decideMarriageLink } from "@/lib/identity-relationships";
 
 /** Propose that a Person in this tree and a Person elsewhere (pasted by id,
  *  from that profile's URL — there's no cross-tree picker yet) are the same
@@ -56,6 +57,21 @@ export async function rejectMergeAction(treeId: string, requestId: string, formD
     await flashOk("Merge request rejected.");
   } catch (e) {
     await flashErr(e instanceof Error ? e.message : "Could not reject that merge.");
+  }
+  revalidatePath(`/trees/${treeId}/merges`);
+}
+
+export async function decideMarriageLinkAction(
+  treeId: string,
+  relationshipId: string,
+  decision: "confirm" | "dispute",
+) {
+  await requireTreeManage(treeId);
+  try {
+    await decideMarriageLink(relationshipId, treeId, decision);
+    await flashOk(decision === "confirm" ? "Connected — the shared family view is live both ways." : "Disputed.");
+  } catch (e) {
+    await flashErr(e instanceof Error ? e.message : "Could not update that connection.");
   }
   revalidatePath(`/trees/${treeId}/merges`);
 }
