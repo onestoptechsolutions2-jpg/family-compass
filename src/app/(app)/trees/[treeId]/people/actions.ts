@@ -191,7 +191,12 @@ export async function createPerson(treeId: string, formData: FormData) {
   redirect(`/trees/${treeId}/people/${person.id}`);
 }
 
-export async function updatePerson(treeId: string, personId: string, formData: FormData) {
+export async function updatePerson(
+  treeId: string,
+  personId: string,
+  back: string | null,
+  formData: FormData,
+) {
   const ctx = await requireEditPerson(treeId, personId);
   const d = parse(formData);
 
@@ -273,8 +278,12 @@ export async function updatePerson(treeId: string, personId: string, formData: F
     });
   }
 
+  // Only ever redirect back within this same tree — `back` reaches here via
+  // a query param, so it must never be trusted as an arbitrary redirect target.
+  const dest = back && back.startsWith(`/trees/${treeId}/`) ? back : `/trees/${treeId}/people/${personId}`;
   revalidatePath(`/trees/${treeId}/people/${personId}`);
-  redirect(`/trees/${treeId}/people/${personId}`);
+  revalidatePath(dest);
+  redirect(dest);
 }
 
 export async function deletePerson(treeId: string, personId: string) {

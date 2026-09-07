@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireTreeEdit } from "@/lib/rbac";
+import { requireEditPerson } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { locationHints } from "@/lib/queries/locations";
 import { getPersonDetail } from "@/lib/queries/people";
@@ -13,29 +13,36 @@ export const metadata = { title: "Edit person" };
 
 export default async function EditPersonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ treeId: string; personId: string }>;
+  searchParams: Promise<{ back?: string }>;
 }) {
   const { treeId, personId } = await params;
-  await requireTreeEdit(treeId);
+  const { back } = await searchParams;
+  await requireEditPerson(treeId, personId);
   const person = await getPersonDetail(treeId, personId);
   if (!person) notFound();
 
+  // Only trust `back` as a redirect target within this same tree — it
+  // arrives via a query param (e.g. a quick-edit link from a relative's
+  // profile), never as an arbitrary open redirect.
+  const backHref = back && back.startsWith(`/trees/${treeId}/`) ? back : `/trees/${treeId}/people/${personId}`;
   const name = primaryName(person.names);
   const [clans, hints] = await Promise.all([
     db.clan.findMany({ where: { treeId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     locationHints(),
   ]);
-  const action = updatePerson.bind(null, treeId, personId);
+  const action = updatePerson.bind(null, treeId, personId, backHref);
 
   return (
     <div className="flex flex-col gap-4">
       <Link
-        href={`/trees/${treeId}/people/${personId}`}
+        href={backHref}
         className="text-sm hover:underline"
         style={{ color: "var(--muted)" }}
       >
-        ← Back to person
+        ← Back
       </Link>
       <h2 className="text-lg font-semibold">Edit person</h2>
       <PersonForm

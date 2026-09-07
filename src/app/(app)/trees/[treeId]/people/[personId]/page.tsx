@@ -171,6 +171,15 @@ export default async function PersonDetailPage({
   const avatarId = media.find((r) => r.media.mimeType.startsWith("image/"))?.media.id ?? null;
 
   const manages = canManageTree(ctx.role);
+  // A quick way to fix a spouse/parent/child's own details without leaving
+  // this page — a manager can edit anyone; editing someone else's facts
+  // otherwise requires being that person, which the chip can't know without
+  // an extra query per relative, so it's manager-only here (a self-claimed
+  // member already has "Edit your details" on their own profile).
+  const quickEditHref = (id: string) =>
+    manages
+      ? `/trees/${treeId}/people/${id}/edit?back=${encodeURIComponent(`/trees/${treeId}/people/${personId}`)}`
+      : undefined;
   const claimable =
     editable && isProfileClaimable({ claimedByUserId: person.claimedByUserId, deceased });
   const treeMembers = manages && claimable
@@ -739,7 +748,9 @@ export default async function PersonDetailPage({
             <h3 className="font-medium">Parents</h3>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {relations?.parents.length
-                ? relations.parents.map((p) => <PersonChip key={p.id} person={p} treeId={treeId} />)
+                ? relations.parents.map((p) => (
+                    <PersonChip key={p.id} person={p} treeId={treeId} editHref={quickEditHref(p.id)} />
+                  ))
                 : <span className="text-sm" style={{ color: "var(--muted)" }}>Not recorded</span>}
               {editable && !relations?.parentFamily?.hasFather && (
                 <AddParentButton
@@ -874,7 +885,7 @@ export default async function PersonDetailPage({
               ? relations.families.map((f) => (
                   <div key={f.id} className="mt-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <PersonChip person={f.spouse} treeId={treeId} />
+                      <PersonChip person={f.spouse} treeId={treeId} editHref={f.spouse ? quickEditHref(f.spouse.id) : undefined} />
                       <Link
                         href={`/trees/${treeId}/families/${f.id}`}
                         className="text-xs hover:underline"
@@ -894,7 +905,7 @@ export default async function PersonDetailPage({
                     {f.children.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2 pl-4">
                         {f.children.map((c) => (
-                          <PersonChip key={c.id} person={c} treeId={treeId} />
+                          <PersonChip key={c.id} person={c} treeId={treeId} editHref={quickEditHref(c.id)} />
                         ))}
                       </div>
                     )}
