@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Gender, Privacy, DateModifier, DateQuality } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { requireTreeEdit } from "@/lib/rbac";
+import { requireTreeEdit, requireTreeManage, requireEditPerson } from "@/lib/rbac";
 import { parseISODateInput, dateSortKey } from "@/lib/date";
 import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
@@ -192,7 +192,7 @@ export async function createPerson(treeId: string, formData: FormData) {
 }
 
 export async function updatePerson(treeId: string, personId: string, formData: FormData) {
-  const ctx = await requireTreeEdit(treeId);
+  const ctx = await requireEditPerson(treeId, personId);
   const d = parse(formData);
 
   const person = await db.person.findFirst({
@@ -278,7 +278,9 @@ export async function updatePerson(treeId: string, personId: string, formData: F
 }
 
 export async function deletePerson(treeId: string, personId: string) {
-  await requireTreeEdit(treeId);
+  // Deleting a profile outright is more consequential than editing its
+  // facts — kept manager-only even under self-edit, unlike updatePerson.
+  await requireTreeManage(treeId);
   const owned = await db.person.findFirst({ where: { id: personId, treeId }, select: { id: true } });
   if (!owned) throw new Error("Person not found");
   await db.person.delete({ where: { id: personId } });

@@ -363,6 +363,15 @@ export default async function PersonDetailPage({
               </div>
             </div>
           </div>
+        {!editable && isOwner && (
+          <Link
+            href={`/trees/${treeId}/people/${personId}/edit`}
+            className="rounded-lg border px-3 py-1.5 text-sm"
+            style={{ borderColor: "var(--color-brand-600)", color: "var(--color-brand-700)" }}
+          >
+            Edit your details
+          </Link>
+        )}
         {editable && (
           <div className="flex flex-wrap items-start gap-2">
             <Link
