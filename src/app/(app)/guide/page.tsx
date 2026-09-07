@@ -135,6 +135,21 @@ export default async function GuidePage({
         </p>
       </div>
 
+      {!base && (
+        <div className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--color-brand-600)", background: "var(--surface-2)" }}>
+          <p>
+            You don&apos;t have a family tree yet, so the links below won&apos;t work until you
+            make one — it only takes a moment.
+          </p>
+          <Link
+            href="/app"
+            className="mt-3 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Create your family tree
+          </Link>
+        </div>
+      )}
+
       {sections.map((sec) => (
         <section key={sec.title}>
           <h2 className="font-serif text-lg">{sec.title}</h2>
