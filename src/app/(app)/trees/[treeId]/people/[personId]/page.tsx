@@ -134,11 +134,26 @@ export default async function PersonDetailPage({
 
   const birthEv = events.find((e) => e.type === "Birth");
   const deathEv = events.find((e) => e.type === "Death") ?? events.find((e) => e.type === "Burial");
+  // Age is always derived from the recorded dates, never entered by hand —
+  // one fewer thing to keep in sync as a birth/death year gets corrected.
+  const age = birthEv?.dateYear
+    ? deathEv?.dateYear
+      ? deathEv.dateYear - birthEv.dateYear
+      : !deceased
+        ? new Date().getFullYear() - birthEv.dateYear
+        : null
+    : null;
   const vitals = [
     genderLabel(person.gender),
-    birthEv ? `b. ${[formatDate(birthEv), birthEv.place?.title].filter(Boolean).join(", ")}` : null,
+    birthEv
+      ? `b. ${[formatDate(birthEv), birthEv.place?.title].filter(Boolean).join(", ")}${
+          age != null && !deceased ? ` (age ${age})` : ""
+        }`
+      : null,
     deathEv
-      ? `d. ${[formatDate(deathEv), deathEv.place?.title].filter(Boolean).join(", ")}`
+      ? `d. ${[formatDate(deathEv), deathEv.place?.title].filter(Boolean).join(", ")}${
+          age != null ? ` (aged ${age})` : ""
+        }`
       : !deceased && person.living
         ? "living"
         : null,

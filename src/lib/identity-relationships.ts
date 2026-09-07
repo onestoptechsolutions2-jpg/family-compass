@@ -108,13 +108,16 @@ export async function decideMarriageLink(
 
 /**
  * On a confirmed marriage between a husband and wife, give the wife a
- * MARRIED name carrying her husband's family surname — additive, not a
- * rewrite: her BIRTH name (and any other existing name) stays on her
- * record untouched, this only adds a new preferred Name row alongside it.
- * Skipped entirely when gender isn't recorded for both sides, or the couple
- * isn't male+female, rather than guessing. Idempotent — running it again
- * (e.g. re-confirming) won't add a second copy of the same married name.
- * Never touches editing rights or any other tree's data — see
+ * MARRIED name that carries BOTH surnames — her own family name stays in
+ * the name that's shown, husband's is added alongside it, e.g. "Achieng"
+ * becomes "Achieng Otieno" rather than being replaced by "Otieno". She
+ * never loses her own family's name to gain his. Additive either way: her
+ * BIRTH name (and any other existing name) stays on her record untouched,
+ * this only adds a new preferred Name row alongside it. Skipped entirely
+ * when gender isn't recorded for both sides, or the couple isn't
+ * male+female, rather than guessing. Idempotent — running it again (e.g.
+ * re-confirming) won't add a second copy of the same married name. Never
+ * touches editing rights or any other tree's data — see
  * docs/identity-dedup-claim-workflow.md ("What merge never does").
  */
 async function applyMarriedName(aIdentityId: string, bIdentityId: string): Promise<void> {
@@ -143,8 +146,14 @@ async function applyMarriedName(aIdentityId: string, bIdentityId: string): Promi
   if (!husbandSurname) return; // nothing to inherit
 
   for (const wife of wifePeople) {
+    const ownSurname = primaryName(wife.names)?.surname?.trim() || "";
+    const combinedSurname =
+      ownSurname && ownSurname.toLowerCase() !== husbandSurname.toLowerCase()
+        ? `${ownSurname} ${husbandSurname}`
+        : husbandSurname;
+
     const already = wife.names.some(
-      (n) => n.type === "MARRIED" && (n.surname ?? "").trim().toLowerCase() === husbandSurname.toLowerCase(),
+      (n) => n.type === "MARRIED" && (n.surname ?? "").trim().toLowerCase() === combinedSurname.toLowerCase(),
     );
     if (already) continue;
 
@@ -160,7 +169,7 @@ async function applyMarriedName(aIdentityId: string, bIdentityId: string): Promi
           preferred: true,
           order: maxOrder + 1,
           first: given,
-          surname: husbandSurname,
+          surname: combinedSurname,
         },
       }),
     ]);

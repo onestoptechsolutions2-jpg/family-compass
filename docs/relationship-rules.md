@@ -115,8 +115,9 @@ Two small, deliberately-scoped additions land the moment a `MARRIAGE` edge is `C
 both in `lib/identity-relationships.ts`:
 
 - **A married name, not a rewrite.** If both partners' gender is known and it's a
-  male/female couple, the wife gets a new `Name` row (`type: MARRIED`, her husband's family
-  surname, marked preferred) on every Person she's linked to. Her `BIRTH` name — and any
+  male/female couple, the wife gets a new `Name` row (`type: MARRIED`, marked preferred) on
+  every Person she's linked to — carrying BOTH surnames ("Achieng Otieno"), not just her
+  husband's. She inherits his family name without losing her own. Her `BIRTH` name — and any
   other name already on file — stays exactly as it was; nothing is deleted or overwritten,
   same non-destructive pattern as `applyLineageInheritance`. Skipped entirely (no guess) when
   gender isn't recorded on both sides, or it isn't a male/female pairing.

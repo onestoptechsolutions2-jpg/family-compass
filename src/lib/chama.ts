@@ -1,3 +1,5 @@
+import type { ChamaPurpose } from "@prisma/client";
+
 import { db } from "@/lib/db";
 import { randomToken } from "@/lib/slug";
 import { emitTreeEvent } from "@/lib/webhooks";
@@ -43,6 +45,78 @@ export async function ensureTreeChama(
   });
   await emitTreeEvent(treeId, "chama.created", { chamaId: chama.id, purpose: "WELFARE" });
   return chama;
+}
+
+/**
+ * Groups a member can join beyond the automatic welfare fund — e.g. a
+ * savings circle scoped to one generation ("Gen Z of the Otieno family").
+ * Joining is self-service (any member with a claimed profile in this tree,
+ * not just admins) since it's registering yourself, not editing anyone
+ * else's record.
+ */
+export async function listChamasForTree(treeId: string) {
+  return db.chama.findMany({
+    where: { treeId, active: true },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      name: true,
+      purpose: true,
+      currency: true,
+      defaultAmountKes: true,
+      _count: { select: { members: { where: { active: true } } } },
+    },
+  });
+}
+
+export async function createChama(
+  treeId: string,
+  opts: {
+    workspaceId: string;
+    name: string;
+    purpose: ChamaPurpose;
+    defaultAmountKes?: number | null;
+    createdById?: string | null;
+  },
+): Promise<{ id: string }> {
+  const chama = await db.chama.create({
+    data: {
+      treeId,
+      workspaceId: opts.workspaceId,
+      name: opts.name.trim().slice(0, 160) || "Family group",
+      purpose: opts.purpose,
+      defaultAmountKes: opts.defaultAmountKes ?? null,
+      createdById: opts.createdById ?? null,
+    },
+    select: { id: true },
+  });
+  await emitTreeEvent(treeId, "chama.created", { chamaId: chama.id, purpose: opts.purpose });
+  return chama;
+}
+
+/** Join a chama as the given Person — idempotent (re-joining reactivates). */
+export async function joinChama(
+  chamaId: string,
+  personId: string,
+  opts: { name: string; phone?: string | null },
+): Promise<void> {
+  await db.chamaMember.upsert({
+    where: { chamaId_personId: { chamaId, personId } },
+    create: { chamaId, personId, name: opts.name, phone: opts.phone ?? null, role: "MEMBER", active: true },
+    update: { active: true, name: opts.name },
+  });
+}
+
+export async function leaveChama(chamaId: string, personId: string): Promise<void> {
+  await db.chamaMember.updateMany({ where: { chamaId, personId }, data: { active: false } });
+}
+
+export async function chamaMembers(chamaId: string) {
+  return db.chamaMember.findMany({
+    where: { chamaId, active: true },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, role: true, personId: true },
+  });
 }
 
 /** Open (or reuse) the welfare fund tied to a memorial. */

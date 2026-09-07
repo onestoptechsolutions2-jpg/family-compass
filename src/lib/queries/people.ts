@@ -30,6 +30,7 @@ export type PersonListRow = {
   living: boolean;
   deceased: boolean;
   birth: string;
+  birthYear: number | null;
   death: string;
   /** immediate connecting people — the "key nodes" around this person */
   parents: string[];
@@ -161,6 +162,7 @@ export async function listPeople(treeId: string, q?: string): Promise<PersonList
       living: p.living,
       deceased,
       birth: birth ? formatDate(birth) : "",
+      birthYear: birth?.dateYear ?? null,
       death: death ? formatDate(death) : "",
       parents,
       spouses,
