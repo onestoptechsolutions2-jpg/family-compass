@@ -90,11 +90,24 @@ export default async function LoginPage({
           style={{ borderColor: "var(--border)", color: "var(--muted)" }}
         >
           <p className="font-medium" style={{ color: "var(--fg)" }}>
-            Family member without a password?
+            First time — no password yet?
           </p>
           <p className="mt-1">
             Open the tree&apos;s share link, find yourself, tap <strong>“This is me”</strong>, and
             confirm on WhatsApp. The admin then sends you a one-tap sign-in link.
+          </p>
+        </div>
+
+        <div
+          className="rounded-lg border p-4 text-sm"
+          style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+        >
+          <p className="font-medium" style={{ color: "var(--fg)" }}>
+            Already have a profile, but lost your link?
+          </p>
+          <p className="mt-1">
+            That&apos;s fine — nothing is lost. Message your family&apos;s admin on WhatsApp and
+            ask for a new sign-in link; they can send you one from the Claims page in one tap.
           </p>
         </div>
       </div>

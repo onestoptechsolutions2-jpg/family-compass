@@ -10,7 +10,7 @@ import { displayPhone, waLink } from "@/lib/wa";
 import { claimStatusReport, CLAIM_CATEGORIES } from "@/lib/queries/claim-report";
 import { CopyButton } from "@/components/CopyButton";
 import { Tabs } from "@/components/Tabs";
-import { approveClaimAction, rejectClaimAction, sendClaimLink } from "./actions";
+import { approveClaimAction, rejectClaimAction, sendClaimLink, resendSignInLinkAction } from "./actions";
 
 export const metadata = { title: "Claims" };
 
@@ -161,6 +161,15 @@ export default async function ClaimsPage({
             </a>
             <code className="truncate rounded bg-black/5 px-1.5 py-0.5 text-xs">{signInUrl}</code>
             <CopyButton value={signInUrl} label="Copy link" />
+            <form action={resendSignInLinkAction.bind(null, treeId, c.id)}>
+              <button
+                className="rounded-lg border px-3 py-1.5 text-xs"
+                style={{ borderColor: "var(--border)" }}
+                title="Old link expired, or the member lost it — this makes a new one."
+              >
+                Get a new link
+              </button>
+            </form>
           </div>
         )}
       </div>

@@ -8,7 +8,7 @@ import { Role } from "@prisma/client";
 import { requireTreeEdit, requireTreeManage } from "@/lib/rbac";
 import { flashOk, flashErr } from "@/lib/flash";
 import { db } from "@/lib/db";
-import { approveClaim, rejectClaim, issueClaimInvite } from "@/lib/claims";
+import { approveClaim, rejectClaim, issueClaimInvite, regenerateSignInLink } from "@/lib/claims";
 import { approveIdentityClaim } from "@/lib/identity";
 
 /** Generate (or refresh) a claim link for a person from the account-claims report. */
@@ -45,6 +45,15 @@ export async function approveClaimAction(treeId: string, claimId: string, formDa
     await approveClaim(treeId, claimId, ctx.user.id, role);
     await flashOk("Claim approved — send them the sign-in link.");
   }
+  revalidatePath(`/trees/${treeId}/claims`);
+}
+
+/** A member's old sign-in link expired (or they lost it) — issue a fresh
+ *  one on their already-approved claim so they can get back in. */
+export async function resendSignInLinkAction(treeId: string, claimId: string) {
+  await requireTreeManage(treeId);
+  const result = await regenerateSignInLink(treeId, claimId);
+  await (result ? flashOk("New sign-in link ready — send it below.") : flashErr("Couldn't create a new link for this claim."));
   revalidatePath(`/trees/${treeId}/claims`);
 }
 

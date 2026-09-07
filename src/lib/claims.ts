@@ -476,6 +476,37 @@ export async function consumeSignInToken(token: string): Promise<SignInTokenResu
   return result;
 }
 
+/**
+ * A member's one-tap sign-in link is only good for SIGNIN_TOKEN_DAYS — after
+ * that (or if the WhatsApp message with it just got lost), the old token is
+ * permanently dead (consumeSignInToken refuses an expired one) with no way
+ * back in on their own. This issues a fresh token on their already-approved
+ * claim so an admin can send a working link again, from the Claims page —
+ * the recovery path the login page's "ask your family admin" message and
+ * BadLink error already point to.
+ */
+export async function regenerateSignInLink(
+  treeId: string,
+  claimId: string,
+): Promise<{ signInUrl: string; phone: string } | null> {
+  const claim = await db.personClaim.findFirst({
+    where: { id: claimId, treeId, status: ClaimStatus.APPROVED, createdUserId: { not: null } },
+    select: { phone: true },
+  });
+  if (!claim) return null;
+
+  const signInToken = linkToken();
+  await db.personClaim.update({
+    where: { id: claimId },
+    data: {
+      signInToken,
+      signInTokenExpiresAt: new Date(Date.now() + SIGNIN_TOKEN_DAYS * 864e5),
+      signInTokenUsedAt: null,
+    },
+  });
+  return { signInUrl: `${await publicOrigin()}/api/auth/wa/${signInToken}`, phone: claim.phone };
+}
+
 /** Convenience: text for the "confirm on WhatsApp" message a claimant sends. */
 export function claimConfirmMessage(opts: {
   name: string;
