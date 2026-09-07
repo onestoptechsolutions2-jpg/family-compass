@@ -776,6 +776,24 @@ export default async function PersonDetailPage({
                 </div>
               ) : null,
             )}
+            {(() => {
+              const childrenCount = relations?.families.reduce((n, f) => n + f.children.length, 0) ?? 0;
+              const rows = [
+                ["Children", childrenCount],
+                ["Grandchildren", extended.grandchildren.length],
+                ["Great-grandchildren", extended.greatGrandchildren.length],
+              ] as const;
+              const shown = rows.filter(([, n]) => n > 0);
+              return shown.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm" style={{ color: "var(--muted)" }}>
+                  {shown.map(([label, n]) => (
+                    <span key={label}>
+                      <strong style={{ color: "var(--fg)" }}>{n}</strong> {label.toLowerCase()}
+                    </span>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             {(
               [
                 ["Grandparents", extended.grandparents],
@@ -783,7 +801,6 @@ export default async function PersonDetailPage({
                 ["Cousins", extended.cousins],
                 ["Nieces & nephews", extended.niecesNephews],
                 ["Grandchildren", extended.grandchildren],
-                ["In-laws", extended.inLaws],
               ] as const
             ).map(([label, list]) =>
               list.length > 0 ? (
@@ -803,17 +820,39 @@ export default async function PersonDetailPage({
                       </li>
                     ))}
                   </ul>
-                  {label === "In-laws" && (
-                    <Link
-                      href={`/trees/${treeId}/tree?focus=${personId}`}
-                      className="mt-1 inline-block text-xs hover:underline"
-                      style={{ color: "var(--link)" }}
-                    >
-                      This is the immediate layer — see further in the tree view →
-                    </Link>
-                  )}
                 </div>
               ) : null,
+            )}
+            {extended.inLaws.length > 0 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-medium" style={{ color: "var(--muted)" }}>
+                  Blood family shown above — interested in in-laws too?
+                </summary>
+                <div className="mt-2">
+                  <h4 className="text-sm font-medium">In-laws</h4>
+                  <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    {extended.inLaws.map((p) => (
+                      <li key={p.id}>
+                        <Link href={`/trees/${treeId}/people/${p.id}`} className="hover:underline">
+                          {p.name}
+                        </Link>
+                        {p.term && (
+                          <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>
+                            ({p.term})
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={`/trees/${treeId}/tree?focus=${personId}`}
+                    className="mt-1 inline-block text-xs hover:underline"
+                    style={{ color: "var(--link)" }}
+                  >
+                    This is the immediate layer — see further in the tree view →
+                  </Link>
+                </div>
+              </details>
             )}
           </div>
 
@@ -882,8 +921,11 @@ export default async function PersonDetailPage({
               </div>
             )}
             {connectedFamily.length > 0 && (
-              <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
-                <h4 className="text-sm font-medium">Connected family — recorded elsewhere</h4>
+              <details className="mt-4 border-t pt-3" style={{ borderColor: "var(--hairline)" }}>
+                <summary className="cursor-pointer text-sm font-medium" style={{ color: "var(--muted)" }}>
+                  Not blood family — interested in family connected by marriage too?
+                </summary>
+                <h4 className="mt-2 text-sm font-medium">Connected family — recorded elsewhere</h4>
                 <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
                   Confirmed via a connected marriage. Read-only — this tree&apos;s own records are
                   unaffected; open the other tree to edit.
@@ -912,7 +954,7 @@ export default async function PersonDetailPage({
                     )}
                   </div>
                 ))}
-              </div>
+              </details>
             )}
           </div>
 

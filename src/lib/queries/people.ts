@@ -456,6 +456,9 @@ export type ExtendedFamily = {
   cousins: ExtendedFamilyPerson[];
   niecesNephews: ExtendedFamilyPerson[];
   grandchildren: ExtendedFamilyPerson[];
+  /** one generation past grandchildren — kept as a count-first bucket (see
+   *  descendantCounts) since a full name list this deep is rarely useful. */
+  greatGrandchildren: ExtendedFamilyPerson[];
   /** immediate layer only (spouse's parents/siblings, siblings' spouses) —
    *  the interactive tree view is the "see further" path past this, rather
    *  than growing this into full in-law algebra. */
@@ -469,6 +472,7 @@ export async function extendedFamily(treeId: string, personId: string): Promise<
   const cousins: ExtendedFamilyPerson[] = [];
   const niecesNephews: ExtendedFamilyPerson[] = [];
   const grandchildren: ExtendedFamilyPerson[] = [];
+  const greatGrandchildren: ExtendedFamilyPerson[] = [];
 
   for (const otherId of Object.keys(graph.persons)) {
     if (otherId === personId) continue;
@@ -489,6 +493,7 @@ export async function extendedFamily(treeId: string, personId: string): Promise<
     else if (k.degreeA === 2 && k.degreeB === 2) cousins.push(entry);
     else if (k.degreeA === 2 && k.degreeB === 1) niecesNephews.push(entry);
     else if (k.degreeA === 2 && k.degreeB === 0) grandchildren.push(entry);
+    else if (k.degreeA === 3 && k.degreeB === 0) greatGrandchildren.push(entry);
   }
 
   const inLawIds = new Set<string>();
@@ -515,7 +520,7 @@ export async function extendedFamily(treeId: string, personId: string): Promise<
     return { id, name: other.name, gender: other.gender, living: other.living, term: a.found ? a.bToA.en : "in-law" };
   });
 
-  return { grandparents, auntsUncles, cousins, niecesNephews, grandchildren, inLaws };
+  return { grandparents, auntsUncles, cousins, niecesNephews, grandchildren, greatGrandchildren, inLaws };
 }
 
 /** Minimal id+name list for pickers (partners, children, central person). */
