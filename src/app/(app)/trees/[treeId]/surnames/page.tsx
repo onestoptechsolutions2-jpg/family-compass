@@ -3,6 +3,7 @@ import Link from "next/link";
 import { loadTreeContext } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { primaryName, NAME_SELECT } from "@/lib/person";
+import { diceCoefficient } from "@/lib/identity";
 
 export const metadata = { title: "Surnames" };
 
@@ -58,6 +59,22 @@ export default async function SurnamesPage({
   // exists to catch drift, not just to count people.
   const rows = [...groups.values()].sort((a, b) => normalize(a.surname).localeCompare(normalize(b.surname)));
 
+  // Beyond alphabetical adjacency, explicitly score every pair of DIFFERENT
+  // surnames for closeness (bigram similarity — the same measure deep-search
+  // uses to match candidate identities) and surface the close-but-not-equal
+  // ones as likely typos/spelling drift, smallest group first since that's
+  // usually the one worth correcting.
+  const SIMILARITY_THRESHOLD = 0.6;
+  type NearMatch = { a: Row; b: Row; score: number };
+  const nearMatches: NearMatch[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const score = diceCoefficient(rows[i]!.surname, rows[j]!.surname);
+      if (score >= SIMILARITY_THRESHOLD) nearMatches.push({ a: rows[i]!, b: rows[j]!, score });
+    }
+  }
+  nearMatches.sort((x, y) => y.score - x.score);
+
   return (
     <div className="flex flex-col gap-5">
       <p className="max-w-prose text-sm" style={{ color: "var(--muted)" }}>
@@ -71,10 +88,50 @@ export default async function SurnamesPage({
         to backfill blanks from the lineage.
       </p>
 
+      {nearMatches.length > 0 && (
+        <div className="rounded-xl border p-4" style={{ borderColor: "#ef4444", background: "var(--card)" }}>
+          <h2 className="text-sm font-medium text-red-600">Possible spelling variants</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+            These pairs are close enough in spelling that one is likely a typo for the other —
+            not flagged elsewhere because they don&apos;t normalize to the same key.
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+            {nearMatches.map(({ a, b, score }) => {
+              const [smaller, larger] = a.people.length <= b.people.length ? [a, b] : [b, a];
+              return (
+                <li key={`${a.surname}::${b.surname}`}>
+                  <a href={`#surname-${normalize(smaller.surname)}`} className="font-medium hover:underline">
+                    {smaller.surname}
+                  </a>
+                  <span style={{ color: "var(--muted)" }}> ({smaller.people.length}) vs </span>
+                  <a href={`#surname-${normalize(larger.surname)}`} className="font-medium hover:underline">
+                    {larger.surname}
+                  </a>
+                  <span style={{ color: "var(--muted)" }}>
+                    {" "}
+                    ({larger.people.length}) — {Math.round(score * 100)}% similar. Check whether{" "}
+                    {smaller.people.map((p, i) => (
+                      <span key={p.id}>
+                        {i > 0 && ", "}
+                        <Link href={`/trees/${treeId}/people/${p.id}`} className="hover:underline">
+                          {p.name}
+                        </Link>
+                      </span>
+                    ))}{" "}
+                    should read &quot;{larger.surname}&quot;.
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((r) => (
           <div
             key={r.surname}
+            id={`surname-${normalize(r.surname)}`}
             className="rounded-xl border p-4 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--card)" }}
           >

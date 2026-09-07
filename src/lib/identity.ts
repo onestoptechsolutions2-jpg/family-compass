@@ -19,7 +19,7 @@ const SIGNIN_TOKEN_DAYS = 14;
 // ===========================================================================
 
 /** Dice's coefficient over character bigrams — tolerant of spelling/order drift. */
-function diceCoefficient(a: string, b: string): number {
+export function diceCoefficient(a: string, b: string): number {
   const bigrams = (s: string) => {
     const t = s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
     const grams = new Set<string>();
