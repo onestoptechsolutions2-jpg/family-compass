@@ -100,6 +100,10 @@ const schema = z.object({
   // redeploys if this path is on a mounted volume (docker-compose's `backups`
   // volume maps here by default) — point it elsewhere if you mount your own.
   BACKUP_DIR: z.string().optional().default("/app/backups"),
+  // Optional second copy destination — a different mounted volume/path, so a
+  // backup survives losing whatever BACKUP_DIR lives on. Best-effort: a
+  // failure to copy here is logged but never fails the primary backup.
+  BACKUP_DIR_SECONDARY: z.string().optional().default(""),
   // How many scheduled backups to keep before pruning the oldest.
   BACKUP_RETENTION: z
     .string()

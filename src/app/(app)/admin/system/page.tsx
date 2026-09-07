@@ -310,11 +310,26 @@ export default async function AdminSystemPage() {
             <div className="text-xs" style={{ color: "var(--muted)" }}>Last failure</div>
             <div style={bStatus.lastFailureAt ? { color: "var(--danger)" } : undefined}>{fmtDate(bStatus.lastFailureAt)}</div>
           </div>
+          <div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Secondary location</div>
+            <div className="font-mono text-xs">{bStatus.secondaryDir ?? "not configured"}</div>
+          </div>
+          {bStatus.secondaryDir && (
+            <div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>Secondary copy last failure</div>
+              <div style={bStatus.secondaryLastFailureAt ? { color: "var(--danger)" } : undefined}>
+                {fmtDate(bStatus.secondaryLastFailureAt)}
+              </div>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
           Runs nightly at 02:00 Africa/Nairobi. Set <code>BACKUP_DIR</code> to change where copies are
           written (point it at a mounted volume so they survive a redeploy) and{" "}
-          <code>BACKUP_RETENTION</code> to change how many are kept.
+          <code>BACKUP_RETENTION</code> to change how many are kept. Set{" "}
+          <code>BACKUP_DIR_SECONDARY</code> to a second mounted path (a different volume/disk) to keep
+          a mirror copy of every backup there too — a copy failure there is logged but never blocks the
+          primary backup, which has already succeeded by the time it's attempted.
         </p>
         <form action={runBackupNow} className="mt-3">
           <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">

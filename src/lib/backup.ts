@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, stat, unlink, writeFile, copyFile } from "node:fs/promises";
 import path from "node:path";
 
 import { env } from "@/lib/env";
@@ -11,6 +11,37 @@ export type RestoreResult = { ok: boolean; error?: string; safetyBackupName?: st
 
 async function ensureDir(): Promise<void> {
   await mkdir(env.BACKUP_DIR, { recursive: true });
+}
+
+function secondaryEnabled(): boolean {
+  return env.BACKUP_DIR_SECONDARY.trim().length > 0;
+}
+
+/** Best-effort mirror to the secondary location — never lets a copy failure
+ *  there fail the primary backup, which already succeeded on disk. */
+async function copyToSecondary(name: string, actorId?: string | null): Promise<void> {
+  if (!secondaryEnabled()) return;
+  try {
+    await mkdir(env.BACKUP_DIR_SECONDARY, { recursive: true });
+    await copyFile(path.join(env.BACKUP_DIR, name), path.join(env.BACKUP_DIR_SECONDARY, name));
+  } catch (e) {
+    await writeAudit({
+      actorId,
+      action: "backup.secondary_failed",
+      targetType: "system",
+      meta: { name, error: (e as Error).message },
+    });
+  }
+}
+
+async function pruneSecondary(keepNames: Set<string>): Promise<void> {
+  if (!secondaryEnabled()) return;
+  const names = await readdir(env.BACKUP_DIR_SECONDARY).catch(() => [] as string[]);
+  for (const name of names) {
+    if (name.endsWith(".dump") && !keepNames.has(name)) {
+      await unlink(path.join(env.BACKUP_DIR_SECONDARY, name)).catch(() => {});
+    }
+  }
 }
 
 function stamp(): string {
@@ -54,9 +85,11 @@ export async function listBackups(): Promise<BackupFile[]> {
 
 async function pruneOldBackups(): Promise<void> {
   const files = await listBackups();
+  const keep = files.slice(0, env.BACKUP_RETENTION);
   for (const f of files.slice(env.BACKUP_RETENTION)) {
     await unlink(path.join(env.BACKUP_DIR, f.name)).catch(() => {});
   }
+  await pruneSecondary(new Set(keep.map((f) => f.name)));
 }
 
 /** Runs pg_dump into BACKUP_DIR, prunes beyond retention, audits the result.
@@ -99,6 +132,7 @@ export async function createBackup(
     meta: { kind, name, sizeBytes: st?.size ?? null, durationMs },
   });
 
+  await copyToSecondary(name, actorId);
   await pruneOldBackups();
   return { ok: true, name };
 }
@@ -167,6 +201,9 @@ export async function restoreFromUpload(file: File, actorId: string): Promise<Re
 
 export async function deleteBackup(name: string): Promise<void> {
   await unlink(backupPath(name));
+  if (secondaryEnabled()) {
+    await unlink(path.join(env.BACKUP_DIR_SECONDARY, safeName(name))).catch(() => {});
+  }
 }
 
 export type BackupStatus = {
@@ -174,12 +211,22 @@ export type BackupStatus = {
   retention: number;
   lastSuccessAt: Date | null;
   lastFailureAt: Date | null;
+  secondaryDir: string | null;
+  secondaryLastFailureAt: Date | null;
 };
 
 export async function backupStatus(): Promise<BackupStatus> {
-  const [lastSuccessAt, lastFailureAt] = await Promise.all([
+  const [lastSuccessAt, lastFailureAt, secondaryLastFailureAt] = await Promise.all([
     lastAuditAt("backup.created"),
     lastAuditAt("backup.failed"),
+    secondaryEnabled() ? lastAuditAt("backup.secondary_failed") : Promise.resolve(null),
   ]);
-  return { dir: env.BACKUP_DIR, retention: env.BACKUP_RETENTION, lastSuccessAt, lastFailureAt };
+  return {
+    dir: env.BACKUP_DIR,
+    retention: env.BACKUP_RETENTION,
+    lastSuccessAt,
+    lastFailureAt,
+    secondaryDir: secondaryEnabled() ? env.BACKUP_DIR_SECONDARY : null,
+    secondaryLastFailureAt,
+  };
 }
