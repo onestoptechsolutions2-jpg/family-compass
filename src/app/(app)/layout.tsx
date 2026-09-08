@@ -10,6 +10,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { Toaster } from "@/components/Toaster";
 import { InstallReporter } from "@/components/InstallReporter";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { OfflineSupport } from "@/components/OfflineSupport";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Toaster flash={flash} />
       <InstallReporter />
       <InstallPrompt />
+      <OfflineSupport />
       <header
         className="sticky top-0 z-10 border-b backdrop-blur"
         style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--bg) 85%, transparent)" }}
