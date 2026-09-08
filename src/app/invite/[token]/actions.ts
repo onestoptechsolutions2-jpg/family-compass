@@ -6,6 +6,7 @@ import { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
+import { emitEvent } from "@/lib/webhooks";
 
 export async function acceptInvite(token: string) {
   const user = await requireUser();
@@ -36,6 +37,7 @@ export async function acceptInvite(token: string) {
     create: { workspaceId: invite.workspaceId, userId: user.id, role: invite.role },
   });
   await db.invitation.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
+  await emitEvent(invite.workspaceId, "invitation.accepted", { email: invite.email, role: invite.role });
 
   redirect("/app");
 }

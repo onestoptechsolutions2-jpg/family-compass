@@ -7,6 +7,7 @@ import { normalizePhone, isValidPhone, claimCode } from "@/lib/wa";
 import { verifySharePassword } from "@/lib/share";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
 import { logActivity } from "@/lib/activity";
+import { emitTreeEvent } from "@/lib/webhooks";
 
 const SIGNIN_TOKEN_DAYS = 14;
 
@@ -253,6 +254,11 @@ export async function approveClaim(
     objectId: claim.id,
     summary: `approved ${claim.claimantName}'s claim`,
   });
+  await emitTreeEvent(treeId, "claim.approved", {
+    claimId: claim.id,
+    personId: claim.personId,
+    name: claim.claimantName,
+  });
 
   return {
     phone: claim.phone,
@@ -282,6 +288,7 @@ export async function rejectClaim(
       rejectionReason: reason?.trim() || null,
     },
   });
+  await emitTreeEvent(treeId, "claim.rejected", { claimId, reason: reason?.trim() || null });
 }
 
 /** True when a person has a recorded Death or Burial event. */

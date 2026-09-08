@@ -169,6 +169,10 @@ export async function createPerson(treeId: string, formData: FormData) {
     objectId: person.id,
     summary: `added ${label(d.first, d.surname)}`,
   });
+  await emitTreeEvent(treeId, "person.created", {
+    personId: person.id,
+    name: label(d.first, d.surname),
+  });
 
   if (deathSync === "created") {
     await notifyRelativesOfEvent({
@@ -260,6 +264,10 @@ export async function updatePerson(
     objectId: personId,
     summary: `edited ${label(d.first, d.surname)}`,
   });
+  await emitTreeEvent(treeId, "person.updated", {
+    personId,
+    name: label(d.first, d.surname),
+  });
 
   if (deathSync === "created") {
     await notifyRelativesOfEvent({
@@ -293,6 +301,7 @@ export async function deletePerson(treeId: string, personId: string) {
   const owned = await db.person.findFirst({ where: { id: personId, treeId }, select: { id: true } });
   if (!owned) throw new Error("Person not found");
   await db.person.delete({ where: { id: personId } });
+  await emitTreeEvent(treeId, "person.deleted", { personId });
   revalidatePath(`/trees/${treeId}/people`);
   redirect(`/trees/${treeId}/people`);
 }

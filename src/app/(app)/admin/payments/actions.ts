@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { fulfilPayment } from "@/lib/payments/fulfil";
 import { writeAudit } from "@/lib/audit";
+import { emitEvent } from "@/lib/webhooks";
 
 export async function approvePayment(paymentId: string) {
   const admin = await requirePlatformAdmin();
@@ -34,7 +35,7 @@ export async function rejectPayment(paymentId: string, formData: FormData) {
   const reason = z.string().trim().min(1).max(300).parse(formData.get("reason"));
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
-    select: { status: true },
+    select: { status: true, workspaceId: true, treeId: true, reference: true },
   });
   if (!payment) throw new Error("Payment not found");
   if (payment.status === PaymentStatus.PAID) throw new Error("Paid payments cannot be rejected");
@@ -44,5 +45,11 @@ export async function rejectPayment(paymentId: string, formData: FormData) {
     data: { status: PaymentStatus.REJECTED, rejectionReason: reason },
   });
   await writeAudit({ actorId: admin.id, action: "payment.reject", targetType: "payment", targetId: paymentId, meta: { reason } });
+  await emitEvent(
+    payment.workspaceId,
+    "payment.rejected",
+    { paymentId, reference: payment.reference, reason },
+    { treeId: payment.treeId },
+  );
   revalidatePath("/admin/payments");
 }

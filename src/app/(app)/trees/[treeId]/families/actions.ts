@@ -85,6 +85,11 @@ export async function createFamily(treeId: string, formData: FormData) {
     objectId: family.id,
     summary: "created a family",
   });
+  await emitTreeEvent(treeId, "family.created", {
+    familyId: family.id,
+    partner1Id: p1,
+    partner2Id: p2,
+  });
   revalidatePath(`/trees/${treeId}/families`);
   redirect(`/trees/${treeId}/families/${family.id}`);
 }

@@ -10,6 +10,7 @@ import { publicOrigin } from "@/lib/origin";
 import { getPaymentSettings } from "@/lib/payments";
 import { fulfilPayment } from "@/lib/payments/fulfil";
 import { stkPush, stkQuery, mpesaMsisdn, darajaConfigured, DARAJA_PROVIDER_ID } from "@/lib/payments/daraja";
+import { emitEvent } from "@/lib/webhooks";
 
 const KIND_DESC: Record<string, string> = {
   SINGLE: "Family Compass credit",
@@ -32,6 +33,8 @@ async function ownPayment(paymentId: string) {
       amountKes: true,
       reference: true,
       checkoutRequestId: true,
+      workspaceId: true,
+      treeId: true,
     },
   });
   if (!payment) throw new Error("Payment not found");
@@ -120,6 +123,12 @@ export async function submitPaymentCode(paymentId: string, formData: FormData) {
       rejectionReason: null,
     },
   });
+  await emitEvent(
+    p.workspaceId,
+    "payment.recorded",
+    { paymentId, reference: p.reference, kind: p.kind, amountKes: p.amountKes },
+    { treeId: p.treeId },
+  );
   revalidatePath(`/pay/${paymentId}`);
 }
 

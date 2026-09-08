@@ -219,6 +219,15 @@ export async function renderGeneration(
         priceKes,
       },
     });
+    const tree = await db.tree.findUnique({ where: { id: job.treeId }, select: { workspaceId: true } });
+    if (tree) {
+      await emitEvent(
+        tree.workspaceId,
+        "generation.preview_ready",
+        { generationJobId, kind: job.kind, priceKes },
+        { treeId: job.treeId },
+      );
+    }
     return;
   }
 
