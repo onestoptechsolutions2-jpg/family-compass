@@ -1,9 +1,9 @@
 # Relationship rules — how Identities connect
 
-Design #2 of 4. Depends on [identity-model.md](identity-model.md). See also
-[relationships-layer.md](relationships-layer.md) — the existing "relationships as accrued
-shared history" work (`Memory`, `RelationEdge`, `SelfNode`) — which this extends, not
-replaces.
+Design #2 of 4. **Implemented.** Depends on [identity-model.md](identity-model.md). See
+also [relationships-layer.md](relationships-layer.md) — the existing "relationships as
+accrued shared history" work (`Memory`, `RelationEdge`, `SelfNode`) — which this extends,
+not replaces.
 
 ## Three kinds of tie, never conflated
 

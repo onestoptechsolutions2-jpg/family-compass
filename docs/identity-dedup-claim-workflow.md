@@ -1,6 +1,6 @@
 # Deduplication, claim & merge workflow
 
-Design #4 of 4. Depends on [identity-model.md](identity-model.md),
+Design #4 of 4. **Implemented.** Depends on [identity-model.md](identity-model.md),
 [relationship-rules.md](relationship-rules.md),
 [onboarding-state-machine.md](onboarding-state-machine.md).
 

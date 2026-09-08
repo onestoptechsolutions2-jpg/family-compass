@@ -51,10 +51,18 @@ MATRILINEAL · NONE`; `Tree.inheritSurname` also copies the family name):
   already in the tree.
 
 Orthogonally: every Person lives in exactly one **Tree**. Trees join to each
-other only through **`FriendLink`** (a chosen / cross-tree tie between two
-Persons in different Trees). The research graph is **⋃ Trees ∪ FriendLinks** —
-there is deliberately no "these N trees are one extended family" entity;
-that grouping is emergent from the friend-link graph.
+other two ways: **`FriendLink`** (a chosen / cross-tree tie between two
+Persons in different Trees), and — since the Identity layer landed — a
+**CONFIRMED `IdentityRelationship(kind=MARRIAGE)`**, which bridges two trees
+through a marriage without merging or copying either side's data. The
+research graph is **⋃ Trees ∪ FriendLinks ∪ confirmed marriage bridges** —
+there is still deliberately no "these N trees are one extended family"
+entity; that grouping stays emergent, now from two kinds of edge instead of
+one. `lib/queries/cross-tree-graph.ts` is where this shows up concretely: it
+stitches every tree reachable through a confirmed marriage into one in-memory
+graph so kinship (`bloodRelationship`/`affinalRelationship`) can walk a path
+that crosses family lines — "how is my niece related to my wife's father" —
+without either tree's own records ever being touched.
 
 ## Deliberately not modelled (yet)
 
@@ -62,16 +70,27 @@ that grouping is emergent from the friend-link graph.
   optional `Lineage` row only when a research question needs "size of the
   Sakwa lineage across trees".
 
-## Identity layer (design, not yet implemented)
+## Identity layer
 
-The "deliberately no family-group-of-trees entity" note above predates a 2026-09-02
-decision to add exactly that, scoped narrowly: a global **Identity** record above
+Landed 2026-09-02, scoped narrowly: a global **Identity** record above
 tree-scoped `Person`, so the same real human isn't re-entered as a duplicate `Person`
 when two family trees connect through marriage. `Tree`/`Workspace` remain the privacy,
 billing and editing boundary — Identity only records "these Person rows, across
-however many trees, are the same human." See:
+however many trees, are the same human," and nothing about editing rights or
+data ownership ever moves with it. See:
 
 - [identity-model.md](identity-model.md) — Identity vs Person vs Relationship vs Tree
-- [relationship-rules.md](relationship-rules.md) — blood / marriage / chosen ties, kept distinct
-- [onboarding-state-machine.md](onboarding-state-machine.md) — mandatory deep search before a new Identity
+- [relationship-rules.md](relationship-rules.md) — blood / marriage / chosen ties, kept
+  distinct, plus what a confirmed marriage does and doesn't do (a married name that
+  keeps her own surname too, one more generation of read-only in-law visibility)
+- [onboarding-state-machine.md](onboarding-state-machine.md) — mandatory deep search
+  before a new Identity
+- [identity-dedup-claim-workflow.md](identity-dedup-claim-workflow.md) — match, claim,
+  and the reversible merge recovery path, including the side-by-side merge diff and
+  its clan-mismatch warning
+
+Built on top of the bridge a confirmed marriage creates: cross-tree relationship
+lookups (`lib/queries/cross-tree-graph.ts`, surfaced on the tree's **Relationship
+check** page) that answer "how is my niece related to my wife's father" across two
+trees, read-only and without either tree's own records changing.
 - [identity-dedup-claim-workflow.md](identity-dedup-claim-workflow.md) — matching, claim, and (non-destructive, reversible) merge

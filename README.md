@@ -50,6 +50,10 @@ Family plan, and commissioned research are paid (M-Pesa).
 | R3 | **Profile analyzer** — `analyzeProfile()` finds the gaps (birth, place, photo, clan, then parents → grandparents → great-grandparents) and a persistent `<ProfileGaps>` wizard on the person page works toward four generations (present vs a 14-ancestor target). | 🟡 in progress |
 | R4 | **Device notifications** — opt-in Web Push (`web-push` + VAPID, `public/sw.js`), `PushSubscription` + `User.notifyPrefs`. `<PushSetup>` in the claimed-profile wizard and on `/account` with a per-category mute form. Off until `VAPID_*` is set. | 🟡 in progress |
 | R5 | **Your profile is home** — `homePathForUser()` routes every sign-in (WhatsApp link, magic link, "Open app") to the claimed person's own profile; the tree view centres on them by default. Public landing carousel of the largest directory trees (`publicShowcase()` — aggregate counts only). Entity pickers are type-ahead (`<SearchSelect>`), with "＋ Add …" inline person-create in the family forms. | 🟡 in progress |
+| I | **Identity layer** — global `Identity` above tree-scoped `Person` so the same real human isn't duplicated when two family trees meet through marriage. Mandatory deep search before a new Identity; claim/verify (never automatic); a reversible (14-day), per-Tree-corroborated **merge** for two independently-created duplicates, with a side-by-side reference diff and a clan-mismatch warning on the Merges page. `IdentityRelationship(kind=MARRIAGE)` bridges two trees once confirmed — read-only "connected family" view both ways (spouse, children, one more generation of in-laws), a married name that keeps her own surname *and* adds his, and `lib/queries/cross-tree-graph.ts` extends "Are we related?" across the bridge (blood family shown first on a profile; in-laws/connected family are a click away, not the default). See `docs/identity-model.md` + the other three design docs. | ✅ done |
+| G | **Generations & family groups** — People page groups members into birth-year cohorts (Gen Z, Millennial, …); a manager can start a savings/welfare/merry-go-round/table-banking group scoped to one (`lib/chama.ts`, `/trees/…/chama/groups`) that any member with a claimed profile joins or leaves themselves. Profile shows a plain descendant count (children/grandchildren/great-grandchildren). | ✅ done |
+| P | **PWA & access recovery** — read-only offline viewing (`public/sw.js` runtime-caches page navigations, falls back to `offline.html`; editing still needs a connection), an install prompt on every signed-in page, and a one-click way for an admin to reissue a member's sign-in link once the old one expires or is lost. | ✅ done |
+| A | **Editing rights tightened** — a member can always edit their own claimed profile; editing someone else's now requires manager rights (`requireEditPerson`/`canEditPersonRecord` in `lib/rbac-rules.ts`, unit-tested). Building tree structure (adding people, children, partners) is unchanged. A quick-edit ✎ on each parent/spouse/child chip opens their edit form and returns to the referring profile. | ✅ done |
 
 Full plan: `.claude/plans/async-inventing-fountain.md` (or ask).
 
@@ -149,6 +153,9 @@ self-onboarding**:
    sign-in link.
 5. The admin taps **"Send sign-in link on WhatsApp"**; the relative opens it and
    is signed in (`/api/auth/wa/<token>` → database session).
+6. Links expire after 14 days. If one dies or gets lost, the admin hits
+   **"Get a new link"** on that same approved claim (`/trees/<id>/claims`) —
+   `regenerateSignInLink()` issues a fresh token, no need to redo the claim.
 
 Set the admin's number and an optional "family word" PIN on the Sharing page.
 `ADMIN_EMAILS` still grants the platform-admin role on first sign-in.
@@ -208,8 +215,17 @@ read the body to see drift.
 
 ### Backups
 
-`pg_dump` of the Postgres volume covers everything, **including uploaded media**
-(it lives in the DB). Schedule it in Coolify; watch DB size as media grows.
+Automated, in-app — `worker/jobs/backup.ts` runs `pg_dump` nightly at 02:00
+Africa/Nairobi, covering everything **including uploaded media** (it lives in
+the DB). `/admin/system` → Backup & restore shows status (last success/failure,
+retention), lets an admin run one on demand, download or delete a stored copy,
+and restore from an uploaded `.dump` (`lib/backup.ts::restoreFromFile` always
+takes a fresh safety snapshot first — a `pg_restore --clean` has no other undo
+path). `BACKUP_DIR` sets where copies land (point it at a mounted volume so
+they survive a redeploy); `BACKUP_RETENTION` how many to keep; optional
+`BACKUP_DIR_SECONDARY` mirrors every backup to a second mounted path so one
+survives losing whatever volume `BACKUP_DIR` is on (best-effort — a failure to
+copy there never fails the primary backup, which already succeeded).
 
 ---
 

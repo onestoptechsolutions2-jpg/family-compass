@@ -77,7 +77,8 @@ export default async function GuidePage({
       steps: [
         { text: "Set each person's clan and sub-clan; the reference list covers the main Kenyan communities.", href: "/clans", label: "Clans" },
         "Type a place and it autocompletes from all 47 counties down to ward level; villages you type are remembered.",
-        { text: "Check whether two people share a bloodline or clan before a marriage.", href: "/relationship", label: "Are we related?" },
+        { text: "Check whether two people share a bloodline or clan before a marriage — it also checks across any family your tree has connected to through a confirmed marriage, e.g. \"how is my niece related to my wife's father?\"", href: "/relationship", label: "Are we related?" },
+        { text: "If someone turns out to already exist as a person in another family's tree — a marriage, a shared ancestor found late — propose linking or merging the two on the Merges page. A merge only goes through once every tree involved corroborates it, is reversible for 14 days, and a side-by-side diff flags anything worth a second look (like the two sides recording different clans) before you approve.", href: "/merges", label: "Merges" },
       ],
     },
     {
@@ -88,9 +89,13 @@ export default async function GuidePage({
         { text: "Create a read-only shared link centred on one person. Living people are redacted unless you opt in; add a password or expiry if you want.", href: "/sharing", label: "Sharing" },
         "Send a living relative a claim link from their profile so they can confirm it's them and keep it updated — you approve every claim. If they're already on the tree, a manager can use “Mark as claimed → This is me / another member” instead.",
         "Claiming only applies to living people. Recording a death releases any account link — the profile becomes a memorial, and “This is you” / “Mark as claimed” no longer appear on it.",
-        { text: "The Claims page has an “Account claims” section that groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there.", href: "/claims", label: "Claims" },
+        { text: "The Claims page has an “Account claims” section that groups every profile by claim status (claimed / link sent / can be claimed / deceased) and lets you send links from there. If someone's sign-in link expired or got lost, use “Get a new link” on their approved claim — no need to start the claim over.", href: "/claims", label: "Claims" },
+        "Once claimed, a member can update their own name, dates and photo any time — look for “Edit your details” on their own profile. Editing someone else's details still needs a manager, but a manager can quick-edit a parent, spouse or child right from a profile with the ✎ next to their name.",
         { text: "The Reports page opens with a “Family energy” bar — one 0–100 score for how living and complete the record is (connected people, dated lives, photos, events, memories, bonds), and the same broken down per household.", href: "/reports", label: "Reports" },
         "In Account, turn on device notifications (per device, best with the app installed) and choose which categories to mute. Your in-app inbox always keeps everything.",
+        { text: "The People page groups everyone into generations (Gen Z, Millennial, …) and lets a manager start a savings, welfare, merry-go-round or table-banking group scoped to one — anyone with a claimed profile can join or leave it themselves.", href: "/people", label: "People" },
+        "A profile shows blood family first — grandparents, aunts/uncles, cousins, nieces/nephews, grandchildren, plus how many children, grandchildren and great-grandchildren there are. In-laws and family connected through a marriage into another tree are one click away if you're curious, not shown by default.",
+        "Install the app (you'll be prompted) and pages you've already opened stay viewable with no signal — handy with patchy network. Adding or changing anything still needs a connection.",
       ],
     },
     {

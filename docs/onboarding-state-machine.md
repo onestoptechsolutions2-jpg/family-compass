@@ -2,7 +2,10 @@
 
 Design #3 of 4. Depends on [identity-model.md](identity-model.md) and
 [identity-dedup-claim-workflow.md](identity-dedup-claim-workflow.md) (matching/claim
-mechanics referenced but specified there).
+mechanics referenced but specified there). **Implemented** — `provisionSelfTree()` in
+`lib/identity.ts` is idempotent (checks for an existing self-Person via
+`claimedByUserId`'s own unique constraint before creating a second) and runs the deep
+search this doc specifies before a blank tree is ever handed out.
 
 ## Today's flow (why it must change)
 

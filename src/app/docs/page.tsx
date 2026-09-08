@@ -159,12 +159,20 @@ function verify(rawBody, headerSig, secret) {
       <H id="chama">Chama / welfare funds</H>
       <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
         A <strong>chama</strong> is a family welfare / savings group. Each tree gets one welfare
-        chama on demand; a memorial can open a <em>fund</em> (a collection drive) shared as a public
-        link — <code>{`${await publicOrigin()}/give/{token}`}</code>. Supporters record what they
-        send by M-Pesa (to the workspace Till / Paybill in Settings → Payments) and the family
-        treasurer confirms each entry against the statement. Collection reuses the same{" "}
-        <code>PaymentProvider</code> as paid exports (manual M-Pesa now, Daraja STK when{" "}
-        <code>MPESA_*</code> is set) — no aggregator.
+        chama automatically the first time it's needed; a memorial can then open a <em>fund</em> (a
+        collection drive) shared as a public link — <code>{`${await publicOrigin()}/give/{token}`}</code>.
+        Supporters record what they send by M-Pesa (to the workspace Till / Paybill in
+        Settings → Payments) and the family treasurer confirms each entry against the statement.
+        Collection reuses the same <code>PaymentProvider</code> as paid exports (manual M-Pesa now,
+        Daraja STK when <code>MPESA_*</code> is set) — no aggregator.
+      </p>
+      <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+        A tree can also hold more than one chama with a different purpose — a savings circle, a
+        merry-go-round, table banking — created from <em>People → Start a group</em>, e.g. scoped to
+        one generation ("Gen Z of the Otieno family"). Membership is self-service: anyone with a
+        claimed profile in the tree can join or leave a group themselves, no admin action needed.
+        Each still fires <code>chama.created</code>, distinguished by <code>data.purpose</code>{" "}
+        (<code>WELFARE · SAVINGS · MERRY_GO_ROUND · TABLE_BANKING</code>).
       </p>
       <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
         <strong>External group link.</strong> A tree can also be linked to a real group on the Chama

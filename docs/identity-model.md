@@ -4,8 +4,13 @@
 
 This is design #1 of 4 for the Identity layer (see [relationship-rules.md](relationship-rules.md),
 [onboarding-state-machine.md](onboarding-state-machine.md),
-[identity-dedup-claim-workflow.md](identity-dedup-claim-workflow.md)). Nothing here is
-implemented yet — no schema migration, no UI. This is the shape we agree on first.
+[identity-dedup-claim-workflow.md](identity-dedup-claim-workflow.md)). **Implemented** —
+migrated, and live in the app (deep search, claim, merge, marriage links, the merge
+review diff, cross-tree relationship checks). The concepts below still describe the
+shape accurately; treat `prisma/schema.prisma` as the source of truth for exact fields
+(the merge workflow in particular grew `IdentityMergeRequest`/`IdentityMergeApproval`
+and `Identity.mergedIntoId`/`mergedAt` beyond the sketch in this doc — see
+identity-dedup-claim-workflow.md for that part).
 
 ## Why this exists
 
@@ -74,7 +79,7 @@ Keeping Person tree-scoped and adding Identity above it means:
   deletes or rewrites the Person row. See identity-dedup-claim-workflow.md for the merge
   rules (no automatic destructive merges, ever).
 
-## Draft shape (design, not yet migrated)
+## Shape (as implemented — see prisma/schema.prisma for the exact, current fields)
 
 ```prisma
 /// The real human. Global — not owned by a Workspace. Exists once regardless of how
