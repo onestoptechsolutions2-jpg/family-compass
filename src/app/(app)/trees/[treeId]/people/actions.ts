@@ -12,6 +12,7 @@ import { logActivity } from "@/lib/activity";
 import { notifyRelativesOfEvent } from "@/lib/notify-kin";
 import { emitTreeEvent } from "@/lib/webhooks";
 import { cascadeClanDown } from "@/lib/lineage";
+import { normalizeClan } from "@/lib/clan";
 import { flashOk } from "@/lib/flash";
 
 const label = (first?: string, surname?: string) =>
@@ -33,8 +34,27 @@ const personSchema = z.object({
   deathPlace: z.string().trim().max(300).optional().default(""),
 });
 
+/** A clan picker value is either an existing id, empty, or `new:<name>` from
+ *  the "＋ Add …" row — same convention as resolvePersonRef in
+ *  families/actions.ts. Creates the clan on the spot rather than sending
+ *  the person away to the Clans page first, then back. */
 async function resolveClan(treeId: string, clanId: string): Promise<string | null> {
   if (!clanId) return null;
+  if (clanId.startsWith("new:")) {
+    const name = clanId.slice(4).trim().slice(0, 120);
+    if (name.length < 1) return null;
+    const normalized = normalizeClan(name);
+    const existing = await db.clan.findUnique({
+      where: { treeId_normalized: { treeId, normalized } },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await db.clan.create({
+      data: { treeId, name, normalized },
+      select: { id: true },
+    });
+    return created.id;
+  }
   const c = await db.clan.findFirst({ where: { id: clanId, treeId }, select: { id: true } });
   return c?.id ?? null;
 }

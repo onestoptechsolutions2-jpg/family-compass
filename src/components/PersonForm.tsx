@@ -95,6 +95,8 @@ export function PersonForm({
             defaultValue={values?.clanId ?? null}
             placeholder="Search clans…"
             className="mt-1"
+            allowCreate
+            createLabel={(q) => `＋ Add “${q}” as a new clan`}
           />
         </label>
         <label className="text-sm">
