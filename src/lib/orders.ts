@@ -174,13 +174,20 @@ export async function fulfilDraft(
       // 3. Relatives.
       const parents = lines(o.parents);
       const siblings = lines(o.siblings);
+      // Names already created, so a customer who lists themselves is not added twice.
+      const byName = new Map<string, string>();
+      const remember = (kind: string, name: string, id: string) => byName.set(`${kind}:${name.trim().toLowerCase()}`, id);
       let parentsFamily: string | null = null;
       if (parents.length || siblings.length) {
         const p1 = parents[0] ? (await person(tx, treeId, parents[0])).id : null;
         const p2 = parents[1] ? (await person(tx, treeId, parents[1])).id : null;
         parentsFamily = (await family(tx, treeId, p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
         await addChildRef(parentsFamily, subject.id, undefined, tx);
-        for (const s of siblings) await addChildRef(parentsFamily, (await person(tx, treeId, s)).id, undefined, tx);
+        for (const s of siblings) {
+          const sib = await person(tx, treeId, s);
+          remember("sibling", s, sib.id);
+          await addChildRef(parentsFamily, sib.id, undefined, tx);
+        }
       }
 
       const spouses = lines(o.spouse);
@@ -188,12 +195,22 @@ export async function fulfilDraft(
       let unionFamily: string | null = null;
       if (spouses.length || kids.length) {
         const sp = spouses[0] ? (await person(tx, treeId, spouses[0])).id : null;
+        if (sp && spouses[0]) remember("spouse", spouses[0], sp);
         unionFamily = (await family(tx, treeId, subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
-        for (const k of kids) await addChildRef(unionFamily, (await person(tx, treeId, k)).id, undefined, tx);
+        for (const k of kids) {
+          const kid = await person(tx, treeId, k);
+          remember("child", k, kid.id);
+          await addChildRef(unionFamily, kid.id, undefined, tx);
+        }
       }
 
       // 4. The customer becomes a Person in this family, linked to their user.
-      if (!customerId) {
+      const listed = customerId ? undefined : byName.get(`${o.relation}:${displayName.trim().toLowerCase()}`);
+      if (listed) {
+        // The customer listed themselves among the relatives: that person is them.
+        await tx.person.update({ where: { id: listed }, data: { claimedByUserId: userId } });
+        customerId = listed;
+      } else if (!customerId) {
         const { first, surname } = splitName(displayName);
         const me = await tx.person.create({
           data: {
