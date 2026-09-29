@@ -44,7 +44,7 @@ export function lines(text: string | undefined): string[] {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
-    .slice(0, 12);
+    .slice(0, 40);
 }
 
 export function splitName(full: string): { first: string; surname: string } {

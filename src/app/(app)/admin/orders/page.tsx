@@ -59,6 +59,12 @@ export default async function AdminOrdersPage() {
                       QR {origin}/q/{i.qrCode.code}
                     </div>
                   )}
+                  {i.qrCode && i.approvedAt && (
+                    <div className="mt-1 flex gap-3 text-xs">
+                      <a href={`/admin/orders/print/${i.id}`} target="_blank" className="underline">Print sheet (SVG, real size)</a>
+                      <a href={`/admin/orders/print/${i.id}?format=png`} target="_blank" className="underline">PNG</a>
+                    </div>
+                  )}
                 </div>
               );
             })}
