@@ -38,6 +38,15 @@ model User {
 
   isPlatformAdmin Boolean @default(false)
 
+  /// The one Person this user is, and their one primary family (Tree). Nullable
+  /// until every user is backfilled (see docs/commerce/PLAN.md, Phase 0); then
+  /// a follow-up migration makes both NOT NULL. Mirrors Person.claimedByUserId.
+  personId      String? @unique
+  primaryTreeId String?
+
+  person      Person? @relation("UserPerson", fields: [personId], references: [id], onDelete: SetNull)
+  primaryTree Tree?   @relation("UserPrimaryTree", fields: [primaryTreeId], references: [id], onDelete: SetNull)
+
   /// per-user notification prefs: { push: bool, muted: string[] (event kinds) }
   notifyPrefs Json?
 
@@ -522,6 +531,8 @@ model Tree {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   admin     User?     @relation("TreeFamilyAdmin", fields: [adminUserId], references: [id], onDelete: SetNull)
 
+  primaryFor User[] @relation("UserPrimaryTree")
+
   people                 Person[]
   families               Family[]
   events                 Event[]
@@ -665,6 +676,7 @@ model Person {
 
   tree       Tree      @relation(fields: [treeId], references: [id], onDelete: Cascade)
   claimedBy  User?     @relation("PersonClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+  linkedUser User?     @relation("UserPerson")
   clan       Clan?     @relation(fields: [clanId], references: [id], onDelete: SetNull)
   namedAfter Person?   @relation("NamedAfter", fields: [namedAfterId], references: [id], onDelete: SetNull)
   namesakes  Person[]  @relation("NamedAfter")
