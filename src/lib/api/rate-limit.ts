@@ -24,3 +24,18 @@ export function checkRateLimit(keyId: string): { ok: true } | { ok: false; retry
   buckets.set(keyId, b);
   return { ok: true };
 }
+
+const windows = new Map<string, number[]>();
+
+/** Sliding window: at most `max` hits per `windowSec` for `key`. Per app instance. */
+export function hitLimit(key: string, max: number, windowSec: number): boolean {
+  const now = Date.now();
+  const recent = (windows.get(key) ?? []).filter((t) => now - t < windowSec * 1000);
+  if (recent.length >= max) {
+    windows.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  windows.set(key, recent);
+  return true;
+}
