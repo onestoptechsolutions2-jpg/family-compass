@@ -54,6 +54,25 @@ describe("renderPrintSheet", () => {
     expect(r.svg).toContain("Person Number24");
   });
 
+  it("prints a QR that a phone can actually scan back to the right address", async () => {
+    const sharp = (await import("sharp")).default;
+    const jsQR = (await import("jsqr")).default;
+    for (const [sizeKey, pathway] of [["standard", "REMEMBERED"], ["a2", "LIVING"], ["a1", "LIVING"]] as const) {
+      const r = await renderPrintSheet(
+        { ...base, pathway, options: { first: "John", surname: "Kamau", children: "Ann Kamau" } },
+        sizeKey,
+      );
+      const { data, info } = await sharp(Buffer.from(r.svg))
+        .resize({ width: 1200 })
+        .flatten({ background: "#fff" })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const code = jsQR(new Uint8ClampedArray(data), info.width, info.height);
+      expect(code?.data, `${sizeKey} ${pathway}`).toBe(base.qrUrl);
+    }
+  });
+
   it("warns when the name is missing", async () => {
     const r = await renderPrintSheet({ ...base, options: {} }, "standard");
     expect(r.warnings).toContain("The name is missing.");
