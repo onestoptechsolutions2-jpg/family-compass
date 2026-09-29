@@ -212,6 +212,7 @@ export async function fulfilDraft(
           bornText: o.birth?.trim() || null,
           diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
           published: true,
+      groupContribToken: `grp_${randomToken(24)}`,
           createdById: userId,
         },
         select: { id: true },

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
+import { publicOrigin } from "@/lib/origin";
 import { getPaymentSettings, getProvider } from "@/lib/payments";
 import { submitPaymentCode, cancelPaymentById, startStkPush, pollStk } from "./actions";
 
@@ -35,6 +36,7 @@ export default async function PayPage({
     select: {
       id: true,
       kind: true,
+      orderId: true,
       amountKes: true,
       currency: true,
       reference: true,
@@ -46,6 +48,19 @@ export default async function PayPage({
     },
   });
   if (!payment) notFound();
+
+  // For an order deposit: the memorial family can be invited to while the order is made.
+  const memorial =
+    payment.kind === "ORDER_DEPOSIT" && payment.orderId
+      ? await db.memorial.findFirst({
+          where: { qrCodes: { some: { orderItem: { orderId: payment.orderId } } } },
+          select: { slug: true, groupContribToken: true, headline: true },
+        })
+      : null;
+  const inviteLink =
+    memorial?.groupContribToken
+      ? `${await publicOrigin()}/m/${memorial.slug}/contribute/${memorial.groupContribToken}`
+      : null;
 
   const settings = await getPaymentSettings();
   const checkout = await getProvider(settings.provider).checkout({
@@ -68,6 +83,23 @@ export default async function PayPage({
         I&apos;ve paid
       </button>
     </form>
+  );
+
+  const invite = inviteLink && (
+    <div className="mt-6 rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <p className="font-medium">While you wait: invite the family</p>
+      <p className="mt-1" style={{ color: "var(--muted)" }}>
+        Ask relatives to add their memories to the memorial. Every memory they add stays with the family.
+      </p>
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(`Please add your memories of ${memorial?.headline ?? "our loved one"} here: ${inviteLink}`)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 inline-block rounded-lg bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
+      >
+        Share on WhatsApp
+      </a>
+    </div>
   );
 
   return (
@@ -173,6 +205,7 @@ export default async function PayPage({
           </form>
         </div>
       )}
+      {invite}
     </main>
   );
 }
