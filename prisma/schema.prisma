@@ -95,6 +95,7 @@ model User {
   treesAdministered             Tree[]                  @relation("TreeFamilyAdmin")
   lifeUpdates                   LifeUpdate[]            @relation("LifeUpdateAuthor")
   orders                        Order[]                 @relation("OrderUser")
+  partnerMember                 PartnerMember?          @relation("PartnerMemberUser")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -2402,6 +2403,10 @@ model Product {
   options      Json?
   active       Boolean        @default(true)
   sortOrder    Int            @default(0)
+  /// the specialities needed to make it, in order (one entry = one partner, several = stages)
+  skills       String[]       @default([])
+  /// "direct" = the partner ships to the customer; "via_us" = it comes to us for a check first
+  shipVia      String         @default("direct")
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -2459,10 +2464,11 @@ model OrderItem {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product @relation(fields: [productId], references: [id])
-  focusPerson Person? @relation("OrderItemFocus", fields: [focusPersonId], references: [id], onDelete: SetNull)
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product         @relation(fields: [productId], references: [id])
+  focusPerson Person?         @relation("OrderItemFocus", fields: [focusPersonId], references: [id], onDelete: SetNull)
   qrCode      QrCode?
+  jobs        ProductionJob[]
 
   @@index([orderId])
   @@index([productId])
@@ -2488,4 +2494,148 @@ model QrCode {
   orderItem  OrderItem?  @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
 
   @@index([memorialId])
+}
+
+// ===========================================================================
+// Partners: subcontractors who make and ship what customers order
+// ===========================================================================
+
+enum PartnerStatus {
+  APPLIED
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+model Partner {
+  id          String        @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  /// counties or towns they serve
+  regions     String[]      @default([])
+  /// specialities, see src/lib/jobs.ts SKILLS
+  skills      String[]      @default([])
+  status      PartnerStatus @default(APPLIED)
+  notes       String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  members PartnerMember[]
+  invites PartnerInvite[]
+  quotes  JobQuote[]
+  jobs    ProductionJob[]
+
+  @@index([status])
+}
+
+/// A login that belongs to a partner. One partner, many people; one person, one partner.
+model PartnerMember {
+  id        String   @id @default(cuid())
+  partnerId String
+  userId    String   @unique
+  createdAt DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  user    User    @relation("PartnerMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+}
+
+model PartnerInvite {
+  id         String    @id @default(cuid())
+  partnerId  String
+  email      String
+  token      String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+}
+
+enum JobStatus {
+  OPEN
+  QUOTING
+  ASSIGNED
+  IN_PRODUCTION
+  PROOF_SUBMITTED
+  PROOF_APPROVED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+/// One stage of making one order item. Most items have one; some have several in order.
+model ProductionJob {
+  id            String    @id @default(cuid())
+  orderItemId   String
+  stage         Int       @default(1)
+  skill         String
+  status        JobStatus @default(OPEN)
+  partnerId     String?
+  agreedCostKes Int?
+  leadDays      Int?
+  dueAt         DateTime?
+  trackingNote  String?
+  rejectionNote String?
+  paidOutAt     DateTime?
+  payoutRef     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orderItem OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  partner   Partner?   @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  quotes    JobQuote[]
+  files     JobFile[]
+
+  @@unique([orderItemId, stage])
+  @@index([partnerId, status])
+  @@index([status])
+}
+
+enum QuoteStatus {
+  REQUESTED
+  SUBMITTED
+  ACCEPTED
+  DECLINED
+}
+
+/// A partner's price to make a job. Requested by us, submitted by them, accepted by us.
+model JobQuote {
+  id        String      @id @default(cuid())
+  jobId     String
+  partnerId String
+  status    QuoteStatus @default(REQUESTED)
+  costKes   Int?
+  leadDays  Int?
+  note      String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  job     ProductionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  partner Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, partnerId])
+  @@index([partnerId, status])
+}
+
+/// Photo of the finished piece, or proof of dispatch. Kept apart from family media.
+model JobFile {
+  id           String   @id @default(cuid())
+  jobId        String
+  kind         String
+  fileName     String
+  mimeType     String
+  byteSize     Int
+  bytes        Bytes
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  job ProductionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, kind])
 }

@@ -10,6 +10,7 @@ import { emitEvent } from "@/lib/webhooks";
 import { notifyWorkspaceOwners, notifyUser } from "@/lib/notify";
 import { resumeAwaitingGenerations } from "@/lib/generation/resume";
 import { publicOrigin } from "@/lib/origin";
+import { createJobsForOrder } from "@/lib/jobs";
 
 /**
  * Mark a payment PAID and run everything downstream (credits / Family plan /
@@ -115,7 +116,9 @@ export async function fulfilPayment(
       where: { id: payment.orderId, status: OrderStatus.AWAITING_DEPOSIT },
       data: { status: OrderStatus.DEPOSIT_VERIFIED },
     });
-    summary = "order deposit received";
+    // Paid in full: now, and only now, the work is opened to partners.
+    await createJobsForOrder(payment.orderId);
+    summary = "order paid, production opened";
   } else if (payment.kind === PaymentKind.ORDER_BALANCE && payment.orderId) {
     summary = "order balance received";
   } else if (payment.kind === PaymentKind.RESEARCH_PARTNER) {
