@@ -33,6 +33,7 @@ const schema = z.object({
   bankAccountNo: z.string().trim().max(40).optional(),
   bankAccountName: z.string().trim().max(120).optional(),
   instructions: z.string().trim().max(2000).optional(),
+  receivingAddress: z.string().trim().max(400).optional(),
   verificationMode: z.enum(VerificationMode).default(VerificationMode.MANUAL),
 });
 
@@ -61,8 +62,8 @@ export async function updatePaymentSettings(formData: FormData) {
     accountRef: d.accountRef || null,
     instructions: d.instructions || null,
     verificationMode: d.verificationMode,
-    config:
-      d.bankName && d.bankAccountNo
+    config: {
+      ...(d.bankName && d.bankAccountNo
         ? {
             bankTransfer: {
               bank: d.bankName,
@@ -71,7 +72,9 @@ export async function updatePaymentSettings(formData: FormData) {
               accountName: d.bankAccountName || "",
             },
           }
-        : {},
+        : {}),
+      ...(d.receivingAddress ? { receivingAddress: d.receivingAddress } : {}),
+    },
   };
   await db.paymentSettings.upsert({
     where: { scope: "global" },

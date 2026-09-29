@@ -22,6 +22,8 @@ export type PaymentSettings = {
   accountRef: string | null;
   instructions: string | null;
   verificationMode: "MANUAL" | "AUTO_CODE" | "WEBHOOK";
+  /** where partners send finished pieces that we check before they reach the customer */
+  receivingAddress: string | null;
   bankTransfer: {
     bank: string;
     branch: string | null;
@@ -53,6 +55,7 @@ const DEFAULTS: PaymentSettings = {
   instructions:
     "Send the exact amount to our M-Pesa Till, then paste the M-Pesa confirmation code below. Payments are verified within a few hours.",
   verificationMode: "MANUAL",
+  receivingAddress: null,
   bankTransfer: null,
 };
 
@@ -89,8 +92,14 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     accountRef: row.accountRef,
     instructions: row.instructions,
     verificationMode: row.verificationMode,
+    receivingAddress: parseReceivingAddress(row.config),
     bankTransfer: parseBankTransfer(row.config),
   };
+}
+
+function parseReceivingAddress(config: unknown): string | null {
+  const a = (config as { receivingAddress?: unknown } | null)?.receivingAddress;
+  return typeof a === "string" && a.trim() ? a.trim() : null;
 }
 
 function parseBankTransfer(config: unknown): PaymentSettings["bankTransfer"] {

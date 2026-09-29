@@ -5,6 +5,7 @@ import { JobStatus, QuoteStatus } from "@prisma/client";
 import { requireActivePartner } from "@/lib/partner-auth";
 import { JOB_STATUS_LABEL, jobForPartner, skillLabel } from "@/lib/jobs";
 import { kes } from "@/lib/money";
+import { getPaymentSettings } from "@/lib/payments";
 import { proofAction, quoteAction, shipAction, startAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export default async function PartnerJob({
   const myQuote = job.quotes[0];
   const shipsToCustomer = item.product.shipVia === "direct";
   const files = job.files;
+  const receivingAddress = shipsToCustomer ? null : (await getPaymentSettings()).receivingAddress;
 
   return (
     <div className="flex flex-col gap-4">
@@ -102,7 +104,12 @@ export default async function PartnerJob({
               </p>
             ) : (
               <p className="mt-1" style={{ color: "var(--muted)" }}>
-                This one comes to us for a check before it goes to the customer. We will send you our address.
+                This one comes to us for a check before it goes to the customer.
+                {receivingAddress ? (
+                  <span className="mt-1 block whitespace-pre-line font-medium" style={{ color: "var(--fg)" }}>{receivingAddress}</span>
+                ) : (
+                  " We will send you our address."
+                )}
               </p>
             )}
           </section>

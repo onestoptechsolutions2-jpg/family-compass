@@ -163,6 +163,12 @@ export default async function AdminSettingsPage() {
           </label>
         </div>
         <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>
+            Where partners send finished pieces for us to check (address, contact, hours)
+          </span>
+          <textarea name="receivingAddress" defaultValue={s.receivingAddress ?? ""} rows={2} className={field} style={style} />
+        </label>
+        <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Checkout instructions</span>
           <textarea
             name="instructions"
