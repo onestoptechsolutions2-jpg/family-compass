@@ -16,6 +16,8 @@ const KIND_LABEL: Record<string, string> = {
   DEEP_SEARCH: "Deep search",
   RESEARCH_PARTNER: "Research Partner engagement",
   MEMORIAL_PASS: "Memorial Pass — unlimited book & programme prints",
+  ORDER_DEPOSIT: "Deposit for your order",
+  ORDER_BALANCE: "Balance for your order",
 };
 
 const fieldStyle = { borderColor: "var(--border)", background: "var(--bg)" } as const;

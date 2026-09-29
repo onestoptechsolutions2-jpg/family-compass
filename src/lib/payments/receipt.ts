@@ -29,6 +29,10 @@ export function receiptItemLabel(p: {
       return "Welfare / chama contribution";
     case PaymentKind.MEMORIAL_PASS:
       return "Memorial Pass — unlimited memorial book & funeral programme prints";
+    case PaymentKind.ORDER_DEPOSIT:
+      return "Deposit for your order";
+    case PaymentKind.ORDER_BALANCE:
+      return "Balance for your order";
     default:
       return "Family Compass service";
   }

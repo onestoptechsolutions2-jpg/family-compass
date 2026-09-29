@@ -1,4 +1,4 @@
-import { CreditReason, EngagementStatus, PaymentKind, PaymentStatus } from "@prisma/client";
+import { CreditReason, EngagementStatus, OrderStatus, PaymentKind, PaymentStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { grantCredits } from "@/lib/credits";
@@ -36,6 +36,7 @@ export async function fulfilPayment(
       currency: true,
       creditsGranted: true,
       memorialId: true,
+      orderId: true,
       generationJob: { select: { treeId: true } },
     },
   });
@@ -109,6 +110,14 @@ export async function fulfilPayment(
         await enqueue(QUEUE.renderOutput, { generationJobId: job.id });
       }
     }
+  } else if (payment.kind === PaymentKind.ORDER_DEPOSIT && payment.orderId) {
+    await db.order.updateMany({
+      where: { id: payment.orderId, status: OrderStatus.AWAITING_DEPOSIT },
+      data: { status: OrderStatus.DEPOSIT_VERIFIED },
+    });
+    summary = "order deposit received";
+  } else if (payment.kind === PaymentKind.ORDER_BALANCE && payment.orderId) {
+    summary = "order balance received";
   } else if (payment.kind === PaymentKind.RESEARCH_PARTNER) {
     await db.researchEngagement.updateMany({
       where: { paymentId: payment.id },
