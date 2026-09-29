@@ -1,6 +1,6 @@
 import QRCode from "qrcode";
 
-import { lines, type DraftOptions } from "@/lib/orders";
+import { lines, type DraftOptions } from "@/lib/order-shared";
 
 /** Printed brand, in one place until the Family Compass / MyRoots decision is made. */
 export const PRINT_BRAND = { name: "Family Compass", tagline: "Our Family. Our Heritage." };

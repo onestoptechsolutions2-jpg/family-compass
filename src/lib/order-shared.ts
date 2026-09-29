@@ -1,0 +1,36 @@
+// Pure order helpers: no database, safe to import from the browser.
+
+/** What the wizard collects, kept on OrderItem.options until the account step. */
+export type DraftOptions = {
+  first?: string;
+  surname?: string;
+  birth?: string;
+  death?: string;
+  place?: string;
+  epitaph?: string;
+  parents?: string;
+  /** the father's parents, then the mother's parents, one name per line */
+  fatherParents?: string;
+  motherParents?: string;
+  spouse?: string;
+  children?: string;
+  siblings?: string;
+  materialKey?: string;
+  sizeKey?: string;
+  relation?: "child" | "spouse" | "sibling" | "other";
+};
+
+/** One name per line; blank lines dropped. */
+export function lines(text: string | undefined): string[] {
+  return (text ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 40);
+}
+
+export function splitName(full: string): { first: string; surname: string } {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length === 1) return { first: parts[0] ?? "", surname: "" };
+  return { first: parts.slice(0, -1).join(" "), surname: parts[parts.length - 1] ?? "" };
+}
