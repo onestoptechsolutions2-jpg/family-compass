@@ -11,6 +11,7 @@ import { getPaymentSettings } from "@/lib/payments";
 import { fulfilPayment } from "@/lib/payments/fulfil";
 import { stkPush, stkQuery, mpesaMsisdn, darajaConfigured, DARAJA_PROVIDER_ID } from "@/lib/payments/daraja";
 import { emitEvent } from "@/lib/webhooks";
+import { notifyPlatformAdmins } from "@/lib/notify";
 
 const KIND_DESC: Record<string, string> = {
   SINGLE: "Family Compass credit",
@@ -131,6 +132,13 @@ export async function submitPaymentCode(paymentId: string, formData: FormData) {
     { paymentId, reference: p.reference, kind: p.kind, amountKes: p.amountKes },
     { treeId: p.treeId },
   );
+  // Money is waiting on a person: tell the admins now, not when they next look.
+  await notifyPlatformAdmins({
+    kind: "payment.recorded",
+    title: "Payment to verify",
+    body: `KES ${p.amountKes.toLocaleString()} · ${p.kind.replace(/_/g, " ").toLowerCase()} · code ${code}`,
+    linkPath: "/admin/payments",
+  });
   revalidatePath(`/pay/${paymentId}`);
 }
 

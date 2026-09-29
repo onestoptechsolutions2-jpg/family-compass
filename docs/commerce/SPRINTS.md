@@ -36,3 +36,28 @@ for new customers, more materials.
 - Get two supplier quotes per product and set real prices.
 - Decide printed brand (Family Compass or MyRoots) and who fulfils.
 - Publish payment instructions (till or paybill) in PaymentSettings.
+
+## Status (2026-09-29)
+
+Built and tested against a real Postgres (scripts/e2e-order.ts, 37 checks) and a
+live server: catalogue, guest wizard for both products, account step, family
+built in one transaction, memorial or shared family view, QR redirect, deposit
+payment with the existing manual M-Pesa flow, admin verification, production
+queue with supplier cost and margin, admin product prices, print sheets (SVG
+and PNG, QR decode-tested at every size), admin alert when a payment is
+submitted. Unit tests: 104. Branch: phase0-user-person-link (not merged).
+
+Not done: screenshot proof upload, photos in the wizard, branded print layout
+(dagger, clan emblem), balance payment request, WhatsApp alert to admin, draft
+cleanup job, Facebook login (keys not set), wooden tree and grandparents.
+
+## Go-live checklist
+
+1. Merge and deploy; the entrypoint runs the three new migrations and the seed.
+2. Set OPEN_SIGNUP=true, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
+   (redirect URI: APP_URL/api/auth/callback/google).
+3. Admin > Products: set real prices from supplier quotes.
+4. Admin > Settings: confirm the paybill or till and instructions.
+5. Place one real order yourself, pay a small deposit, verify it, and scan the
+   printed QR from a phone.
+6. Send the /remembered link to the first funeral homes and churches.
