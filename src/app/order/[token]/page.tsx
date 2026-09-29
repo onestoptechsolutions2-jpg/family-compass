@@ -13,7 +13,7 @@ import { saveStep } from "./actions";
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
 
-const STEPS = ["Who it is for", "Who to show", "Material and size", "Delivery", "Review"];
+const STEPS = ["Who it is for", "Who to show", "Material and size", "Review"];
 const field = "mt-1 w-full rounded-lg border px-4 py-2.5 text-sm";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
 const btn = "rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700";
@@ -31,6 +31,7 @@ export default async function OrderWizard({
     where: { guestToken: token },
     include: { items: { include: { product: true }, take: 1 } },
   });
+  if (order?.notes?.startsWith("merged:")) redirect("/cart");
   const item = order?.items[0];
   if (!order || !item) notFound();
 
@@ -144,6 +145,18 @@ export default async function OrderWizard({
               <textarea name={k} rows={3} defaultValue={o[k]} className={field} style={fieldStyle} />
             </label>
           ))}
+          {living ? (
+            <input type="hidden" name="relation" value="other" />
+          ) : (
+            <label>{label("You are their")}
+              <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
+                <option value="child">Son or daughter</option>
+                <option value="spouse">Husband or wife</option>
+                <option value="sibling">Brother or sister</option>
+                <option value="other">Other relative or friend</option>
+              </select>
+            </label>
+          )}
           <div className="flex gap-3">
             <Link href={`/order/${token}?step=1`} className="rounded-md border px-5 py-2.5 text-sm" style={{ borderColor: "var(--border)" }}>Back</Link>
             <button className={btn}>Continue</button>
@@ -178,42 +191,11 @@ export default async function OrderWizard({
         </form>
       )}
 
-      {step === 4 && (
-        <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">Delivery and your details</h1>
-          <label>{label("Your name")}
-            <input name="contactName" required defaultValue={order.contactName ?? ""} className={field} style={fieldStyle} />
-          </label>
-          <label>{label("Your phone (WhatsApp if possible)")}
-            <input name="contactPhone" required defaultValue={order.contactPhone ?? ""} className={field} style={fieldStyle} />
-          </label>
-          <label>{label(living ? "Delivery address" : "Delivery address, or the grave and cemetery")}
-            <textarea name="deliveryText" rows={3} required defaultValue={order.deliveryText ?? ""} className={field} style={fieldStyle} />
-          </label>
-          {living ? (
-            <input type="hidden" name="relation" value="other" />
-          ) : (
-            <label>{label("You are their")}
-              <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
-                <option value="child">Son or daughter</option>
-                <option value="spouse">Husband or wife</option>
-                <option value="sibling">Brother or sister</option>
-                <option value="other">Other relative or friend</option>
-              </select>
-            </label>
-          )}
-          <div className="flex gap-3">
-            <Link href={`/order/${token}?step=3`} className="rounded-md border px-5 py-2.5 text-sm" style={{ borderColor: "var(--border)" }}>Back</Link>
-            <button className={btn}>Review</button>
-          </div>
-        </form>
-      )}
-
       {preview}
 
-      {step === 5 && (
+      {step === 4 && (
         <section className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">Review and approve</h1>
+          <h1 className="font-serif text-2xl">Review your design</h1>
           <div className="rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
             <p className="text-lg font-semibold">{[o.first, o.surname].filter(Boolean).join(" ") || "Name missing"}</p>
             <p style={{ color: "var(--muted)" }}>{[o.birth, o.death].filter(Boolean).join(" – ") || (living ? "" : "Dates not given")}</p>
@@ -224,21 +206,21 @@ export default async function OrderWizard({
               )}
             </ul>
             <p className="mt-3">{item.product.name}</p>
-            <p className="mt-1 font-medium">Total to pay now: {kes(amountDueNow(price))}</p>
+            <p className="mt-1 font-medium">{kes(amountDueNow(price))} <span className="font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
           </div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {living
-              ? "Approving locks this layout for printing and creates the QR code on it. Anyone who scans the QR code can see the people on this tree, with birth years only, and relatives can ask to join it. Next you sign in (or create an account) and pay. Your order goes to production once the payment is confirmed."
-              : "Approving locks this layout for printing, publishes their memorial page and creates the QR code on it. Next you sign in (or create an account) and pay. Your order goes to production once the payment is confirmed."}
+              ? "When you place your order, this layout is locked for printing and a QR code is created on it. Anyone who scans the QR code can see the people on this tree, with birth years only, and relatives can ask to join it. You can keep shopping and check out when you are ready."
+              : "When you place your order, this layout is locked for printing, their memorial page is published and a QR code is created on it. You can keep shopping and check out when you are ready."}
           </p>
           {!o.first ? (
             <Link href={`/order/${token}?step=1`} className={btn}>Add their name first</Link>
           ) : (
-            <Link href={`/order/${token}/finish`} className={`${btn} text-center`}>
-              Approve and continue
+            <Link href={`/order/${token}/add`} className={`${btn} text-center`}>
+              Add to cart
             </Link>
           )}
-          <Link href={`/order/${token}?step=4`} className="text-center text-sm underline">Back</Link>
+          <Link href={`/order/${token}?step=3`} className="text-center text-sm underline">Back</Link>
         </section>
       )}
     </main>

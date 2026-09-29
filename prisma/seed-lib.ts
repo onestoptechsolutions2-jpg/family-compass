@@ -111,16 +111,17 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
     },
   ];
   // What each product needs to be made, and how it reaches the customer.
-  const route: Record<string, { skills: string[]; shipVia: string }> = {
-    "tile-plaque-qr": { skills: ["tile_printing"], shipVia: "direct" },
-    "tombstone-family-tree": { skills: ["stone_engraving"], shipVia: "via_us" },
-    "family-tree-poster": { skills: ["printing"], shipVia: "direct" },
-    "wooden-family-tree": { skills: ["wood_engraving"], shipVia: "via_us" },
+  const route: Record<string, { skills: string[]; shipVia: string; aisle: string }> = {
+    "tile-plaque-qr": { skills: ["tile_printing"], shipVia: "direct", aisle: "memorial_stone" },
+    "tombstone-family-tree": { skills: ["stone_engraving"], shipVia: "via_us", aisle: "memorial_stone" },
+    "family-tree-poster": { skills: ["printing"], shipVia: "direct", aisle: "wall_art" },
+    "wooden-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
   };
   for (const p of products) {
     const r = route[p.slug]!;
     await db.product.upsert({ where: { slug: p.slug }, create: { ...p, ...r }, update: {} });
     await db.product.updateMany({ where: { slug: p.slug, skills: { isEmpty: true } }, data: { skills: r.skills, shipVia: r.shipVia } });
+    await db.product.updateMany({ where: { slug: p.slug, aisle: "" }, data: { aisle: r.aisle } });
   }
 }
 

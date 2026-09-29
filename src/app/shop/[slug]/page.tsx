@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { PRODUCT_IMAGES } from "@/lib/product-images";
 import { SiteFooter } from "@/components/SiteFooter";
+import { ShopHeader } from "@/components/ShopHeader";
+import { aisleLabel } from "@/lib/aisles";
 
 export const dynamic = "force-dynamic";
 
@@ -38,19 +40,20 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   ];
 
   return (
-    <main className="mx-auto min-h-dvh max-w-3xl px-6 py-10">
-      <Link href={back} className="text-sm hover:underline" style={{ color: "var(--muted)" }}>
-        ← Back
+    <main className="mx-auto min-h-dvh max-w-3xl px-4 py-6">
+      <ShopHeader />
+      <Link href={p.aisle ? `/shop?aisle=${p.aisle}` : back} className="text-sm hover:underline" style={{ color: "var(--muted)" }}>
+        ← {aisleLabel(p.aisle) || "Shop"}
       </Link>
       <p className="mt-4 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>{p.group}</p>
       <h1 className="mt-1 font-serif text-4xl text-[#3b2a1c]">{p.name}</h1>
-      <p className="mt-2 text-lg font-medium">From {kes(p.basePriceKes)}</p>
+      <p className="mt-2 text-lg font-medium">{kes(p.basePriceKes)} <span className="text-sm font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
 
       <Link
         href={`/order/new?product=${p.slug}`}
         className="mt-5 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700"
       >
-        Start designing
+        Personalise and add to cart
       </Link>
 
       {(PRODUCT_IMAGES[p.slug] ?? []).length > 0 && (

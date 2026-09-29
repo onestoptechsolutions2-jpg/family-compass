@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import {
-  JobError, acceptQuote, approveProof, createJobsForOrder, dispatchToCustomer, markDelivered,
+  JobError, acceptQuote, approveProof, createJobsForOrder, dispatchItem, markItemDelivered,
   recordPayout, rejectProof, requestQuotes,
 } from "@/lib/jobs";
 
@@ -55,20 +55,20 @@ export async function rejectProofAction(jobId: string, formData: FormData) {
   });
 }
 
-/** For products that come to us first: after our check, send to the customer. */
-export async function dispatchAction(orderId: string, formData: FormData) {
+/** For an item that comes to us first: after our check, send it to the customer. */
+export async function dispatchAction(itemId: string, formData: FormData) {
   const admin = await requirePlatformAdmin();
   await guarded(async () => {
-    await dispatchToCustomer(orderId, String(formData.get("trackingNote") ?? ""));
-    await writeAudit({ actorId: admin.id, action: "order.dispatch", targetType: "order", targetId: orderId });
+    await dispatchItem(itemId, String(formData.get("trackingNote") ?? ""));
+    await writeAudit({ actorId: admin.id, action: "item.dispatch", targetType: "orderItem", targetId: itemId });
   });
 }
 
-export async function deliveredAction(orderId: string) {
+export async function deliveredAction(itemId: string) {
   const admin = await requirePlatformAdmin();
   await guarded(async () => {
-    await markDelivered(orderId);
-    await writeAudit({ actorId: admin.id, action: "order.delivered", targetType: "order", targetId: orderId });
+    await markItemDelivered(itemId);
+    await writeAudit({ actorId: admin.id, action: "item.delivered", targetType: "orderItem", targetId: itemId });
   });
 }
 

@@ -68,8 +68,6 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         const hasCost = jobs.some((j) => j.agreedCostKes != null);
         const paid = o.payments.filter((p) => p.status === "PAID").reduce((n, p) => n + p.amountKes, 0);
         const isPaid = paid > 0 && o.status !== OrderStatus.AWAITING_DEPOSIT;
-        const viaUs = o.items.some((i) => i.product.shipVia === "via_us");
-        const allShipped = jobs.length > 0 && jobs.every((j) => j.status === JobStatus.SHIPPED || j.status === JobStatus.DELIVERED);
 
         return (
           <div key={o.id} className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
@@ -96,6 +94,24 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                       <a href={`/admin/orders/print/${i.id}?format=png`} target="_blank" className="underline">PNG</a>
                       <span style={{ color: "var(--muted)" }}>ships {i.product.shipVia === "direct" ? "direct to the customer" : "to us first"}</span>
                     </div>
+                  )}
+
+                  <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                    Quantity {i.quantity}
+                    {i.deliveredAt ? " · delivered" : i.shippedAt ? ` · sent to the customer${i.customerTracking ? `: ${i.customerTracking}` : ""}` : ""}
+                  </p>
+                  {i.product.shipVia === "via_us" && !i.shippedAt && i.jobs.length > 0 &&
+                    i.jobs.every((j) => j.status === JobStatus.SHIPPED || j.status === JobStatus.DELIVERED) && (
+                      <form action={dispatchAction.bind(null, i.id)} className="mt-2 flex flex-wrap items-center gap-2">
+                        <span>Received and checked? Send to the customer:</span>
+                        <input name="trackingNote" placeholder="Courier and tracking" className={field} style={fieldStyle} />
+                        <button className={btn}>Ship to customer</button>
+                      </form>
+                    )}
+                  {i.shippedAt && !i.deliveredAt && (
+                    <form action={deliveredAction.bind(null, i.id)} className="mt-2">
+                      <button className={btn}>Mark delivered</button>
+                    </form>
                   )}
 
                   {i.jobs.length === 0 && isPaid && (
@@ -209,18 +225,6 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
               );
             })}
 
-            {viaUs && allShipped && o.status !== OrderStatus.SHIPPED && o.status !== OrderStatus.DELIVERED && (
-              <form action={dispatchAction.bind(null, o.id)} className="mt-3 flex flex-wrap items-center gap-2">
-                <span>Received and checked? Send to the customer:</span>
-                <input name="trackingNote" placeholder="Courier and tracking" className={field} style={fieldStyle} />
-                <button className={btn}>Ship to customer</button>
-              </form>
-            )}
-            {o.status === OrderStatus.SHIPPED && (
-              <form action={deliveredAction.bind(null, o.id)} className="mt-3">
-                <button className={btn}>Mark delivered</button>
-              </form>
-            )}
             {o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED && (
               <form action={cancelOrder.bind(null, o.id)} className="mt-2">
                 <button className="text-xs underline" style={{ color: "var(--muted)" }}>Cancel order</button>
