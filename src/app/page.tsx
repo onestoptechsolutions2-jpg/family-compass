@@ -187,6 +187,38 @@ export default async function LandingPage() {
       </section>
 
       {/* The problem — spelled out, not implied */}
+      {/* The two doors: what a customer actually comes here to do. */}
+      <section className="mt-10 grid gap-4 sm:grid-cols-2" aria-label="Choose where to start">
+        <Link
+          href="/remembered"
+          className="rounded-2xl border p-6 transition hover:shadow-md"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <p className="text-sm font-medium" style={{ color: "var(--color-brand-700)" }}>The Remembered</p>
+          <h2 className="mt-1 font-serif text-2xl text-[#3b2a1c]">Preserve their story forever.</h2>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            Memorial pages, plaques with a QR code, tombstone family trees and funeral programmes.
+          </p>
+          <span className="mt-4 inline-block rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white">
+            Create a Memorial
+          </span>
+        </Link>
+        <Link
+          href="/start"
+          className="rounded-2xl border p-6 transition hover:shadow-md"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <p className="text-sm font-medium" style={{ color: "var(--color-brand-700)" }}>The Living</p>
+          <h2 className="mt-1 font-serif text-2xl text-[#3b2a1c]">Build your family story.</h2>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
+            Family trees, charts and books today. Wall art and reunion kits are coming.
+          </p>
+          <span className="mt-4 inline-block rounded-md border px-4 py-2 text-sm font-medium" style={{ borderColor: "var(--border)" }}>
+            Build Your Family
+          </span>
+        </Link>
+      </section>
+
       <section id="problem" className="mx-auto mt-14 max-w-3xl scroll-mt-20 text-center">
         <p className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--color-brand-700)" }}>
           The problem
