@@ -2,7 +2,7 @@ import { FamilyType, OrderStatus, PaymentKind, PaymentStatus } from "@prisma/cli
 
 import { db } from "@/lib/db";
 import { slugify, randomToken, paymentReference } from "@/lib/slug";
-import { addChildRef, createBarePerson, setVitalEvent } from "@/lib/person-write";
+import { addChildRef, createBarePerson, setVitalEvent, type Db } from "@/lib/person-write";
 import { getPaymentSettings } from "@/lib/payments";
 import { personalWorkspaceId } from "@/lib/workspace";
 
@@ -53,13 +53,13 @@ export function splitName(full: string): { first: string; surname: string } {
   return { first: parts.slice(0, -1).join(" "), surname: parts[parts.length - 1] ?? "" };
 }
 
-async function person(treeId: string, full: string, living = true) {
+async function person(tx: Db, treeId: string, full: string, living = true) {
   const { first, surname } = splitName(full);
-  return createBarePerson(treeId, { first, surname, living });
+  return createBarePerson(treeId, { first, surname, living }, tx);
 }
 
-async function family(treeId: string, p1: string | null, p2: string | null, type: FamilyType = FamilyType.UNKNOWN) {
-  return db.family.create({
+async function family(tx: Db, treeId: string, p1: string | null, p2: string | null, type: FamilyType = FamilyType.UNKNOWN) {
+  return tx.family.create({
     data: { treeId, partner1Id: p1, partner2Id: p2, type },
     select: { id: true },
   });
@@ -99,138 +99,161 @@ export async function fulfilDraft(
   });
   const displayName = order.contactName || user.name || "My";
 
-  // 1. Family container: the primary tree of this user, or a new one.
-  let treeId = user.primaryTreeId;
-  let workspaceId: string;
-  if (treeId) {
-    workspaceId = (await db.tree.findUniqueOrThrow({ where: { id: treeId }, select: { workspaceId: true } })).workspaceId;
-  } else {
-    workspaceId = await personalWorkspaceId(userId, displayName);
-    const label = o.surname?.trim() || splitName(displayName).surname || displayName;
-    const base = slugify(label) || "family";
-    const tree = await db.tree.create({
-      data: {
-        workspaceId,
-        name: `${label} family`,
-        slug: `${base}-${randomToken(4)}`,
-        adminUserId: userId,
-      },
-      select: { id: true },
-    });
-    treeId = tree.id;
-  }
-
-  // 2. The person the product is about.
-  const subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: false });
-  if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "");
-  if (o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "");
-
-  // 3. Relatives.
-  const parents = lines(o.parents);
-  const siblings = lines(o.siblings);
-  let parentsFamily: string | null = null;
-  if (parents.length || siblings.length) {
-    const p1 = parents[0] ? (await person(treeId, parents[0])).id : null;
-    const p2 = parents[1] ? (await person(treeId, parents[1])).id : null;
-    parentsFamily = (await family(treeId, p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
-    await addChildRef(parentsFamily, subject.id);
-    for (const s of siblings) await addChildRef(parentsFamily, (await person(treeId, s)).id);
-  }
-
-  const spouses = lines(o.spouse);
-  const kids = lines(o.children);
-  let unionFamily: string | null = null;
-  if (spouses.length || kids.length) {
-    const sp = spouses[0] ? (await person(treeId, spouses[0])).id : null;
-    unionFamily = (await family(treeId, subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
-    for (const k of kids) await addChildRef(unionFamily, (await person(treeId, k)).id);
-  }
-
-  // 4. The customer becomes a Person in this family, linked to their user.
-  let customerId = user.personId;
-  if (!customerId) {
-    const { first, surname } = splitName(displayName);
-    const me = await db.person.create({
-      data: {
-        treeId,
-        living: true,
-        claimedByUserId: userId,
-        names: { create: { type: "BIRTH", preferred: true, order: 0, first: first || null, surname: surname || null } },
-      },
-      select: { id: true },
-    });
-    customerId = me.id;
-    if (o.relation === "child") {
-      unionFamily ??= (await family(treeId, subject.id, null)).id;
-      await addChildRef(unionFamily, me.id);
-    } else if (o.relation === "sibling") {
-      if (!parentsFamily) {
-        parentsFamily = (await family(treeId, null, null)).id;
-        await addChildRef(parentsFamily, subject.id);
-      }
-      await addChildRef(parentsFamily, me.id);
-    } else if (o.relation === "spouse" && !spouses.length) {
-      await family(treeId, subject.id, me.id, FamilyType.MARRIED);
-    }
-  }
-  await db.user.update({
-    where: { id: userId },
-    data: { personId: customerId, primaryTreeId: treeId },
-  });
-  await db.tree.updateMany({ where: { id: treeId, homePersonId: null }, data: { homePersonId: customerId } });
-
-  // 5. Memorial and QR.
-  const name = [o.first, o.surname].filter(Boolean).join(" ") || "Their";
-  const memorial = await db.memorial.create({
-    data: {
-      personId: subject.id,
-      treeId,
-      slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
-      headline: `In loving memory of ${name}`,
-      eulogy: o.epitaph?.trim() || null,
-      bornText: o.birth?.trim() || null,
-      diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
-      published: true,
-      createdById: userId,
-    },
-    select: { id: true },
-  });
-  await db.qrCode.create({
-    data: { code: randomToken(8), memorialId: memorial.id, personId: subject.id, treeId, orderItemId: item.id },
-  });
-
-  // 6. Freeze the layout, price the order, open the deposit.
-  const price = unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, o);
-  const total = price * item.quantity;
-  const deposit = depositFor(total);
-  await db.orderItem.update({
-    where: { id: item.id },
-    data: {
-      focusPersonId: subject.id,
-      unitPriceKes: price,
-      approvedAt: new Date(),
-      layoutSnapshot: { ...o, name, memorialId: memorial.id, approvedAt: new Date().toISOString() },
-    },
-  });
+  // Resolved before the transaction: both are idempotent and use the shared client.
   const settings = await getPaymentSettings();
-  const payment = await db.payment.create({
-    data: {
-      workspaceId,
-      treeId,
-      orderId: order.id,
-      userId,
-      provider: settings.provider,
-      kind: PaymentKind.ORDER_DEPOSIT,
-      amountKes: deposit,
-      currency: settings.currency,
-      reference: paymentReference(),
-      status: PaymentStatus.PENDING,
+  const existingTreeId = user.primaryTreeId;
+  const workspaceId = existingTreeId
+    ? (await db.tree.findUniqueOrThrow({ where: { id: existingTreeId }, select: { workspaceId: true } })).workspaceId
+    : await personalWorkspaceId(userId, displayName);
+
+  // Everything below commits together or not at all.
+  return db.$transaction(
+    async (tx) => {
+      // A double click or second tab must not build the family twice: whoever
+      // flips DRAFT first wins, the other returns the deposit that one opened.
+      const won = await tx.order.updateMany({
+        where: { id: order.id, status: OrderStatus.DRAFT },
+        data: { status: OrderStatus.AWAITING_DEPOSIT },
+      });
+      if (won.count === 0) {
+        const dep = await tx.payment.findFirst({
+          where: { orderId: order.id, kind: PaymentKind.ORDER_DEPOSIT },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
+        return dep ? { orderId: order.id, paymentId: dep.id } : null;
+      }
+
+      // 1. Family container: the primary tree of this user, or a new one.
+      let treeId = existingTreeId;
+      if (!treeId) {
+        const label = o.surname?.trim() || splitName(displayName).surname || displayName;
+        const base = slugify(label) || "family";
+        const tree = await tx.tree.create({
+          data: {
+            workspaceId,
+            name: `${label} family`,
+            slug: `${base}-${randomToken(4)}`,
+            adminUserId: userId,
+          },
+          select: { id: true },
+        });
+        treeId = tree.id;
+      }
+
+      // 2. The person the product is about.
+      const subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: false }, tx);
+      if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
+      if (o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+
+      // 3. Relatives.
+      const parents = lines(o.parents);
+      const siblings = lines(o.siblings);
+      let parentsFamily: string | null = null;
+      if (parents.length || siblings.length) {
+        const p1 = parents[0] ? (await person(tx, treeId, parents[0])).id : null;
+        const p2 = parents[1] ? (await person(tx, treeId, parents[1])).id : null;
+        parentsFamily = (await family(tx, treeId, p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
+        await addChildRef(parentsFamily, subject.id, undefined, tx);
+        for (const s of siblings) await addChildRef(parentsFamily, (await person(tx, treeId, s)).id, undefined, tx);
+      }
+
+      const spouses = lines(o.spouse);
+      const kids = lines(o.children);
+      let unionFamily: string | null = null;
+      if (spouses.length || kids.length) {
+        const sp = spouses[0] ? (await person(tx, treeId, spouses[0])).id : null;
+        unionFamily = (await family(tx, treeId, subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
+        for (const k of kids) await addChildRef(unionFamily, (await person(tx, treeId, k)).id, undefined, tx);
+      }
+
+      // 4. The customer becomes a Person in this family, linked to their user.
+      let customerId = user.personId;
+      if (!customerId) {
+        const { first, surname } = splitName(displayName);
+        const me = await tx.person.create({
+          data: {
+            treeId,
+            living: true,
+            claimedByUserId: userId,
+            names: { create: { type: "BIRTH", preferred: true, order: 0, first: first || null, surname: surname || null } },
+          },
+          select: { id: true },
+        });
+        customerId = me.id;
+        if (o.relation === "child") {
+          unionFamily ??= (await family(tx, treeId, subject.id, null)).id;
+          await addChildRef(unionFamily, me.id, undefined, tx);
+        } else if (o.relation === "sibling") {
+          if (!parentsFamily) {
+            parentsFamily = (await family(tx, treeId, null, null)).id;
+            await addChildRef(parentsFamily, subject.id, undefined, tx);
+          }
+          await addChildRef(parentsFamily, me.id, undefined, tx);
+        } else if (o.relation === "spouse" && !spouses.length) {
+          await family(tx, treeId, subject.id, me.id, FamilyType.MARRIED);
+        }
+      }
+      await tx.user.update({
+        where: { id: userId },
+        data: { personId: customerId, primaryTreeId: treeId },
+      });
+      await tx.tree.updateMany({ where: { id: treeId, homePersonId: null }, data: { homePersonId: customerId } });
+
+      // 5. Memorial and QR.
+      const name = [o.first, o.surname].filter(Boolean).join(" ") || "Their";
+      const memorial = await tx.memorial.create({
+        data: {
+          personId: subject.id,
+          treeId,
+          slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
+          headline: `In loving memory of ${name}`,
+          eulogy: o.epitaph?.trim() || null,
+          bornText: o.birth?.trim() || null,
+          diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
+          published: true,
+          createdById: userId,
+        },
+        select: { id: true },
+      });
+      await tx.qrCode.create({
+        data: { code: randomToken(8), memorialId: memorial.id, personId: subject.id, treeId, orderItemId: item.id },
+      });
+
+      // 6. Freeze the layout, price the order, open the deposit.
+      const price = unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, o);
+      const total = price * item.quantity;
+      const deposit = depositFor(total);
+      await tx.orderItem.update({
+        where: { id: item.id },
+        data: {
+          focusPersonId: subject.id,
+          unitPriceKes: price,
+          approvedAt: new Date(),
+          layoutSnapshot: { ...o, name, memorialId: memorial.id, approvedAt: new Date().toISOString() },
+        },
+      });
+      const payment = await tx.payment.create({
+        data: {
+          workspaceId,
+          treeId,
+          orderId: order.id,
+          userId,
+          provider: settings.provider,
+          kind: PaymentKind.ORDER_DEPOSIT,
+          amountKes: deposit,
+          currency: settings.currency,
+          reference: paymentReference(),
+          status: PaymentStatus.PENDING,
+        },
+        select: { id: true },
+      });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { userId, workspaceId, treeId, totalKes: total, depositKes: deposit, status: OrderStatus.AWAITING_DEPOSIT },
+      });
+      return { orderId: order.id, paymentId: payment.id };
     },
-    select: { id: true },
-  });
-  await db.order.update({
-    where: { id: order.id },
-    data: { userId, workspaceId, treeId, totalKes: total, depositKes: deposit, status: OrderStatus.AWAITING_DEPOSIT },
-  });
-  return { orderId: order.id, paymentId: payment.id };
+    { timeout: 30_000 },
+  );
 }

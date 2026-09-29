@@ -1,6 +1,10 @@
+import type { Prisma } from "@prisma/client";
 import { ChildRelation, DateModifier, DateQuality, FamilyType, Gender } from "@prisma/client";
 
 import { db } from "@/lib/db";
+
+/** The shared client, or an interactive-transaction client to run these atomically. */
+export type Db = Prisma.TransactionClient;
 import { parseFuzzyDate, dateSortKey } from "@/lib/date";
 
 export async function createBarePerson(
@@ -12,8 +16,9 @@ export async function createBarePerson(
     living?: boolean;
     namedAfterId?: string | null;
   },
+  c: Db = db,
 ): Promise<{ id: string }> {
-  return db.person.create({
+  return c.person.create({
     data: {
       treeId,
       gender: input.gender ?? Gender.UNKNOWN,
@@ -33,12 +38,12 @@ export async function createBarePerson(
   });
 }
 
-export async function upsertPlaceByTitle(treeId: string, title: string): Promise<string | null> {
+export async function upsertPlaceByTitle(treeId: string, title: string, c: Db = db): Promise<string | null> {
   const t = title.trim();
   if (!t) return null;
-  const existing = await db.place.findFirst({ where: { treeId, title: t }, select: { id: true } });
+  const existing = await c.place.findFirst({ where: { treeId, title: t }, select: { id: true } });
   if (existing) return existing.id;
-  const created = await db.place.create({ data: { treeId, title: t }, select: { id: true } });
+  const created = await c.place.create({ data: { treeId, title: t }, select: { id: true } });
   return created.id;
 }
 
@@ -69,17 +74,18 @@ export async function setVitalEvent(
   type: "Birth" | "Death",
   rawDate: string,
   rawPlace: string,
+  c: Db = db,
 ): Promise<VitalEventResult> {
-  const existing = await db.eventRef.findFirst({
+  const existing = await c.eventRef.findFirst({
     where: { personId, role: "PRIMARY", event: { type } },
     select: { id: true, eventId: true },
   });
   const d = dateFields(rawDate);
-  const placeId = await upsertPlaceByTitle(treeId, rawPlace);
+  const placeId = await upsertPlaceByTitle(treeId, rawPlace, c);
 
   if (!d && !placeId) {
     if (existing) {
-      await db.event.delete({ where: { id: existing.eventId } });
+      await c.event.delete({ where: { id: existing.eventId } });
       return "deleted";
     }
     return "noop";
@@ -99,10 +105,10 @@ export async function setVitalEvent(
     dateSortKey: d?.dateSortKey ?? null,
   };
   if (existing) {
-    await db.event.update({ where: { id: existing.eventId }, data });
+    await c.event.update({ where: { id: existing.eventId }, data });
     return "updated";
   }
-  await db.event.create({
+  await c.event.create({
     data: { treeId, ...data, eventRefs: { create: { personId, role: "PRIMARY" } } },
   });
   return "created";
@@ -232,12 +238,13 @@ export async function addChildRef(
   familyId: string,
   personId: string,
   relation?: ChildRelation,
+  c: Db = db,
 ): Promise<void> {
-  const count = await db.childRef.count({ where: { familyId } });
+  const count = await c.childRef.count({ where: { familyId } });
   const rel = relation
     ? { partner1Relation: relation, partner2Relation: relation }
     : {};
-  await db.childRef.upsert({
+  await c.childRef.upsert({
     where: { familyId_personId: { familyId, personId } },
     update: rel,
     create: { familyId, personId, order: count, ...rel },
