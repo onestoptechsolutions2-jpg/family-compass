@@ -349,7 +349,7 @@ export async function markDelivered(orderId: string) {
 async function notifyItemCustomer(itemId: string, title: string, body?: string) {
   const item = await db.orderItem.findUnique({ where: { id: itemId }, include: { order: { select: { userId: true } }, product: { select: { name: true } } } });
   if (!item?.order.userId) return;
-  await notifyUser(item.order.userId, { kind: "order.update", title, body: body ? `${item.product.name} · ${body}` : item.product.name, linkPath: "/orders" });
+  await notifyUser(item.order.userId, { kind: "order.update", title, body: body ? `${item.product.name} · ${body}` : item.product.name, linkPath: "/orders", email: true });
 }
 
 /** Record that we paid the partner. Only after delivery. */

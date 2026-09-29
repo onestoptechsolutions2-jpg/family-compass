@@ -143,6 +143,8 @@ export default async function LandingPage() {
         <nav className="flex items-center gap-4 text-sm">
           <a href="#problem" className="hidden hover:underline sm:inline">The problem</a>
           <a href="#solution" className="hidden hover:underline sm:inline">The solution</a>
+          <Link href="/shop" className="font-medium hover:underline">Shop</Link>
+          <Link href="/cart" className="rounded-md border px-2.5 py-1 hover:underline" style={{ borderColor: "var(--border)" }}>Cart</Link>
           <Link href="/discover" className="hidden hover:underline sm:inline">Find a family</Link>
           {user ? (
             <Link href={appHref ?? "/app"} className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">

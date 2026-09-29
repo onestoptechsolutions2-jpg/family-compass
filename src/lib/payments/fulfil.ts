@@ -175,6 +175,7 @@ export async function fulfilPayment(
     body: `${summary} · ${payment.currency} ${payment.amountKes.toLocaleString()}`,
     linkPath: `/receipts/${payment.reference}`,
     treeId,
+    email: true,
   });
   await emitEvent(
     payment.workspaceId,

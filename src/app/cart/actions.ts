@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/rbac";
 import { getCart, removeItem, setQuantity } from "@/lib/cart";
 import { checkoutCart } from "@/lib/orders";
 import { userConsentState } from "@/lib/consent";
+import { notifyUser } from "@/lib/notify";
 
 export async function setQuantityAction(itemId: string, formData: FormData) {
   const user = await requireUser();
@@ -46,6 +47,8 @@ export async function checkoutAction(formData: FormData) {
   // A new customer has not accepted the policy yet, and the app sends them to
   // /consent without remembering where they were going; send them ourselves.
   const pay = `/pay/${result.paymentId}`;
+  // A receipt for the order, with the way back to pay if they leave the page.
+  await notifyUser(user.id, { kind: "order.placed", title: "We received your order", body: "Pay by M-Pesa and we will start making it.", linkPath: pay, email: true });
   if ((await userConsentState(user.id)).stale) redirect(`/consent?next=${encodeURIComponent(pay)}`);
   redirect(pay);
 }

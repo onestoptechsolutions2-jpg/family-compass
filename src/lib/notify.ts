@@ -2,6 +2,9 @@ import { db } from "@/lib/db";
 import { Role } from "@prisma/client";
 import type { EventName } from "@/lib/events-catalog";
 import { sendPushToUser } from "@/lib/push";
+import { sendEmail } from "@/lib/email";
+import { hasEmailProvider } from "@/lib/env";
+import { publicOrigin } from "@/lib/origin";
 
 type NotifyInput = {
   kind: EventName | (string & {});
@@ -10,6 +13,8 @@ type NotifyInput = {
   linkPath?: string | null;
   workspaceId?: string | null;
   treeId?: string | null;
+  /** also email the person (order updates); everything else stays in the app */
+  email?: boolean;
 };
 
 /** In-app notification for one user, plus a device push if they've enabled it. */
@@ -35,6 +40,24 @@ export async function notifyUser(userId: string, n: NotifyInput): Promise<void> 
     url: n.linkPath,
     kind: String(n.kind),
   });
+  if (n.email) await emailUser(userId, n);
+}
+
+/** The same message by email, with a link back into the app. */
+async function emailUser(userId: string, n: NotifyInput): Promise<void> {
+  if (!hasEmailProvider) return; // not set up yet: the in-app notification is enough
+  try {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
+    if (!u?.email) return;
+    const link = n.linkPath ? `\n\n${(await publicOrigin()).replace(/\/$/, "")}${n.linkPath}` : "";
+    await sendEmail({
+      to: u.email,
+      subject: n.title,
+      text: `Hello${u.name ? ` ${u.name.split(" ")[0]}` : ""},\n\n${n.title}${n.body ? `\n${n.body}` : ""}${link}\n\nFamily Compass`,
+    });
+  } catch (err) {
+    console.error("[notify] email failed", err);
+  }
 }
 
 async function fanOut(userIds: string[], n: NotifyInput): Promise<void> {
