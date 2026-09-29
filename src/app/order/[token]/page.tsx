@@ -7,7 +7,7 @@ import { kes } from "@/lib/money";
 import { getSessionUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet } from "@/lib/print-sheet";
-import { depositFor, lines, unitPrice, type DraftOptions, type ProductOptions } from "@/lib/orders";
+import { amountDueNow, lines, unitPrice, type DraftOptions, type ProductOptions } from "@/lib/orders";
 import { saveStep } from "./actions";
 
 export const metadata = { title: "Design your order" };
@@ -224,12 +224,12 @@ export default async function OrderWizard({
               )}
             </ul>
             <p className="mt-3">{item.product.name}</p>
-            <p className="mt-1 font-medium">Total {kes(price)} · deposit now {kes(depositFor(price))}</p>
+            <p className="mt-1 font-medium">Total to pay now: {kes(amountDueNow(price))}</p>
           </div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {living
-              ? "Approving locks this layout for printing and creates the QR code on it. Anyone who scans the QR code can see the people on this tree, with birth years only, and relatives can ask to join it. Next you sign in (or create an account) and pay the deposit."
-              : "Approving locks this layout for printing, publishes their memorial page and creates the QR code on it. Next you sign in (or create an account) and pay the deposit."}
+              ? "Approving locks this layout for printing and creates the QR code on it. Anyone who scans the QR code can see the people on this tree, with birth years only, and relatives can ask to join it. Next you sign in (or create an account) and pay. Your order goes to production once the payment is confirmed."
+              : "Approving locks this layout for printing, publishes their memorial page and creates the QR code on it. Next you sign in (or create an account) and pay. Your order goes to production once the payment is confirmed."}
           </p>
           {!o.first ? (
             <Link href={`/order/${token}?step=1`} className={btn}>Add their name first</Link>

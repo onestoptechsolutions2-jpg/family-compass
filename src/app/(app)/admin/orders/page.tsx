@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { requirePlatformAdmin } from "@/lib/rbac";
-import { NEXT_STATUS } from "@/lib/order-status";
+import { NEXT_STATUS, ORDER_STATUS_LABEL } from "@/lib/order-status";
 import { advanceOrder, cancelOrder } from "./actions";
 
 export const metadata = { title: "Production queue" };
@@ -31,7 +31,7 @@ export default async function AdminOrdersPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Production queue</h1>
       <p className="text-sm" style={{ color: "var(--muted)" }}>
-        Verify the deposit under Payments first. Then send to the supplier, and move the order along.
+        Verify the payment under Payments first. Then send to the partner, and move the order along.
       </p>
       {orders.length === 0 && <p className="text-sm" style={{ color: "var(--muted)" }}>No orders yet.</p>}
       {orders.map((o) => {
@@ -43,7 +43,7 @@ export default async function AdminOrdersPage() {
           <div key={o.id} className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className="font-mono text-xs">{o.id.slice(-8)}</span>
-              <span className="font-medium">{o.status.toLowerCase().replace(/_/g, " ")}</span>
+              <span className="font-medium">{ORDER_STATUS_LABEL[o.status]}</span>
               <span style={{ color: "var(--muted)" }}>
                 {o.contactName ?? o.user?.name ?? o.user?.email} · {o.contactPhone ?? ""}
               </span>
@@ -85,7 +85,7 @@ export default async function AdminOrdersPage() {
                 )}
                 <input name="trackingNote" placeholder="Note or tracking (optional)" className={field} style={fieldStyle} />
                 <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
-                  Mark {next.toLowerCase().replace(/_/g, " ")}
+                  Mark: {ORDER_STATUS_LABEL[next]}
                 </button>
               </form>
             )}

@@ -12,7 +12,8 @@ export { lines, splitName, type DraftOptions };
 type Choice = { key: string; label: string; addKes: number };
 export type ProductOptions = { materials?: Choice[]; sizes?: Choice[] };
 
-export const DEPOSIT_SHARE = 0.5; // take at least half upfront (docs/commerce/PLAN.md)
+/** Full payment up front: nothing is made until the whole price is paid (docs/commerce/DECISIONS.md). */
+export const PAY_UP_FRONT_SHARE = 1;
 
 export function unitPrice(basePriceKes: number, productOptions: ProductOptions | null, o: DraftOptions): number {
   const add = (list: Choice[] | undefined, key: string | undefined) =>
@@ -20,8 +21,9 @@ export function unitPrice(basePriceKes: number, productOptions: ProductOptions |
   return basePriceKes + add(productOptions?.materials, o.materialKey) + add(productOptions?.sizes, o.sizeKey);
 }
 
-export function depositFor(totalKes: number): number {
-  return Math.ceil((totalKes * DEPOSIT_SHARE) / 100) * 100;
+/** What the customer pays before production starts. */
+export function amountDueNow(totalKes: number): number {
+  return Math.ceil((totalKes * PAY_UP_FRONT_SHARE) / 100) * 100;
 }
 
 async function person(tx: Db, treeId: string, full: string, living = true) {
@@ -265,7 +267,7 @@ export async function fulfilDraft(
       // 6. Freeze the layout, price the order, open the deposit.
       const price = unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, o);
       const total = price * item.quantity;
-      const deposit = depositFor(total);
+      const deposit = amountDueNow(total);
       await tx.orderItem.update({
         where: { id: item.id },
         data: {

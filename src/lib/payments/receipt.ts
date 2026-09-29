@@ -30,7 +30,7 @@ export function receiptItemLabel(p: {
     case PaymentKind.MEMORIAL_PASS:
       return "Memorial Pass — unlimited memorial book & funeral programme prints";
     case PaymentKind.ORDER_DEPOSIT:
-      return "Deposit for your order";
+      return "Payment for your order";
     case PaymentKind.ORDER_BALANCE:
       return "Balance for your order";
     default:
