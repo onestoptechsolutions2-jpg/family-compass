@@ -77,6 +77,25 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
         sizes: [{ key: "standard", label: "Standard", addKes: 0 }],
       },
     },
+    {
+      slug: "family-tree-poster",
+      pathway: "LIVING" as const,
+      group: "Display",
+      name: "Family tree wall poster",
+      summary: "Your family tree printed for the wall, with a QR code that opens your living family page.",
+      basePriceKes: 8000,
+      sortOrder: 10,
+      options: {
+        materials: [
+          { key: "poster", label: "Printed poster", addKes: 0 },
+          { key: "canvas", label: "Canvas", addKes: 0 },
+        ],
+        sizes: [
+          { key: "a2", label: "A2", addKes: 0 },
+          { key: "a1", label: "A1", addKes: 0 },
+        ],
+      },
+    },
   ];
   for (const p of products) {
     await db.product.upsert({ where: { slug: p.slug }, create: p, update: {} });

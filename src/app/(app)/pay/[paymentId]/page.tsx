@@ -57,10 +57,21 @@ export default async function PayPage({
           select: { slug: true, groupContribToken: true, headline: true },
         })
       : null;
-  const inviteLink =
-    memorial?.groupContribToken
-      ? `${await publicOrigin()}/m/${memorial.slug}/contribute/${memorial.groupContribToken}`
+  const familyView =
+    !memorial && payment.kind === "ORDER_DEPOSIT" && payment.orderId
+      ? await db.sharedView.findFirst({
+          where: { qrCodes: { some: { orderItem: { orderId: payment.orderId } } } },
+          select: { slug: true, title: true },
+        })
       : null;
+  const inviteLink = memorial?.groupContribToken
+    ? `${await publicOrigin()}/m/${memorial.slug}/contribute/${memorial.groupContribToken}`
+    : familyView
+      ? `${await publicOrigin()}/s/${familyView.slug}`
+      : null;
+  const inviteText = memorial
+    ? `Please add your memories of ${memorial.headline ?? "our loved one"} here: ${inviteLink}`
+    : `Find yourself on our family tree and add your side: ${inviteLink}`;
 
   const settings = await getPaymentSettings();
   const checkout = await getProvider(settings.provider).checkout({
@@ -89,10 +100,12 @@ export default async function PayPage({
     <div className="mt-6 rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
       <p className="font-medium">While you wait: invite the family</p>
       <p className="mt-1" style={{ color: "var(--muted)" }}>
-        Ask relatives to add their memories to the memorial. Every memory they add stays with the family.
+        {memorial
+          ? "Ask relatives to add their memories to the memorial. Every memory they add stays with the family."
+          : "Ask relatives to open the family page, find themselves and add their side of the tree."}
       </p>
       <a
-        href={`https://wa.me/?text=${encodeURIComponent(`Please add your memories of ${memorial?.headline ?? "our loved one"} here: ${inviteLink}`)}`}
+        href={`https://wa.me/?text=${encodeURIComponent(inviteText)}`}
         target="_blank"
         rel="noreferrer"
         className="mt-3 inline-block rounded-lg bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"

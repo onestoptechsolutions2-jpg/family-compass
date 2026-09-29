@@ -9,10 +9,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
   const origin = await publicOrigin();
   const qr = await db.qrCode.findUnique({
     where: { code },
-    select: { active: true, memorial: { select: { slug: true, published: true } } },
+    select: {
+      active: true,
+      memorial: { select: { slug: true, published: true } },
+      sharedView: { select: { slug: true, revoked: true, expiresAt: true } },
+    },
   });
   if (qr?.active && qr.memorial?.published) {
     return NextResponse.redirect(`${origin}/m/${qr.memorial.slug}`);
+  }
+  const v = qr?.sharedView;
+  if (qr?.active && v && !v.revoked && (!v.expiresAt || v.expiresAt > new Date())) {
+    return NextResponse.redirect(`${origin}/s/${v.slug}`);
   }
   return NextResponse.redirect(`${origin}/`);
 }

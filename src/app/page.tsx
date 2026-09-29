@@ -204,14 +204,14 @@ export default async function LandingPage() {
           </span>
         </Link>
         <Link
-          href="/start"
+          href="/living"
           className="rounded-2xl border p-6 transition hover:shadow-md"
           style={{ borderColor: "var(--border)", background: "var(--card)" }}
         >
           <p className="text-sm font-medium" style={{ color: "var(--color-brand-700)" }}>The Living</p>
           <h2 className="mt-1 font-serif text-2xl text-[#3b2a1c]">Build your family story.</h2>
           <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>
-            Family trees, charts and books today. Wall art and reunion kits are coming.
+            Family tree wall posters, charts and books. Wooden trees and reunion kits are coming.
           </p>
           <span className="mt-4 inline-block rounded-md border px-4 py-2 text-sm font-medium" style={{ borderColor: "var(--border)" }}>
             Build Your Family

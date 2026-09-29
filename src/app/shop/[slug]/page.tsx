@@ -18,16 +18,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = await db.product.findUnique({ where: { slug } });
   if (!p || !p.active) notFound();
 
-  const back = p.pathway === "REMEMBERED" ? "/remembered" : "/";
+  const living = p.pathway === "LIVING";
+  const back = living ? "/living" : "/remembered";
   const answers = [
     { q: "What is this?", a: p.summary },
     {
       q: "What do I need to provide?",
-      a: "Their name and dates, a photo, a short epitaph, and who to show: parents, spouse, children and siblings. Add more later.",
+      a: living
+        ? "Your name, and who to show: parents, spouse, children and brothers and sisters. Add more later, and relatives can add their own side."
+        : "Their name and dates, a photo, a short epitaph, and who to show: parents, spouse, children and siblings. Add more later.",
     },
     {
       q: "What happens after I order?",
-      a: "You see a preview and approve it. You pay a deposit by M-Pesa and upload the proof. We confirm it, our supplier makes it, and their memorial page goes live with the QR code on the piece.",
+      a: living
+        ? "You approve the layout and pay a deposit by M-Pesa. We confirm it, our supplier prints it, and your family page goes live with the QR code on the poster."
+        : "You approve the layout and pay a deposit by M-Pesa. We confirm it, our supplier makes it, and their memorial page goes live with the QR code on the piece.",
     },
   ];
 

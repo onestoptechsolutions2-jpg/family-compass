@@ -48,6 +48,7 @@ export default async function OrderWizard({
   const po = (item.product.options ?? null) as ProductOptions | null;
   const price = unitPrice(item.product.basePriceKes, po, o);
   const save = saveStep.bind(null, token, step);
+  const living = item.product.pathway === "LIVING";
   const label = (t: string) => <span className="text-sm font-medium">{t}</span>;
 
   return (
@@ -64,23 +65,27 @@ export default async function OrderWizard({
 
       {step === 1 && (
         <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">Who is this for?</h1>
-          <label>{label("First name(s)")}
+          <h1 className="font-serif text-2xl">{living ? "Whose family is this?" : "Who is this for?"}</h1>
+          <label>{label(living ? "Your first name(s)" : "First name(s)")}
             <input name="first" required defaultValue={o.first} className={field} style={fieldStyle} />
           </label>
-          <label>{label("Surname")}
+          <label>{label(living ? "Your surname" : "Surname")}
             <input name="surname" defaultValue={o.surname} className={field} style={fieldStyle} />
           </label>
-          <label>{label("Born (date or year)")}
+          <label>{label(living ? "Your birth year (optional)" : "Born (date or year)")}
             <input name="birth" defaultValue={o.birth} placeholder="e.g. 12 March 1948" className={field} style={fieldStyle} />
           </label>
-          <label>{label("Died (date or year)")}
-            <input name="death" defaultValue={o.death} placeholder="e.g. 2026" className={field} style={fieldStyle} />
-          </label>
-          <label>{label("Place of passing or burial (optional)")}
-            <input name="place" defaultValue={o.place} className={field} style={fieldStyle} />
-          </label>
-          <label>{label("A short line to carry on it (optional)")}
+          {!living && (
+            <>
+              <label>{label("Died (date or year)")}
+                <input name="death" defaultValue={o.death} placeholder="e.g. 2026" className={field} style={fieldStyle} />
+              </label>
+              <label>{label("Place of passing or burial (optional)")}
+                <input name="place" defaultValue={o.place} className={field} style={fieldStyle} />
+              </label>
+            </>
+          )}
+          <label>{label(living ? "A title for your tree (optional)" : "A short line to carry on it (optional)")}
             <input name="epitaph" defaultValue={o.epitaph} maxLength={300} className={field} style={fieldStyle} />
           </label>
           <button className={btn}>Continue</button>
@@ -139,17 +144,21 @@ export default async function OrderWizard({
           <label>{label("Your phone (WhatsApp if possible)")}
             <input name="contactPhone" required defaultValue={order.contactPhone ?? ""} className={field} style={fieldStyle} />
           </label>
-          <label>{label("Delivery address, or the grave and cemetery")}
+          <label>{label(living ? "Delivery address" : "Delivery address, or the grave and cemetery")}
             <textarea name="deliveryText" rows={3} required defaultValue={order.deliveryText ?? ""} className={field} style={fieldStyle} />
           </label>
-          <label>{label("You are their")}
-            <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
-              <option value="child">Son or daughter</option>
-              <option value="spouse">Husband or wife</option>
-              <option value="sibling">Brother or sister</option>
-              <option value="other">Other relative or friend</option>
-            </select>
-          </label>
+          {living ? (
+            <input type="hidden" name="relation" value="other" />
+          ) : (
+            <label>{label("You are their")}
+              <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
+                <option value="child">Son or daughter</option>
+                <option value="spouse">Husband or wife</option>
+                <option value="sibling">Brother or sister</option>
+                <option value="other">Other relative or friend</option>
+              </select>
+            </label>
+          )}
           <div className="flex gap-3">
             <Link href={`/order/${token}?step=3`} className="rounded-md border px-5 py-2.5 text-sm" style={{ borderColor: "var(--border)" }}>Back</Link>
             <button className={btn}>Review</button>
@@ -162,7 +171,7 @@ export default async function OrderWizard({
           <h1 className="font-serif text-2xl">Review and approve</h1>
           <div className="rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
             <p className="text-lg font-semibold">{[o.first, o.surname].filter(Boolean).join(" ") || "Name missing"}</p>
-            <p style={{ color: "var(--muted)" }}>{[o.birth, o.death].filter(Boolean).join(" – ") || "Dates not given"}</p>
+            <p style={{ color: "var(--muted)" }}>{[o.birth, o.death].filter(Boolean).join(" – ") || (living ? "" : "Dates not given")}</p>
             {o.epitaph && <p className="mt-2 italic">&ldquo;{o.epitaph}&rdquo;</p>}
             <ul className="mt-3 list-disc pl-5" style={{ color: "var(--muted)" }}>
               {(["parents", "spouse", "children", "siblings"] as const).map((k) =>
@@ -173,8 +182,9 @@ export default async function OrderWizard({
             <p className="mt-1 font-medium">Total {kes(price)} · deposit now {kes(depositFor(price))}</p>
           </div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Approving locks this layout for printing, publishes their memorial page and creates the QR code on it.
-            Next you sign in (or create an account) and pay the deposit.
+            {living
+              ? "Approving locks this layout for printing and creates the QR code on it. Anyone who scans the QR code can see the people on this tree, with birth years only, and relatives can ask to join it. Next you sign in (or create an account) and pay the deposit."
+              : "Approving locks this layout for printing, publishes their memorial page and creates the QR code on it. Next you sign in (or create an account) and pay the deposit."}
           </p>
           {!o.first ? (
             <Link href={`/order/${token}?step=1`} className={btn}>Add their name first</Link>

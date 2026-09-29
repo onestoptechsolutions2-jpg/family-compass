@@ -1440,9 +1440,10 @@ model SharedView {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tree          Tree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
-  createdBy     User   @relation("SharedViewCreator", fields: [createdById], references: [id])
-  centralPerson Person @relation("SharedViewCentral", fields: [centralPersonId], references: [id], onDelete: Cascade)
+  tree          Tree     @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  createdBy     User     @relation("SharedViewCreator", fields: [createdById], references: [id])
+  qrCodes       QrCode[]
+  centralPerson Person   @relation("SharedViewCentral", fields: [centralPersonId], references: [id], onDelete: Cascade)
 
   @@index([treeId])
   @@index([slug])
@@ -2470,19 +2471,21 @@ model OrderItem {
 /// A permanent short address printed on a physical object. /q/{code} redirects
 /// to the memorial, person or tree it currently points at.
 model QrCode {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  memorialId  String?
-  personId    String?
-  treeId      String?
-  orderItemId String?  @unique
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  code         String   @unique
+  memorialId   String?
+  sharedViewId String?
+  personId     String?
+  treeId       String?
+  orderItemId  String?  @unique
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
-  memorial  Memorial?  @relation(fields: [memorialId], references: [id], onDelete: SetNull)
-  person    Person?    @relation("QrPerson", fields: [personId], references: [id], onDelete: SetNull)
-  tree      Tree?      @relation("QrTree", fields: [treeId], references: [id], onDelete: SetNull)
-  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  memorial   Memorial?   @relation(fields: [memorialId], references: [id], onDelete: SetNull)
+  sharedView SharedView? @relation(fields: [sharedViewId], references: [id], onDelete: SetNull)
+  person     Person?     @relation("QrPerson", fields: [personId], references: [id], onDelete: SetNull)
+  tree       Tree?       @relation("QrTree", fields: [treeId], references: [id], onDelete: SetNull)
+  orderItem  OrderItem?  @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
 
   @@index([memorialId])
 }

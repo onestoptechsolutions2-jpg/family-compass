@@ -141,10 +141,35 @@ export async function fulfilDraft(
         treeId = tree.id;
       }
 
-      // 2. The person the product is about.
-      const subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: false }, tx);
-      if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
-      if (o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+      // 2. The person the product is about. A Living product is about the
+      // customer, so their own Person is the subject; a Remembered product is
+      // about someone who has died, and the customer is added separately below.
+      const isLiving = item.product.pathway === "LIVING";
+      let customerId = user.personId;
+      let subject: { id: string };
+      if (isLiving) {
+        if (customerId) {
+          subject = { id: customerId };
+        } else {
+          const nm = o.first ? { first: o.first, surname: o.surname ?? "" } : splitName(displayName);
+          subject = await tx.person.create({
+            data: {
+              treeId,
+              living: true,
+              claimedByUserId: userId,
+              publicDatePrecision: "YEAR",
+              names: { create: { type: "BIRTH", preferred: true, order: 0, first: nm.first || null, surname: nm.surname || null } },
+            },
+            select: { id: true },
+          });
+          customerId = subject.id;
+        }
+        if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
+      } else {
+        subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: false }, tx);
+        if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
+        if (o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+      }
 
       // 3. Relatives.
       const parents = lines(o.parents);
@@ -168,7 +193,6 @@ export async function fulfilDraft(
       }
 
       // 4. The customer becomes a Person in this family, linked to their user.
-      let customerId = user.personId;
       if (!customerId) {
         const { first, surname } = splitName(displayName);
         const me = await tx.person.create({
@@ -200,25 +224,46 @@ export async function fulfilDraft(
       });
       await tx.tree.updateMany({ where: { id: treeId, homePersonId: null }, data: { homePersonId: customerId } });
 
-      // 5. Memorial and QR.
+      // 5. The page the QR opens: a published memorial, or a shared family view
+      // (with claims on, so relatives can find themselves and join).
       const name = [o.first, o.surname].filter(Boolean).join(" ") || "Their";
-      const memorial = await tx.memorial.create({
-        data: {
-          personId: subject.id,
-          treeId,
-          slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
-          headline: `In loving memory of ${name}`,
-          eulogy: o.epitaph?.trim() || null,
-          bornText: o.birth?.trim() || null,
-          diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
-          published: true,
-      groupContribToken: `grp_${randomToken(24)}`,
-          createdById: userId,
-        },
-        select: { id: true },
-      });
+      let memorialId: string | null = null;
+      let sharedViewId: string | null = null;
+      if (isLiving) {
+        const view = await tx.sharedView.create({
+          data: {
+            treeId,
+            createdById: userId,
+            slug: `${slugify(name) || "family"}-${randomToken(6)}`,
+            title: o.epitaph?.trim() || `${name} family`,
+            centralPersonId: subject.id,
+            includeLiving: true,
+            allowClaims: true,
+            generations: 3,
+          },
+          select: { id: true },
+        });
+        sharedViewId = view.id;
+      } else {
+        const memorial = await tx.memorial.create({
+          data: {
+            personId: subject.id,
+            treeId,
+            slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
+            headline: `In loving memory of ${name}`,
+            eulogy: o.epitaph?.trim() || null,
+            bornText: o.birth?.trim() || null,
+            diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
+            published: true,
+            groupContribToken: `grp_${randomToken(24)}`,
+            createdById: userId,
+          },
+          select: { id: true },
+        });
+        memorialId = memorial.id;
+      }
       await tx.qrCode.create({
-        data: { code: randomToken(8), memorialId: memorial.id, personId: subject.id, treeId, orderItemId: item.id },
+        data: { code: randomToken(8), memorialId, sharedViewId, personId: subject.id, treeId, orderItemId: item.id },
       });
 
       // 6. Freeze the layout, price the order, open the deposit.
@@ -231,7 +276,7 @@ export async function fulfilDraft(
           focusPersonId: subject.id,
           unitPriceKes: price,
           approvedAt: new Date(),
-          layoutSnapshot: { ...o, name, memorialId: memorial.id, approvedAt: new Date().toISOString() },
+          layoutSnapshot: { ...o, name, memorialId, sharedViewId, approvedAt: new Date().toISOString() },
         },
       });
       const payment = await tx.payment.create({
