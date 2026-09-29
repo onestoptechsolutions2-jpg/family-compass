@@ -94,6 +94,7 @@ model User {
   friendInvitesSent             FriendInvite[]          @relation("FriendInviteInviter")
   treesAdministered             Tree[]                  @relation("TreeFamilyAdmin")
   lifeUpdates                   LifeUpdate[]            @relation("LifeUpdateAuthor")
+  orders                        Order[]                 @relation("OrderUser")
 }
 
 /// Immutable audit of consent actions (policy acceptance, research opt in/out).
@@ -192,6 +193,7 @@ model Memorial {
   contributions MemorialContribution[]
   chamaFund     ChamaFund?             @relation("MemorialChamaFund")
   passPayments  Payment[]              @relation("MemorialPassPayments")
+  qrCodes       QrCode[]
 
   @@index([treeId])
 }
@@ -448,6 +450,7 @@ model Workspace {
   apiKeys        ApiKey[]
   webhooks       WebhookEndpoint[]
   chamas         Chama[]
+  orders         Order[]
 
   @@index([slug])
 }
@@ -562,6 +565,8 @@ model Tree {
   friendLinksAsA         FriendLink[]            @relation("FriendLinkATree")
   friendLinksAsB         FriendLink[]            @relation("FriendLinkBTree")
   identityMergeApprovals IdentityMergeApproval[]
+  orders                 Order[]
+  qrCodes                QrCode[]                @relation("QrTree")
 
   @@unique([workspaceId, slug])
   @@index([discoverable])
@@ -714,7 +719,9 @@ model Person {
   friendLinkAssertions FriendLinkAssertion[] @relation("FriendLinkAssertionBy")
   lifeUpdates          LifeUpdate[]
 
-  tags Tag[] @relation("PersonTags")
+  tags            Tag[]       @relation("PersonTags")
+  orderItemsFocus OrderItem[] @relation("OrderItemFocus")
+  qrCodes         QrCode[]    @relation("QrPerson")
 
   @@unique([treeId, grampsId])
   @@index([treeId])
@@ -1349,6 +1356,7 @@ model MediaObject {
   memorialCoverOf Memorial[]      @relation("MemorialCover")
   previewOfJobs   GenerationJob[] @relation("GenerationPreview")
   outputOfJobs    GenerationJob[] @relation("GenerationOutput")
+  paymentProofs   Payment[]       @relation("PaymentProof")
 
   @@unique([treeId, grampsId])
   @@index([treeId])
@@ -1576,12 +1584,18 @@ enum PaymentKind {
   RESEARCH_PARTNER
   CHAMA_CONTRIBUTION
   MEMORIAL_PASS
+  ORDER_DEPOSIT
+  ORDER_BALANCE
 }
 
 model Payment {
   id                String        @id @default(cuid())
   generationJobId   String?       @unique
   memorialId        String?
+  /// physical-product order this payment pays toward (deposit or balance)
+  orderId           String?
+  /// screenshot or photo of the M-Pesa / bank proof, for manual verification
+  proofMediaId      String?
   workspaceId       String
   treeId            String?
   userId            String
@@ -1609,6 +1623,8 @@ model Payment {
 
   generationJob     GenerationJob?      @relation(fields: [generationJobId], references: [id], onDelete: SetNull)
   memorial          Memorial?           @relation("MemorialPassPayments", fields: [memorialId], references: [id], onDelete: SetNull)
+  order             Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  proofMedia        MediaObject?        @relation("PaymentProof", fields: [proofMediaId], references: [id], onDelete: SetNull)
   workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tree              Tree?               @relation("TreePayments", fields: [treeId], references: [id], onDelete: SetNull)
   user              User                @relation("PaymentUser", fields: [userId], references: [id])
@@ -1623,6 +1639,7 @@ model Payment {
   @@index([userId])
   @@index([status])
   @@index([mpesaCode])
+  @@index([orderId])
 }
 
 enum CreditReason {
@@ -2345,4 +2362,127 @@ model SelfNode {
   updatedAt         DateTime @updatedAt
 
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+}
+
+// ===========================================================================
+// Commerce: physical family products (see docs/commerce/PLAN.md)
+// ===========================================================================
+
+enum ProductPathway {
+  LIVING
+  REMEMBERED
+}
+
+/// DRAFT (guest, not paid) then the paid production path, in order.
+enum OrderStatus {
+  DRAFT
+  AWAITING_DEPOSIT
+  DEPOSIT_VERIFIED
+  IN_DESIGN
+  APPROVED
+  SENT_TO_SUPPLIER
+  IN_PRODUCTION
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  slug         String         @unique
+  pathway      ProductPathway
+  /// intent group shown in the catalogue: Remember, Honour, Preserve, Connect, Build, Display, Celebrate
+  group        String
+  name         String
+  summary      String
+  /// placeholder until supplier quotes are in; per-option prices live in options
+  basePriceKes Int
+  /// wizard options: materials, sizes and their price adders
+  options      Json?
+  active       Boolean        @default(true)
+  sortOrder    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  items OrderItem[]
+
+  @@index([pathway, active])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  /// guest draft owner until an account exists; the wizard keeps it in a cookie
+  guestToken   String?     @unique
+  userId       String?
+  workspaceId  String?
+  treeId       String?
+  status       OrderStatus @default(DRAFT)
+  totalKes     Int         @default(0)
+  depositKes   Int         @default(0)
+  contactName  String?
+  contactPhone String?
+  /// delivery address, or the grave / installation location
+  deliveryText String?     @db.Text
+  notes        String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user      User?       @relation("OrderUser", fields: [userId], references: [id], onDelete: SetNull)
+  workspace Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  tree      Tree?       @relation(fields: [treeId], references: [id], onDelete: SetNull)
+  items     OrderItem[]
+  payments  Payment[]
+
+  @@index([userId])
+  @@index([treeId])
+  @@index([status])
+}
+
+model OrderItem {
+  id               String    @id @default(cuid())
+  orderId          String
+  productId        String
+  quantity         Int       @default(1)
+  unitPriceKes     Int
+  /// the person the product is about (the plaque's deceased, the poster's focus)
+  focusPersonId    String?
+  /// chosen material, size, wording, emblem, QR position
+  options          Json?
+  /// frozen at customer approval so later family edits never change a paid product
+  layoutSnapshot   Json?
+  approvedAt       DateTime?
+  supplierName     String?
+  supplierCostKes  Int?
+  sentToSupplierAt DateTime?
+  trackingNote     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
+  focusPerson Person? @relation("OrderItemFocus", fields: [focusPersonId], references: [id], onDelete: SetNull)
+  qrCode      QrCode?
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+/// A permanent short address printed on a physical object. /q/{code} redirects
+/// to the memorial, person or tree it currently points at.
+model QrCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  memorialId  String?
+  personId    String?
+  treeId      String?
+  orderItemId String?  @unique
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  memorial  Memorial?  @relation(fields: [memorialId], references: [id], onDelete: SetNull)
+  person    Person?    @relation("QrPerson", fields: [personId], references: [id], onDelete: SetNull)
+  tree      Tree?      @relation("QrTree", fields: [treeId], references: [id], onDelete: SetNull)
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+
+  @@index([memorialId])
 }

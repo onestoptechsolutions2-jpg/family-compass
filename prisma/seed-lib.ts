@@ -42,6 +42,47 @@ function resolveOrigin(): string {
 const NANO = "23456789abcdefghijkmnpqrstuvwxyz";
 const rand = (n: number) => Array.from(randomBytes(n), (b) => NANO[b % NANO.length]).join("");
 
+/**
+ * Launch catalogue. Prices are PLACEHOLDERS from docs/commerce/PLAN.md until
+ * supplier quotes arrive; `update: {}` keeps any price an admin has changed.
+ */
+export async function seedProducts(db: PrismaClient): Promise<void> {
+  const products = [
+    {
+      slug: "tile-plaque-qr",
+      pathway: "REMEMBERED" as const,
+      group: "Honour",
+      name: "Memorial tile plaque with QR",
+      summary: "A tile plaque with their name, dates and a QR code that opens their memorial and family tree.",
+      basePriceKes: 30000,
+      sortOrder: 10,
+      options: {
+        materials: [{ key: "tile", label: "Ceramic tile", addKes: 0 }],
+        sizes: [{ key: "standard", label: "Standard", addKes: 0 }],
+      },
+    },
+    {
+      slug: "tombstone-family-tree",
+      pathway: "REMEMBERED" as const,
+      group: "Honour",
+      name: "Tombstone family tree",
+      summary: "A family tree engraved or tiled for the grave, with a QR code to the living family page.",
+      basePriceKes: 60000,
+      sortOrder: 20,
+      options: {
+        materials: [
+          { key: "tile", label: "Ceramic tile", addKes: 0 },
+          { key: "granite", label: "Granite", addKes: 0 },
+        ],
+        sizes: [{ key: "standard", label: "Standard", addKes: 0 }],
+      },
+    },
+  ];
+  for (const p of products) {
+    await db.product.upsert({ where: { slug: p.slug }, create: p, update: {} });
+  }
+}
+
 export async function seedPaymentSettings(db: PrismaClient): Promise<void> {
   // Manual-verification collection details. Editable later in Admin → Settings.
   const collection = {
