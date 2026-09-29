@@ -104,6 +104,7 @@ async function main() {
   await startProduction(stone.p.id, job.id);
   check("order is in production", (await db.order.findUniqueOrThrow({ where: { id: orderId } })).status === "IN_PRODUCTION");
   await throwsJob("photo must be an image", () => submitProof(stone.p.id, job.id, { fileName: "x.pdf", mimeType: "application/pdf", bytes: Buffer.from("x") }, stone.user.id));
+  await throwsJob("an SVG cannot pass as a photo", () => submitProof(stone.p.id, job.id, { fileName: "x.svg", mimeType: "image/svg+xml", bytes: Buffer.from("<svg onload=alert(1)/>") }, stone.user.id));
   await submitProof(stone.p.id, job.id, photo, stone.user.id);
   await throwsJob("cannot ship before the photo is approved", () => shipJob(stone.p.id, job.id, { trackingNote: "x" }, stone.user.id));
   await rejectProof(job.id, "QR is too small");

@@ -5,7 +5,7 @@ import { PartnerStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
-import { getPartnerContext, requireActivePartner } from "@/lib/partner-auth";
+import { requireActivePartner } from "@/lib/partner-auth";
 import { notifyPlatformAdmins } from "@/lib/notify";
 import { SKILLS, JobError, shipJob, startProduction, submitProof, submitQuote } from "@/lib/jobs";
 
@@ -106,8 +106,4 @@ export async function shipAction(jobId: string, formData: FormData) {
     const proof = (await fileOf(formData, "receipt")) ?? undefined;
     await shipJob(partner.id, jobId, { trackingNote: text(formData, "trackingNote", 300), proof }, user.id);
   });
-}
-
-export async function partnerContext() {
-  return getPartnerContext();
 }

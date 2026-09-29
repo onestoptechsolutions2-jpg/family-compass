@@ -33,6 +33,13 @@ const PAST_PRODUCTION: JobStatus[] = [JobStatus.SHIPPED, JobStatus.DELIVERED];
 
 export class JobError extends Error {}
 
+/** Photos only. An SVG or HTML "photo" could run script when an admin opens it. */
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+function checkPhoto(f: { mimeType: string; bytes: Buffer }) {
+  if (!PHOTO_TYPES.includes(f.mimeType)) throw new JobError("Upload a photo (JPEG, PNG or WebP)");
+  if (f.bytes.length > 10 * 1024 * 1024) throw new JobError("The photo is over 10 MB");
+}
+
 async function partnerMemberIds(partnerId: string): Promise<string[]> {
   const rows = await db.partnerMember.findMany({ where: { partnerId }, select: { userId: true } });
   return rows.map((r) => r.userId);
@@ -202,8 +209,7 @@ export async function submitProof(
 ) {
   const job = await ownJob(partnerId, jobId);
   if (job.status !== JobStatus.IN_PRODUCTION) throw new JobError("Start production before sending the photo");
-  if (!file.mimeType.startsWith("image/")) throw new JobError("Upload a photo of the finished piece");
-  if (file.bytes.length > 10 * 1024 * 1024) throw new JobError("The photo is over 10 MB");
+  checkPhoto(file);
   await db.jobFile.create({
     data: { jobId, kind: "finished_photo", fileName: file.fileName.slice(0, 120), mimeType: file.mimeType, byteSize: file.bytes.length, bytes: new Uint8Array(file.bytes), uploadedById },
   });
@@ -258,6 +264,7 @@ export async function shipJob(
   const tracking = input.trackingNote.trim();
   if (!tracking && !input.proof) throw new JobError("Add tracking details or a photo of the dispatch receipt");
   if (input.proof) {
+    checkPhoto(input.proof);
     await db.jobFile.create({
       data: { jobId, kind: "dispatch_proof", fileName: input.proof.fileName.slice(0, 120), mimeType: input.proof.mimeType, byteSize: input.proof.bytes.length, bytes: new Uint8Array(input.proof.bytes), uploadedById },
     });
