@@ -114,5 +114,5 @@ describe("renderPrintSheet", () => {
       const code = jsQR(new Uint8ClampedArray(data), info.width, info.height);
       expect(code?.data, `${sizeKey} ${materialKey}`).toBe(base.qrUrl);
     }
-  });
+  }, 30_000); // five full-size renders; slow when the whole suite runs in parallel
 });
