@@ -2403,6 +2403,8 @@ model Product {
   options      Json?
   active       Boolean        @default(true)
   sortOrder    Int            @default(0)
+  /// shop aisle: memorial_stone | wall_art | books_print | events_merch
+  aisle        String         @default("")
   /// the specialities needed to make it, in order (one entry = one partner, several = stages)
   skills       String[]       @default([])
   /// "direct" = the partner ships to the customer; "via_us" = it comes to us for a check first
@@ -2464,11 +2466,16 @@ model OrderItem {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product         @relation(fields: [productId], references: [id])
-  focusPerson Person?         @relation("OrderItemFocus", fields: [focusPersonId], references: [id], onDelete: SetNull)
-  qrCode      QrCode?
-  jobs        ProductionJob[]
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product          Product         @relation(fields: [productId], references: [id])
+  focusPerson      Person?         @relation("OrderItemFocus", fields: [focusPersonId], references: [id], onDelete: SetNull)
+  qrCode           QrCode?
+  jobs             ProductionJob[]
+  /// per item, so one thing in a basket can ship before another
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  /// courier and tracking as the customer sees it
+  customerTracking String?
 
   @@index([orderId])
   @@index([productId])

@@ -84,3 +84,20 @@ export async function removeItem(userId: string, itemId: string) {
   if (!item) return;
   await db.orderItem.delete({ where: { id: itemId } });
 }
+
+/** Add a personalised product to the customer's cart. */
+export async function addItemToCart(userId: string, productSlug: string, options: DraftOptions, quantity = 1) {
+  const product = await db.product.findFirst({ where: { slug: productSlug, active: true } });
+  if (!product) return null;
+  const cart = await getOrCreateCart(userId);
+  const po = product.options as ProductOptions | null;
+  return db.orderItem.create({
+    data: {
+      orderId: cart.id,
+      productId: product.id,
+      quantity: Math.min(Math.max(Math.floor(quantity) || 1, 1), 20),
+      unitPriceKes: product.basePriceKes,
+      options: { materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, ...options } as object,
+    },
+  });
+}

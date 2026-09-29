@@ -45,9 +45,31 @@ async function partnerMemberIds(partnerId: string): Promise<string[]> {
   return rows.map((r) => r.userId);
 }
 
-async function setOrderStatus(orderId: string, status: OrderStatus) {
-  await db.order.update({ where: { id: orderId }, data: { status } });
+/**
+ * An order's status is worked out from all its items, never set by one job:
+ * with several things in a basket, one can ship while another is still being made.
+ */
+export async function syncOrderStatus(orderId: string) {
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    include: { items: { include: { jobs: { select: { status: true } } } } },
+  });
+  if (!order) return;
+  const paid: OrderStatus[] = [
+    OrderStatus.DEPOSIT_VERIFIED, OrderStatus.SENT_TO_SUPPLIER, OrderStatus.IN_PRODUCTION, OrderStatus.SHIPPED,
+  ];
+  if (!paid.includes(order.status)) return; // not yet paid, cancelled or delivered: nothing to derive
+  const items = order.items;
+  const jobs = items.flatMap((i) => i.jobs);
+  let next: OrderStatus = OrderStatus.DEPOSIT_VERIFIED;
+  if (items.length && items.every((i) => i.deliveredAt)) next = OrderStatus.DELIVERED;
+  else if (items.length && items.every((i) => i.shippedAt)) next = OrderStatus.SHIPPED;
+  else if (items.some((i) => i.shippedAt) || jobs.some((j) => IN_MAKING.includes(j.status))) next = OrderStatus.IN_PRODUCTION;
+  else if (jobs.some((j) => j.status === JobStatus.ASSIGNED)) next = OrderStatus.SENT_TO_SUPPLIER;
+  if (next !== order.status) await db.order.update({ where: { id: orderId }, data: { status: next } });
 }
+
+const IN_MAKING: JobStatus[] = [JobStatus.IN_PRODUCTION, JobStatus.PROOF_SUBMITTED, JobStatus.PROOF_APPROVED, JobStatus.SHIPPED];
 
 /** Open one job per stage a product needs. Called once the order is paid; safe to call twice. */
 export async function createJobsForOrder(orderId: string): Promise<number> {
@@ -172,7 +194,7 @@ export async function acceptQuote(quoteId: string) {
     where: { id: job.orderItemId },
     data: { supplierName: partner.name, supplierCostKes: quote.costKes, sentToSupplierAt: new Date() },
   });
-  await setOrderStatus(job.orderItem.orderId, OrderStatus.SENT_TO_SUPPLIER);
+  await syncOrderStatus(job.orderItem.orderId);
   for (const uid of await partnerMemberIds(quote.partnerId)) {
     await notifyUser(uid, {
       kind: "job.assigned",
@@ -197,7 +219,7 @@ export async function startProduction(partnerId: string, jobId: string) {
   });
   if (earlier) throw new JobError("An earlier stage of this order is not finished yet");
   await db.productionJob.update({ where: { id: jobId }, data: { status: JobStatus.IN_PRODUCTION } });
-  await setOrderStatus(job.orderItem.orderId, OrderStatus.IN_PRODUCTION);
+  await syncOrderStatus(job.orderItem.orderId);
 }
 
 /** The partner's photo of the finished piece, for us to check before it ships. */
@@ -272,10 +294,12 @@ export async function shipJob(
   await db.productionJob.update({ where: { id: jobId }, data: { status: JobStatus.SHIPPED, trackingNote: tracking.slice(0, 300) || null } });
 
   const item = await db.orderItem.findUniqueOrThrow({ where: { id: job.orderItemId }, include: { product: { select: { shipVia: true } } } });
-  const last = await db.productionJob.count({ where: { orderItemId: item.id, stage: { gt: job.stage } } });
-  if (item.product.shipVia === "direct" && !last) {
-    await setOrderStatus(item.orderId, OrderStatus.SHIPPED);
+  const laterStages = await db.productionJob.count({ where: { orderItemId: item.id, stage: { gt: job.stage } } });
+  // A product that ships direct is on its way to the customer once its last stage is dispatched.
+  if (item.product.shipVia === "direct" && !laterStages) {
+    await db.orderItem.update({ where: { id: item.id }, data: { shippedAt: new Date(), customerTracking: tracking.slice(0, 300) || null } });
   }
+  await syncOrderStatus(item.orderId);
   await notifyPlatformAdmins({
     kind: "job.shipped",
     title: item.product.shipVia === "direct" ? "Shipped to the customer" : "On its way to us",
@@ -284,21 +308,48 @@ export async function shipJob(
   });
 }
 
-/** For products that come to us first: after our check, send to the customer. */
-export async function dispatchToCustomer(orderId: string, trackingNote: string) {
-  const jobs = await db.productionJob.findMany({ where: { orderItem: { orderId } } });
-  if (!jobs.length || jobs.some((j) => j.status !== JobStatus.SHIPPED && j.status !== JobStatus.DELIVERED)) {
+/** For an item that comes to us first: after our check, send it to the customer. */
+export async function dispatchItem(itemId: string, trackingNote: string) {
+  const item = await db.orderItem.findUniqueOrThrow({ where: { id: itemId }, include: { jobs: true } });
+  if (item.shippedAt) throw new JobError("This item has already been sent");
+  if (!item.jobs.length || item.jobs.some((j) => j.status !== JobStatus.SHIPPED && j.status !== JobStatus.DELIVERED)) {
     throw new JobError("Every stage must be shipped to us first");
   }
-  await db.orderItem.updateMany({ where: { orderId }, data: { trackingNote: trackingNote.slice(0, 300) || null } });
-  await setOrderStatus(orderId, OrderStatus.SHIPPED);
+  await db.orderItem.update({ where: { id: itemId }, data: { shippedAt: new Date(), customerTracking: trackingNote.slice(0, 300) || null } });
+  await syncOrderStatus(item.orderId);
+  await notifyItemCustomer(itemId, "Your order is on its way", trackingNote);
 }
 
+/** Every item on the order that has come to us and passed our check. */
+export async function dispatchToCustomer(orderId: string, trackingNote: string) {
+  const items = await db.orderItem.findMany({ where: { orderId, shippedAt: null }, include: { jobs: true } });
+  const ready = items.filter((i) => i.jobs.length && i.jobs.every((j) => j.status === JobStatus.SHIPPED || j.status === JobStatus.DELIVERED));
+  if (!ready.length) throw new JobError("Nothing has arrived and passed the check yet");
+  for (const i of ready) await dispatchItem(i.id, trackingNote);
+}
+
+export async function markItemDelivered(itemId: string) {
+  const item = await db.orderItem.findUniqueOrThrow({ where: { id: itemId } });
+  if (!item.shippedAt) throw new JobError("Only a shipped item can be marked delivered");
+  if (item.deliveredAt) throw new JobError("Already delivered");
+  await db.orderItem.update({ where: { id: itemId }, data: { deliveredAt: new Date() } });
+  await db.productionJob.updateMany({ where: { orderItemId: itemId, status: JobStatus.SHIPPED }, data: { status: JobStatus.DELIVERED } });
+  await syncOrderStatus(item.orderId);
+  await notifyItemCustomer(itemId, "Your order was delivered");
+}
+
+/** Every shipped item on the order. */
 export async function markDelivered(orderId: string) {
-  const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
-  if (order.status !== OrderStatus.SHIPPED) throw new JobError("Only a shipped order can be marked delivered");
-  await db.productionJob.updateMany({ where: { orderItem: { orderId }, status: JobStatus.SHIPPED }, data: { status: JobStatus.DELIVERED } });
-  await setOrderStatus(orderId, OrderStatus.DELIVERED);
+  const items = await db.orderItem.findMany({ where: { orderId, shippedAt: { not: null }, deliveredAt: null } });
+  if (!items.length) throw new JobError("Only a shipped order can be marked delivered");
+  for (const i of items) await markItemDelivered(i.id);
+}
+
+/** Tell the customer, in the app, about their item. */
+async function notifyItemCustomer(itemId: string, title: string, body?: string) {
+  const item = await db.orderItem.findUnique({ where: { id: itemId }, include: { order: { select: { userId: true } }, product: { select: { name: true } } } });
+  if (!item?.order.userId) return;
+  await notifyUser(item.order.userId, { kind: "order.update", title, body: body ? `${item.product.name} · ${body}` : item.product.name, linkPath: "/orders" });
 }
 
 /** Record that we paid the partner. Only after delivery. */
