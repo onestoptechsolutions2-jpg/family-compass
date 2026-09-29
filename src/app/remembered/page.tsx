@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
+import { productImage } from "@/lib/product-images";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const metadata = {
@@ -35,6 +36,10 @@ export default async function RememberedPage() {
             className="rounded-2xl border p-6 transition hover:shadow-md"
             style={{ borderColor: "var(--border)", background: "var(--card)" }}
           >
+            {productImage(p.slug) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={productImage(p.slug)!.src} alt={productImage(p.slug)!.alt} className="mb-4 aspect-[4/3] w-full rounded-xl object-cover" loading="lazy" />
+            )}
             <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
               {p.group}
             </p>

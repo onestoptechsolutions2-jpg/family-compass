@@ -87,6 +87,7 @@ async function main() {
       place: "Nyeri",
       epitaph: "Rest well",
       parents: "Peter Kamau\nMary Wanjiku",
+      fatherParents: "Old Kamau\nOld Wanjiru",
       spouse: "Grace Kamau",
       children: "Ann Kamau\nJames Kamau",
       siblings: "Paul Kamau",
@@ -101,9 +102,9 @@ async function main() {
     const memorial = await db.memorial.findFirstOrThrow({ where: { treeId } });
     check("plaque: memorial published", memorial.published && !!memorial.groupContribToken);
     const kin = await db.person.count({ where: { treeId } });
-    check("plaque: family graph built, customer not duplicated (7 people)", kin === 7, kin);
+    check("plaque: family graph built with grandparents, customer not duplicated (9 people)", kin === 9, kin);
     const fams = await db.family.count({ where: { treeId } });
-    check("plaque: two unions (parents, spouse)", fams === 2, fams);
+    check("plaque: three unions (parents, father's parents, spouse)", fams === 3, fams);
     const born = await db.eventRef.count({ where: { person: { treeId }, event: { type: "Death" } } });
     check("plaque: death event recorded", born === 1, born);
   }
@@ -130,6 +131,29 @@ async function main() {
     check("poster: focus person is the customer", view?.centralPersonId === poster.u.personId);
     const memorials = await db.memorial.count({ where: { treeId: poster.u.primaryTreeId! } });
     check("poster: no memorial created", memorials === 0, memorials);
+  }
+
+  const wood = await run(
+    "wooden-family-tree",
+    {
+      first: "Ann",
+      surname: "Kamau",
+      birth: "1980",
+      parents: "John Kamau\nGrace Kamau",
+      fatherParents: "Old Kamau\nOld Wanjiru",
+      motherParents: "Old Mwangi\nOld Njeri",
+      spouse: "Tom Otieno",
+      children: "Lucy Otieno\nBen Otieno",
+      materialKey: "wood",
+      sizeKey: "wall",
+      relation: "other",
+    },
+    "Ann Kamau",
+  );
+  if (wood) {
+    const t = wood.u.primaryTreeId!;
+    check("wood: 10 people (self, 2 parents, 4 grandparents, spouse, 2 children)", (await db.person.count({ where: { treeId: t } })) === 10, await db.person.count({ where: { treeId: t } }));
+    check("wood: four unions (both parents' parents, parents, spouse)", (await db.family.count({ where: { treeId: t } })) === 4);
   }
 
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");

@@ -5,6 +5,8 @@ import { OrderStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { getSessionUser } from "@/lib/rbac";
+import { publicOrigin } from "@/lib/origin";
+import { renderPrintSheet } from "@/lib/print-sheet";
 import { depositFor, lines, unitPrice, type DraftOptions, type ProductOptions } from "@/lib/orders";
 import { saveStep } from "./actions";
 
@@ -48,6 +50,40 @@ export default async function OrderWizard({
   const po = (item.product.options ?? null) as ProductOptions | null;
   const price = unitPrice(item.product.basePriceKes, po, o);
   const save = saveStep.bind(null, token, step);
+
+  // The customer sees exactly what will be made, updated as they build it.
+  const previewOptions: DraftOptions = {
+    ...o,
+    materialKey: o.materialKey ?? (po?.materials?.[0]?.key),
+    sizeKey: o.sizeKey ?? (po?.sizes?.[0]?.key),
+  };
+  const sheet = await renderPrintSheet(
+    {
+      options: previewOptions,
+      productName: item.product.name,
+      qrUrl: `${await publicOrigin()}/q/yourcode`,
+      pathway: item.product.pathway,
+    },
+    previewOptions.sizeKey,
+  );
+  const previewSvg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
+  const preview = step >= 2 && (
+    <div className="mt-6">
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+        Preview of your {item.product.name.toLowerCase()}
+      </p>
+      <div
+        className="mt-2 overflow-hidden rounded-xl border"
+        style={{ borderColor: "var(--border)" }}
+        dangerouslySetInnerHTML={{ __html: previewSvg }}
+      />
+      {sheet.warnings.length > 0 && (
+        <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }}>
+          {sheet.warnings.map((w) => <li key={w}>{w}</li>)}
+        </ul>
+      )}
+    </div>
+  );
   const living = item.product.pathway === "LIVING";
   const label = (t: string) => <span className="text-sm font-medium">{t}</span>;
 
@@ -96,8 +132,15 @@ export default async function OrderWizard({
         <form action={save} className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">Who should we show?</h1>
           <p className="text-sm" style={{ color: "var(--muted)" }}>One name per line. Skip anything you do not know; you can add more later.</p>
-          {(["parents", "spouse", "children", "siblings"] as const).map((k) => (
-            <label key={k}>{label({ parents: "Parents", spouse: "Spouse", children: "Children", siblings: "Brothers and sisters" }[k])}
+          {(["parents", "fatherParents", "motherParents", "spouse", "children", "siblings"] as const).map((k) => (
+            <label key={k}>{label({
+              parents: "Parents (father first, then mother)",
+              fatherParents: "Father's parents",
+              motherParents: "Mother's parents",
+              spouse: "Spouse",
+              children: "Children",
+              siblings: "Brothers and sisters",
+            }[k])}
               <textarea name={k} rows={3} defaultValue={o[k]} className={field} style={fieldStyle} />
             </label>
           ))}
@@ -166,6 +209,8 @@ export default async function OrderWizard({
         </form>
       )}
 
+      {preview}
+
       {step === 5 && (
         <section className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">Review and approve</h1>
@@ -174,8 +219,8 @@ export default async function OrderWizard({
             <p style={{ color: "var(--muted)" }}>{[o.birth, o.death].filter(Boolean).join(" – ") || (living ? "" : "Dates not given")}</p>
             {o.epitaph && <p className="mt-2 italic">&ldquo;{o.epitaph}&rdquo;</p>}
             <ul className="mt-3 list-disc pl-5" style={{ color: "var(--muted)" }}>
-              {(["parents", "spouse", "children", "siblings"] as const).map((k) =>
-                lines(o[k]).length ? <li key={k}>{k}: {lines(o[k]).join(", ")}</li> : null,
+              {(["parents", "fatherParents", "motherParents", "spouse", "children", "siblings"] as const).map((k) =>
+                lines(o[k]).length ? <li key={k}>{k.replace(/([A-Z])/g, " $1").toLowerCase()}: {lines(o[k]).join(", ")}</li> : null,
               )}
             </ul>
             <p className="mt-3">{item.product.name}</p>

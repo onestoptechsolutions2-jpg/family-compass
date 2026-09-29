@@ -61,3 +61,24 @@ cleanup job, Facebook login (keys not set), wooden tree and grandparents.
 5. Place one real order yourself, pay a small deposit, verify it, and scan the
    printed QR from a phone.
 6. Send the /remembered link to the first funeral homes and churches.
+
+## Direction update: the product is the family tree object
+
+The finished products are the samples in docs/commerce/samples: a family tree
+with the focus person (deceased or living) in the centre, parents and
+grandparents above, spouse and siblings beside, children below, a compass
+brand mark and a QR to the living family page, in granite or wood. The system
+now follows that:
+
+- One renderer (src/lib/print-sheet.ts) makes the print sheet for every
+  product. Material picks the skin (granite or tile: slate, wood: wood, paper
+  otherwise). Names wrap and shrink, never truncate; warnings are raised.
+- The wizard shows a live preview of that exact sheet from step 2 on.
+- The wizard asks for grandparents; they become real people and unions.
+- Product pages show the finished-product photos.
+- Wooden family tree added (LIVING, KES 15,000 placeholder, 60 x 40 cm).
+- Printed brand comes from PRINT_BRAND in one place (Family Compass for now).
+
+Open: fonts are not embedded in the SVG, so ask the supplier to outline text or
+send a PDF; gender colours on the initials badges (as in the spouse sample) and
+per-person dates and a living tag are not collected yet.

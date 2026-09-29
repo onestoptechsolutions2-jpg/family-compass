@@ -15,6 +15,9 @@ export type DraftOptions = {
   place?: string;
   epitaph?: string;
   parents?: string;
+  /** the father's parents, then the mother's parents, one name per line */
+  fatherParents?: string;
+  motherParents?: string;
   spouse?: string;
   children?: string;
   siblings?: string;
@@ -181,6 +184,14 @@ export async function fulfilDraft(
       if (parents.length || siblings.length) {
         const p1 = parents[0] ? (await person(tx, treeId, parents[0])).id : null;
         const p2 = parents[1] ? (await person(tx, treeId, parents[1])).id : null;
+        // Each parent's own parents, so the family reaches one generation further up.
+        for (const [child, names] of [[p1, lines(o.fatherParents)], [p2, lines(o.motherParents)]] as const) {
+          if (!child || !names.length) continue;
+          const g1 = (await person(tx, treeId, names[0]!)).id;
+          const g2 = names[1] ? (await person(tx, treeId, names[1])).id : null;
+          const gf = await family(tx, treeId, g1, g2, g2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
+          await addChildRef(gf.id, child, undefined, tx);
+        }
         parentsFamily = (await family(tx, treeId, p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
         await addChildRef(parentsFamily, subject.id, undefined, tx);
         for (const s of siblings) {

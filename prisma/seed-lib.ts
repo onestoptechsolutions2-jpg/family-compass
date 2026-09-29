@@ -58,7 +58,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       sortOrder: 10,
       options: {
         materials: [{ key: "tile", label: "Ceramic tile", addKes: 0 }],
-        sizes: [{ key: "standard", label: "Standard", addKes: 0 }],
+        sizes: [{ key: "standard", label: "Standard (20 x 30 cm)", addKes: 0 }],
       },
     },
     {
@@ -74,7 +74,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
           { key: "tile", label: "Ceramic tile", addKes: 0 },
           { key: "granite", label: "Granite", addKes: 0 },
         ],
-        sizes: [{ key: "standard", label: "Standard", addKes: 0 }],
+        sizes: [{ key: "square", label: "Square (40 x 40 cm)", addKes: 0 }],
       },
     },
     {
@@ -94,6 +94,19 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
           { key: "a2", label: "A2", addKes: 0 },
           { key: "a1", label: "A1", addKes: 0 },
         ],
+      },
+    },
+    {
+      slug: "wooden-family-tree",
+      pathway: "LIVING" as const,
+      group: "Display",
+      name: "Wooden family tree",
+      summary: "Your family tree engraved in solid wood for the wall, with a QR code to your living family page.",
+      basePriceKes: 15000,
+      sortOrder: 20,
+      options: {
+        materials: [{ key: "wood", label: "Solid wood", addKes: 0 }],
+        sizes: [{ key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 }],
       },
     },
   ];

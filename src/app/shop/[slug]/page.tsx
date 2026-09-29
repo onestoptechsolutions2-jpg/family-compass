@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
+import { PRODUCT_IMAGES } from "@/lib/product-images";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       >
         Start designing
       </Link>
+
+      {(PRODUCT_IMAGES[p.slug] ?? []).length > 0 && (
+        <div className="mt-6 flex flex-col gap-3">
+          {PRODUCT_IMAGES[p.slug]!.map((im) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={im.src} src={im.src} alt={im.alt} className="w-full rounded-2xl border" style={{ borderColor: "var(--border)" }} loading="lazy" />
+          ))}
+          <p className="text-xs" style={{ color: "var(--muted)" }}>Sample of the finished product. Yours carries your family.</p>
+        </div>
+      )}
 
       <div className="mt-8 flex flex-col gap-4">
         {answers.map((x) => (

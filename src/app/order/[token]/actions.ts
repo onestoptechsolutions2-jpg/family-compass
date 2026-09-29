@@ -14,6 +14,8 @@ const TEXT_KEYS = [
   "place",
   "epitaph",
   "parents",
+  "fatherParents",
+  "motherParents",
   "spouse",
   "children",
   "siblings",
