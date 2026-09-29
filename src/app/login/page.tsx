@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { signIn } from "@/lib/auth";
 import { getSessionUser } from "@/lib/rbac";
-import { hasGoogleOAuth, env } from "@/lib/env";
+import { hasGoogleOAuth, hasFacebookOAuth, env } from "@/lib/env";
 import { passwordSignIn } from "./actions";
 
 export const metadata = { title: "Sign in" };
@@ -31,7 +31,7 @@ export default async function LoginPage({
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
         {env.OPEN_SIGNUP
-          ? "Your first sign-in creates your account."
+          ? "Continue with Google or Facebook. Your first sign-in creates your account."
           : "Access is invite-only. Open the sign-in link your family admin sends you on WhatsApp."}
       </p>
 
@@ -64,6 +64,22 @@ export default async function LoginPage({
               style={{ borderColor: "var(--border)", background: "var(--card)" }}
             >
               Continue with Google
+            </button>
+          </form>
+        )}
+
+        {hasFacebookOAuth && (
+          <form
+            action={async () => {
+              "use server";
+              await signIn("facebook", { redirectTo: callbackUrl });
+            }}
+          >
+            <button
+              className="w-full rounded-lg border px-4 py-2.5 font-medium"
+              style={{ borderColor: "var(--border)", background: "var(--card)" }}
+            >
+              Continue with Facebook
             </button>
           </form>
         )}

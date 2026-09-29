@@ -38,6 +38,8 @@ const schema = z.object({
 
   GOOGLE_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
+  FACEBOOK_CLIENT_ID: z.string().optional().default(""),
+  FACEBOOK_CLIENT_SECRET: z.string().optional().default(""),
 
   EMAIL_SERVER: z.string().optional().default(""),
   EMAIL_FROM: z.string().optional().default(""),
@@ -250,6 +252,7 @@ export const env = (parsed.success ? parsed.data : schema.parse(BUILD_FALLBACKS)
 >;
 
 export const hasGoogleOAuth = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+export const hasFacebookOAuth = Boolean(env.FACEBOOK_CLIENT_ID && env.FACEBOOK_CLIENT_SECRET);
 export const hasEmailProvider = Boolean(env.EMAIL_SERVER && env.EMAIL_FROM);
 export const hasDaraja = Boolean(
   env.MPESA_CONSUMER_KEY && env.MPESA_CONSUMER_SECRET && env.MPESA_SHORTCODE && env.MPESA_PASSKEY,

@@ -2,9 +2,10 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Google from "next-auth/providers/google";
+import Facebook from "next-auth/providers/facebook";
 
 import { db } from "@/lib/db";
-import { env, hasGoogleOAuth, isAdminEmail } from "@/lib/env";
+import { env, hasGoogleOAuth, hasFacebookOAuth, isAdminEmail } from "@/lib/env";
 import { canSignIn } from "@/lib/access";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
 
@@ -17,6 +18,19 @@ if (hasGoogleOAuth) {
     Google({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
+    }),
+  );
+}
+
+// Facebook can return no email (phone-only accounts, or the email permission
+// declined). User.email is required, so those sign-ins are refused in the
+// signIn callback below rather than creating a broken account.
+if (hasFacebookOAuth) {
+  providers.push(
+    Facebook({
+      clientId: env.FACEBOOK_CLIENT_ID,
+      clientSecret: env.FACEBOOK_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
     }),
   );
@@ -39,6 +53,7 @@ export const authConfig: NextAuthConfig = {
     // No open registration: only approved / invited addresses may sign in.
     // Runs before an OAuth account is linked and before a magic link is sent.
     async signIn({ user }) {
+      if (!user.email) return false;
       return canSignIn(user.email);
     },
     // Behind a reverse proxy the request host Auth.js sees is the internal
