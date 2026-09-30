@@ -22,6 +22,11 @@ const cases: [string, Layout, "LIVING" | "REMEMBERED", string, DraftOptions][] =
   ["shirt", "shirt", "LIVING", "tee_m", { surname: "Kamau", title: "Family Reunion", year: "2026", place: "Kakamega" }],
   ["banner", "banner", "LIVING", "banner", { ...tree, death: "", title: "Musungu Family Reunion 2026", spouse: "Grace Musungu", siblings: "Paul Musungu", materialKey: "vinyl" }],
   ["wedding", "wedding", "LIVING", "wall", { first: "Ann", surname: "Kamau", spouse: "Tom Otieno", year: "14 December 2026", title: "The wedding of Ann and Tom", parents: "Peter Kamau\nMary Wanjiku", spouseParents: "David Otieno\nRuth Achieng", children: "", materialKey: "wood" }],
+  ["wedding-a3", "wedding", "LIVING", "a3", { first: "Ann", surname: "Kamau", spouse: "Tom Otieno", year: "14 December 2026", title: "The wedding of Ann and Tom", parents: "Peter Kamau\nMary Wanjiku", spouseParents: "David Otieno\nRuth Achieng", materialKey: "poster" }],
+  ["wedding-a2", "wedding", "LIVING", "a2", { first: "Ann", surname: "Kamau", spouse: "Tom Otieno", year: "14 December 2026", title: "The wedding of Ann and Tom", parents: "Peter Kamau\nMary Wanjiku", spouseParents: "David Otieno\nRuth Achieng", materialKey: "poster" }],
+  ["memorial-desk", "tree", "REMEMBERED", "standard", { ...tree, materialKey: "wood" }],
+  ["memorial-a1", "tree", "REMEMBERED", "a1", { ...tree, materialKey: "poster" }],
+  ["desk-living", "tree", "LIVING", "standard", { ...tree, death: "", materialKey: "wood" }],
 ];
 
 for (const [name, layout, pathway, size, options] of cases) {

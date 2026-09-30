@@ -10,6 +10,7 @@ import { evaluate, type LaunchState } from "./launch-check";
 const ready = (): LaunchState => ({
   appUrl: "https://myroots.laitor.co.ke",
   openSignup: true,
+  shopSignup: false,
   googleConfigured: true,
   emailConfigured: true,
   adminCount: 1,
@@ -37,6 +38,7 @@ describe("launch check", () => {
     const s: LaunchState = {
       ...ready(),
       openSignup: false,
+      shopSignup: false,
       googleConfigured: false,
       emailConfigured: false,
       receivingAddress: false,
@@ -51,9 +53,14 @@ describe("launch check", () => {
     expect(v.readyForTestOrder).toBe(true);
   });
 
-  it("customers cannot sign in unless sign-up is open AND Google is set up", () => {
-    expect(failing({ ...ready(), openSignup: false })).toContain("sign-in");
-    expect(failing({ ...ready(), googleConfigured: false })).toContain("sign-in");
+  it("customers can sign in when they can create their own account", () => {
+    expect(failing({ ...ready(), shopSignup: true, openSignup: false, googleConfigured: false })).not.toContain("sign-in");
+  });
+
+  it("otherwise sign-up must be open AND Google set up", () => {
+    expect(failing({ ...ready(), shopSignup: false, openSignup: false })).toContain("sign-in");
+    expect(failing({ ...ready(), shopSignup: false, googleConfigured: false })).toContain("sign-in");
+    expect(failing({ ...ready(), shopSignup: false })).not.toContain("sign-in");
   });
 
   it("a test order needs payment details, an admin and a product on sale, and nothing else", () => {

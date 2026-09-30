@@ -39,7 +39,7 @@ export default async function OrdersPage() {
       <main className="mx-auto min-h-dvh max-w-3xl px-4 py-6">
         <ShopHeader />
         <h1 className="font-serif text-3xl text-[#3b2a1c]">My orders</h1>
-        <Link href="/login?callbackUrl=%2Forders" className="mt-4 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white">Sign in with Google</Link>
+        <Link href="/login?callbackUrl=%2Forders" className="mt-4 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white">Sign in or create an account</Link>
       </main>
     );
   }

@@ -23,7 +23,7 @@ ck "sort by price low to high renders" "$(code "$B/shop?sort=price_asc")" "200"
 ck "product page has add to cart" "$(has 'Personalise and add to cart' $B/shop/tombstone-family-tree)" "yes"
 ck "product page shows the shop header cart" "$(has 'Cart' $B/shop/tombstone-family-tree)" "yes"
 ck "signed-out cart asks to sign in" "$(has 'Sign in to see your cart' $B/cart)" "yes"
-ck "signed-out orders asks to sign in" "$(has 'Sign in with Google' $B/orders)" "yes"
+ck "signed-out orders asks to sign in" "$(has 'Sign in or create an account' $B/orders)" "yes"
 
 # ---- adding needs an account ---------------------------------------------------
 ck "add to cart signed out goes to sign in and back" "$(loc $B/order/$T/add | grep -c 'login?callbackUrl=%2Forder%2F.*%2Fadd')" "1"

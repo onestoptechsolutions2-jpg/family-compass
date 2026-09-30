@@ -30,8 +30,8 @@ export default async function LoginPage({
       </Link>
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-        {env.OPEN_SIGNUP
-          ? "Continue with Google or Facebook. Your first sign-in creates your account."
+        {env.SHOP_SIGNUP || env.OPEN_SIGNUP
+          ? "Sign in to see your designs and orders."
           : "Access is invite-only. Open the sign-in link your family admin sends you on WhatsApp."}
       </p>
 
@@ -85,7 +85,7 @@ export default async function LoginPage({
         )}
 
         <form action={passwordSignIn} className="flex flex-col gap-2">
-          <div className="text-sm font-medium">Admin sign-in</div>
+          <div className="text-sm font-medium">Email and password</div>
           <input type="hidden" name="callbackUrl" value={callbackUrl} />
           <input name="email" type="email" required placeholder="Email" className={field} style={fieldStyle} />
           <input
@@ -99,7 +99,18 @@ export default async function LoginPage({
           <button className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
             Sign in
           </button>
+        
+          <Link href="/login/forgot" className="text-center text-xs underline" style={{ color: "var(--muted)" }}>Forgot your password?</Link>
         </form>
+
+        {env.SHOP_SIGNUP && (
+          <div className="rounded-lg border p-4 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+            <p className="font-medium" style={{ color: "var(--fg)" }}>New here?</p>
+            <p className="mt-1">
+              <Link href={`/join?next=${encodeURIComponent(callbackUrl)}`} className="underline">Create an account</Link> to order and keep your designs.
+            </p>
+          </div>
+        )}
 
         <div
           className="rounded-lg border p-4 text-sm"

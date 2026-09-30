@@ -20,6 +20,7 @@ export type Check = {
 export type LaunchState = {
   appUrl: string;
   openSignup: boolean;
+  shopSignup: boolean;
   googleConfigured: boolean;
   emailConfigured: boolean;
   adminCount: number;
@@ -53,11 +54,13 @@ export function evaluate(s: LaunchState): { checks: Check[]; readyForTestOrder: 
     {
       id: "sign-in",
       label: "Customers can sign in",
-      ok: s.openSignup && s.googleConfigured,
+      ok: s.shopSignup || (s.openSignup && s.googleConfigured),
       forCustomers: true,
       forTestOrder: false,
-      detail: `Open sign-up is ${s.openSignup ? "on" : "OFF"}; Google sign-in is ${s.googleConfigured ? "set up" : "NOT set up"}.`,
-      fix: "Set OPEN_SIGNUP=true, and GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (redirect URI: your site address + /api/auth/callback/google), then redeploy. Until then only admins can sign in.",
+      detail: s.shopSignup
+        ? `Shoppers can create an account with an email and password.${s.googleConfigured && s.openSignup ? " Google sign-in is on too." : " Google sign-in is not set up (optional)."}`
+        : `Account creation is closed. Open sign-up is ${s.openSignup ? "on" : "OFF"}; Google sign-in is ${s.googleConfigured ? "set up" : "NOT set up"}.`,
+      fix: "Remove SHOP_SIGNUP=false so shoppers can create an account, or set OPEN_SIGNUP=true with GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (redirect URI: your site address + /api/auth/callback/google), then redeploy.",
     },
     {
       id: "public-address",
@@ -163,6 +166,7 @@ export async function loadLaunchState(): Promise<LaunchState> {
   return {
     appUrl: env.APP_URL,
     openSignup: env.OPEN_SIGNUP,
+    shopSignup: env.SHOP_SIGNUP,
     googleConfigured: hasGoogleOAuth,
     emailConfigured: hasEmailProvider,
     adminCount: admins,

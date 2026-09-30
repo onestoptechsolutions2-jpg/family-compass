@@ -239,6 +239,125 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
         sizes: [{ key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 }],
       },
     },
+    {
+      slug: "wedding-tree-poster",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Wedding family tree poster",
+      summary: "Both families above the couple, printed large for the reception or as a gift. A QR code opens their family page.",
+      basePriceKes: 6500,
+      sortOrder: 50,
+      layout: "wedding",
+      active: false,
+      options: {
+        materials: [
+          { key: "poster", label: "Printed poster", addKes: 0 },
+        ],
+        sizes: [
+          { key: "a3", label: "A3 (30 x 42 cm)", addKes: 0 },
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 2500 },
+        ],
+      },
+    },
+    {
+      slug: "wedding-tree-framed",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Framed wedding family tree",
+      summary: "The two families joined, printed and framed, ready to give or hang.",
+      basePriceKes: 12500,
+      sortOrder: 60,
+      layout: "wedding",
+      active: false,
+      options: {
+        materials: [
+          { key: "poster", label: "Framed print", addKes: 0 },
+        ],
+        sizes: [
+          { key: "a3", label: "A3 (30 x 42 cm)", addKes: 0 },
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 4500 },
+        ],
+      },
+    },
+    {
+      slug: "memorial-tree-poster",
+      pathway: "REMEMBERED" as const,
+      group: "Remember",
+      name: "Funeral display family tree",
+      summary: "Their family tree at poster size for the service, the church or the home. The QR code opens their memorial page.",
+      basePriceKes: 7500,
+      sortOrder: 40,
+      layout: "tree",
+      active: false,
+      options: {
+        materials: [
+          { key: "poster", label: "Printed poster", addKes: 0 },
+        ],
+        sizes: [
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 0 },
+          { key: "a1", label: "A1 (59 x 84 cm)", addKes: 3000 },
+        ],
+      },
+    },
+    {
+      slug: "memorial-tree-framed",
+      pathway: "REMEMBERED" as const,
+      group: "Remember",
+      name: "Framed memorial family tree",
+      summary: "Their family tree, printed and framed, to keep in the home after the service.",
+      basePriceKes: 11000,
+      sortOrder: 50,
+      layout: "tree",
+      active: false,
+      options: {
+        materials: [
+          { key: "poster", label: "Framed print", addKes: 0 },
+        ],
+        sizes: [
+          { key: "a3", label: "A3 (30 x 42 cm)", addKes: 0 },
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 4000 },
+        ],
+      },
+    },
+    {
+      slug: "memorial-wood-tree",
+      pathway: "REMEMBERED" as const,
+      group: "Remember",
+      name: "Wooden memorial tree",
+      summary: "Their family tree engraved in solid wood, with a QR code to their memorial page.",
+      basePriceKes: 14000,
+      sortOrder: 60,
+      layout: "tree",
+      active: false,
+      options: {
+        materials: [
+          { key: "wood", label: "Solid wood", addKes: 0 },
+        ],
+        sizes: [
+          { key: "standard", label: "Desk (20 x 30 cm)", addKes: 0 },
+          { key: "wall", label: "Wall (60 x 40 cm)", addKes: 6000 },
+        ],
+      },
+    },
+    {
+      slug: "desk-family-tree",
+      pathway: "LIVING" as const,
+      group: "Display",
+      name: "Desk family tree",
+      summary: "A small engraved wooden family tree for a desk or shelf. A thoughtful gift.",
+      basePriceKes: 6500,
+      sortOrder: 40,
+      layout: "tree",
+      active: false,
+      options: {
+        materials: [
+          { key: "wood", label: "Solid wood", addKes: 0 },
+        ],
+        sizes: [
+          { key: "standard", label: "Desk (20 x 30 cm)", addKes: 0 },
+        ],
+      },
+    },
   ];
   // What each product needs to be made, and how it reaches the customer.
   const route: Record<string, { skills: string[]; shipVia: string; aisle: string }> = {
@@ -253,6 +372,12 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
     "reunion-name-badges": { skills: ["printing"], shipVia: "direct", aisle: "events_merch" },
     "reunion-banner": { skills: ["printing"], shipVia: "direct", aisle: "events_merch" },
     "wedding-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "events_merch" },
+    "wedding-tree-poster": { skills: ["printing"], shipVia: "direct", aisle: "events_merch" },
+    "wedding-tree-framed": { skills: ["printing", "framing"], shipVia: "direct", aisle: "events_merch" },
+    "memorial-tree-poster": { skills: ["printing"], shipVia: "direct", aisle: "books_print" },
+    "memorial-tree-framed": { skills: ["printing", "framing"], shipVia: "direct", aisle: "wall_art" },
+    "memorial-wood-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
+    "desk-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
   };
   for (const p of products) {
     const r = route[p.slug]!;

@@ -28,7 +28,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
         <ShopHeader />
         <h1 className="font-serif text-3xl text-[#3b2a1c]">Your cart</h1>
         <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>Sign in to see your cart. Anything you personalised is kept for you.</p>
-        <Link href="/login?callbackUrl=%2Fcart" className="mt-4 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white">Sign in with Google</Link>
+        <Link href="/login?callbackUrl=%2Fcart" className="mt-4 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white">Sign in or create an account</Link>
       </main>
     );
   }

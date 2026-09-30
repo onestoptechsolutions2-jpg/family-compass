@@ -119,3 +119,12 @@ want that effortless feel, with the commercial step added at the end.
 - A browser can only set names and dates. Material, size, price and answers about existing family members are never taken from it.
 - GEDCOM import: later.
 - Landing page examples are small cached WebP pictures (`/api/sample/<slug>`), not inline drawings, so the page stays light (78 KB).
+
+## Sign-in for customers (decided)
+- Shoppers create their own account at /join with name, email and password (on by default; SHOP_SIGNUP=false closes it). No outside keys needed. Google stays optional (OPEN_SIGNUP + keys).
+- An existing email is never taken over by sign-up. Sign-in and sign-up are rate-limited; "where to go next" must be a page on this site.
+- Forgot password: a one-time emailed sign-in link when email is set up; otherwise the page says to message us on WhatsApp. Account has Change password.
+- Email is not verified yet. Acceptable while every order is confirmed by a person checking the M-Pesa proof.
+
+## More products (added, all OFF until priced)
+- Wedding tree poster and framed, funeral display poster, framed memorial tree, wooden memorial tree, desk family tree. Each reuses an existing layout, so there is nothing new to draw. Switch each on in Admin, Products after saving a real price.

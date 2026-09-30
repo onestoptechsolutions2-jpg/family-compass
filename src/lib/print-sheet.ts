@@ -86,7 +86,7 @@ async function renderOnce(
   const headH = heading ? S * (subheading ? 0.19 : 0.14) : 0;
   const top = m * 1.7 + headH;
   const treeBottom = H - footH - m;
-  const rowsN = wedding ? 3 : 4;
+  const rowsN = wedding ? (children.length ? 3 : 2) : 4; // a wedding with no children does not leave a blank row
   const rowH = (treeBottom - top) / rowsN;
   const rowY = Array.from({ length: rowsN }, (_, i) => top + rowH * (i + 0.5));
   const ph = Math.min(rowH * 0.42, S * 0.07); // pill height

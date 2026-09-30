@@ -75,6 +75,12 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true" || v === "1"),
+  // Shoppers may create their own account with an email and password at /join.
+  // On by default; set SHOP_SIGNUP=false to close it.
+  SHOP_SIGNUP: z
+    .string()
+    .optional()
+    .transform((v) => v !== "false" && v !== "0"),
   // The public "start your own tree from yourself" funnel at /start.
   // On by default; set SELF_START=false to hide it.
   SELF_START: z

@@ -26,6 +26,8 @@ family-birthday-calendar|Calendar year|Birthdays and anniversaries|A2
 reunion-tshirt|Line under the name|Add your family|Double extra large
 reunion-name-badges|Event name|Who is coming|Up to 50 guests
 wedding-family-tree|Who is getting married|Bring the two families|Solid wood
+wedding-tree-poster|Who is getting married|Bring the two families|A2
+wedding-tree-framed|Who is getting married|Bring the two families|A2
 EOF
 
 echo "== family trees: tap the tree (3 steps)"
@@ -49,6 +51,10 @@ family-tree-poster|A1
 wooden-family-tree|Solid wood
 framed-family-tree-print|A3
 reunion-banner|Banner
+memorial-tree-poster|A1
+memorial-tree-framed|A3
+memorial-wood-tree|Solid wood
+desk-family-tree|Solid wood
 EOF
 T=$(newdraft reunion-banner)
 ck "the banner builder asks for the banner title" "$(has 'Banner title' "$B/order/$T?step=1")" "yes"
