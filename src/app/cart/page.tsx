@@ -7,6 +7,7 @@ import { publicOrigin } from "@/lib/origin";
 import { cartTotal, getCart, lineTotal } from "@/lib/cart";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import type { DraftOptions } from "@/lib/order-shared";
+import { isLayout } from "@/lib/layouts";
 import { ShopHeader } from "@/components/ShopHeader";
 import { checkoutAction, removeItemAction, setQuantityAction } from "./actions";
 
@@ -49,7 +50,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
     items.map(async (i) => {
       const o = (i.options ?? {}) as DraftOptions;
       const sheet = await renderPrintSheet(
-        { options: o, productName: i.product.name, qrUrl: `${origin}/q/yourcode`, pathway: i.product.pathway },
+        { options: o, productName: i.product.name, qrUrl: `${origin}/q/yourcode`, pathway: i.product.pathway, layout: isLayout(i.product.layout) ? i.product.layout : "tree" },
         o.sizeKey,
       );
       return sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
@@ -81,7 +82,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
                   <div className="w-28 shrink-0 overflow-hidden rounded-lg border sm:w-36" style={{ borderColor: "var(--border)" }} dangerouslySetInnerHTML={{ __html: thumbs[n]! }} />
                   <div className="min-w-0 flex-1 text-sm">
                     <h2 className="font-semibold">{i.product.name}</h2>
-                    <p style={{ color: "var(--muted)" }}>For {[o.first, o.surname].filter(Boolean).join(" ") || "—"}</p>
+                    <p style={{ color: "var(--muted)" }}>For {o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || o.surname || "—"}</p>
                     <p style={{ color: "var(--muted)" }}>{[material, size].filter(Boolean).join(" · ")}</p>
                     <p className="mt-2 font-medium">{kes(lineTotal(i))}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3">

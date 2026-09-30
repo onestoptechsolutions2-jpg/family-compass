@@ -109,6 +109,136 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
         sizes: [{ key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 }],
       },
     },
+    // ---- Books and print, events and merchandise ------------------------------------
+    // Off until real supplier prices are set (Admin > Products): a guessed price on a
+    // product nobody has quoted for is how a shop loses money.
+    {
+      slug: "memorial-prayer-cards",
+      pathway: "REMEMBERED" as const,
+      group: "Remember",
+      name: "Memorial prayer cards",
+      summary: "Cards handed out at the service, with their name, dates and a verse. The QR code opens their memorial page.",
+      basePriceKes: 5000,
+      sortOrder: 10,
+      layout: "card",
+      active: false,
+      options: {
+        materials: [
+          { key: "card", label: "Matt card, printed both sides", addKes: 0 },
+          { key: "gloss", label: "Gloss laminated", addKes: 800 },
+        ],
+        sizes: [
+          { key: "pack50", label: "Pack of 50", addKes: 0 },
+          { key: "pack100", label: "Pack of 100", addKes: 3500 },
+          { key: "pack200", label: "Pack of 200", addKes: 8000 },
+        ],
+      },
+    },
+    {
+      slug: "family-birthday-calendar",
+      pathway: "LIVING" as const,
+      group: "Preserve",
+      name: "Family birthday calendar",
+      summary: "A year planner with every family birthday and anniversary on it. Relatives scan the QR code to add theirs.",
+      basePriceKes: 3500,
+      sortOrder: 20,
+      layout: "calendar",
+      active: false,
+      options: {
+        materials: [{ key: "paper", label: "Printed paper", addKes: 0 }],
+        sizes: [
+          { key: "a3", label: "A3 (30 x 42 cm)", addKes: 0 },
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 1500 },
+        ],
+      },
+    },
+    {
+      slug: "framed-family-tree-print",
+      pathway: "LIVING" as const,
+      group: "Display",
+      name: "Framed family tree print",
+      summary: "Your family tree printed on quality paper and framed, ready to hang, with a QR code to your family page.",
+      basePriceKes: 9500,
+      sortOrder: 30,
+      layout: "tree",
+      active: false,
+      options: {
+        materials: [{ key: "poster", label: "Framed print", addKes: 0 }],
+        sizes: [
+          { key: "a3", label: "A3 (30 x 42 cm)", addKes: 0 },
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 4000 },
+        ],
+      },
+    },
+    {
+      slug: "reunion-tshirt",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Family reunion T-shirt",
+      summary: "One shirt for the whole clan: family name, year and place, with a QR code on the back to your family page. One size per line.",
+      basePriceKes: 1500,
+      sortOrder: 10,
+      layout: "shirt",
+      active: false,
+      options: {
+        materials: [{ key: "cotton", label: "Cotton T-shirt", addKes: 0 }],
+        sizes: [
+          { key: "tee_s", label: "Small", addKes: 0 },
+          { key: "tee_m", label: "Medium", addKes: 0 },
+          { key: "tee_l", label: "Large", addKes: 0 },
+          { key: "tee_xl", label: "Extra large", addKes: 0 },
+          { key: "tee_xxl", label: "Double extra large", addKes: 200 },
+        ],
+      },
+    },
+    {
+      slug: "reunion-name-badges",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Reunion name badges",
+      summary: "A badge for every guest with their name and how they are related to the host, so cousins meet cousins.",
+      basePriceKes: 3000,
+      sortOrder: 20,
+      layout: "badges",
+      active: false,
+      options: {
+        materials: [{ key: "card", label: "Printed card badges", addKes: 0 }],
+        sizes: [
+          { key: "badges20", label: "Up to 20 guests", addKes: 0 },
+          { key: "badges50", label: "Up to 50 guests", addKes: 4500 },
+        ],
+      },
+    },
+    {
+      slug: "reunion-banner",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Reunion banner",
+      summary: "Your family tree at banner size with the event title, for the venue. The QR code takes guests to the family page.",
+      basePriceKes: 12000,
+      sortOrder: 30,
+      layout: "banner",
+      active: false,
+      options: {
+        materials: [{ key: "vinyl", label: "Vinyl banner", addKes: 0 }],
+        sizes: [{ key: "banner", label: "Banner (200 x 100 cm)", addKes: 0 }],
+      },
+    },
+    {
+      slug: "wedding-family-tree",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Wedding family tree",
+      summary: "Two families become one: both sets of parents above the couple, engraved in wood as a keepsake or gift.",
+      basePriceKes: 18000,
+      sortOrder: 40,
+      layout: "wedding",
+      active: false,
+      options: {
+        materials: [{ key: "wood", label: "Solid wood", addKes: 0 }],
+        sizes: [{ key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 }],
+      },
+    },
   ];
   // What each product needs to be made, and how it reaches the customer.
   const route: Record<string, { skills: string[]; shipVia: string; aisle: string }> = {
@@ -116,6 +246,13 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
     "tombstone-family-tree": { skills: ["stone_engraving"], shipVia: "via_us", aisle: "memorial_stone" },
     "family-tree-poster": { skills: ["printing"], shipVia: "direct", aisle: "wall_art" },
     "wooden-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
+    "memorial-prayer-cards": { skills: ["printing"], shipVia: "direct", aisle: "books_print" },
+    "family-birthday-calendar": { skills: ["printing"], shipVia: "direct", aisle: "books_print" },
+    "framed-family-tree-print": { skills: ["printing", "framing"], shipVia: "direct", aisle: "wall_art" },
+    "reunion-tshirt": { skills: ["apparel"], shipVia: "direct", aisle: "events_merch" },
+    "reunion-name-badges": { skills: ["printing"], shipVia: "direct", aisle: "events_merch" },
+    "reunion-banner": { skills: ["printing"], shipVia: "direct", aisle: "events_merch" },
+    "wedding-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "events_merch" },
   };
   for (const p of products) {
     const r = route[p.slug]!;

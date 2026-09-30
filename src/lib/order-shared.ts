@@ -15,6 +15,16 @@ export type DraftOptions = {
   spouse?: string;
   children?: string;
   siblings?: string;
+  /** the spouse's parents (wedding tree), one per line */
+  spouseParents?: string;
+  /** event or tree title printed on the piece, e.g. Kamau Family Reunion 2026 */
+  title?: string;
+  /** calendar year, wedding date or event year */
+  year?: string;
+  /** calendar: one per line, "Name, 3 March 1985" */
+  birthdays?: string;
+  /** badges: one per line, "Name, relation to the host" */
+  attendees?: string;
   materialKey?: string;
   sizeKey?: string;
   relation?: "child" | "spouse" | "sibling" | "other";

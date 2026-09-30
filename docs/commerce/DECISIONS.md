@@ -50,3 +50,31 @@ Decided with the owner. Change only with the owner. Newest at the bottom.
 - Delivery cost for remote areas is absorbed in the price; revisit if margins
   suffer.
 - Where partners send pieces that come to us first: set in Admin > Settings.
+
+## The two empty aisles, filled (2026-09-30)
+
+Seven products, all built on one rule: a product is a **layout** (what the piece
+looks like and which questions it asks) plus a catalogue row. Cart, payment,
+partners and shipping are the same for every layout. See src/lib/layouts.ts.
+
+| Aisle | Product | Layout | Made by | Ships |
+| --- | --- | --- | --- | --- |
+| Books and print | Memorial prayer cards (packs of 50, 100, 200) | card | printing | direct |
+| Books and print | Family birthday calendar (A3, A2) | calendar | printing | direct |
+| Wall art | Framed family tree print (A3, A2) | tree | printing then framing | direct |
+| Events and merchandise | Reunion T-shirt (S to XXL, one size per line) | shirt | apparel | direct |
+| Events and merchandise | Reunion name badges (20 or 50) | badges | printing | direct |
+| Events and merchandise | Reunion banner (200 x 100 cm) | banner | printing | direct |
+| Events and merchandise | Wedding family tree | wedding | wood engraving | via us |
+
+- **They are switched off** until real supplier prices are set (Admin > Products,
+  "On sale"). Prices in the seed are guesses.
+- **What each writes to the family record:** a card builds a published memorial;
+  a calendar turns every entry with a full birth date into a person with a Birth
+  event (entries without a year stay on the calendar only); a wedding tree builds
+  both families (both sets of parents, the couple, children); a shirt, banner and
+  badges build the customer's family page; badge guests are printed, not added as
+  people.
+- **Open:** T-shirts print black on a light shirt only; no dark-shirt or colour
+  variant. Badges print on one sheet, not tear-off pages. The calendar is a
+  one-page year planner, not a 12-page wall calendar.

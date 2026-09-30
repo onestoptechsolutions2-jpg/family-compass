@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet, type PrintSheet } from "@/lib/print-sheet";
 import type { DraftOptions } from "@/lib/order-shared";
+import { isLayout } from "@/lib/layouts";
 
 /**
  * The print sheet for one approved order item, from the layout frozen at
@@ -20,6 +21,7 @@ export async function renderItemSheet(itemId: string): Promise<{ sheet: PrintShe
       productName: item.product.name,
       qrUrl: `${await publicOrigin()}/q/${item.qrCode.code}`,
       pathway: item.product.pathway,
+      layout: isLayout(item.product.layout) ? item.product.layout : "tree",
     },
     options.sizeKey,
   );

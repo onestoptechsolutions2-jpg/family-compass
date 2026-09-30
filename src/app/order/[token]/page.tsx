@@ -7,16 +7,26 @@ import { kes } from "@/lib/money";
 import { getSessionUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet } from "@/lib/print-sheet";
+import { isLayout, isReady, requiredKey, stepsFor, type Field, type Layout } from "@/lib/layouts";
 import { amountDueNow, lines, unitPrice, type DraftOptions, type ProductOptions } from "@/lib/orders";
 import { saveStep } from "./actions";
 
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
 
-const STEPS = ["Who it is for", "Who to show", "Material and size", "Review"];
+const STEPS = ["About it", "The details", "Material and size", "Review"];
 const field = "mt-1 w-full rounded-lg border px-4 py-2.5 text-sm";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
 const btn = "rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700";
+const ghost = "rounded-md border px-5 py-2.5 text-sm";
+const ghostStyle = { borderColor: "var(--border)" } as const;
+
+const RELATIONS = [
+  ["child", "Son or daughter"],
+  ["spouse", "Husband or wife"],
+  ["sibling", "Brother or sister"],
+  ["other", "Other relative or friend"],
+] as const;
 
 export default async function OrderWizard({
   params,
@@ -46,6 +56,9 @@ export default async function OrderWizard({
     redirect(dep ? `/pay/${dep.id}` : "/app");
   }
 
+  const layout: Layout = isLayout(item.product.layout) ? item.product.layout : "tree";
+  const pathway = item.product.pathway;
+  const [step1, step2] = stepsFor(layout, pathway);
   const step = Math.min(Math.max(Number(rawStep) || 1, 1), STEPS.length);
   const o = (item.options ?? {}) as DraftOptions;
   const po = (item.product.options ?? null) as ProductOptions | null;
@@ -55,16 +68,11 @@ export default async function OrderWizard({
   // The customer sees exactly what will be made, updated as they build it.
   const previewOptions: DraftOptions = {
     ...o,
-    materialKey: o.materialKey ?? (po?.materials?.[0]?.key),
-    sizeKey: o.sizeKey ?? (po?.sizes?.[0]?.key),
+    materialKey: o.materialKey ?? po?.materials?.[0]?.key,
+    sizeKey: o.sizeKey ?? po?.sizes?.[0]?.key,
   };
   const sheet = await renderPrintSheet(
-    {
-      options: previewOptions,
-      productName: item.product.name,
-      qrUrl: `${await publicOrigin()}/q/yourcode`,
-      pathway: item.product.pathway,
-    },
+    { options: previewOptions, productName: item.product.name, qrUrl: `${await publicOrigin()}/q/yourcode`, pathway, layout },
     previewOptions.sizeKey,
   );
   const previewSvg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
@@ -73,11 +81,7 @@ export default async function OrderWizard({
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
         Preview of your {item.product.name.toLowerCase()}
       </p>
-      <div
-        className="mt-2 overflow-hidden rounded-xl border"
-        style={{ borderColor: "var(--border)" }}
-        dangerouslySetInnerHTML={{ __html: previewSvg }}
-      />
+      <div className="mt-2 overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: layout === "shirt" ? "#e8e8e8" : undefined }} dangerouslySetInnerHTML={{ __html: previewSvg }} />
       {sheet.warnings.length > 0 && (
         <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }}>
           {sheet.warnings.map((w) => <li key={w}>{w}</li>)}
@@ -85,8 +89,35 @@ export default async function OrderWizard({
       )}
     </div>
   );
-  const living = item.product.pathway === "LIVING";
+
   const label = (t: string) => <span className="text-sm font-medium">{t}</span>;
+  const renderField = (f: Field) => {
+    if (f.relation) {
+      return (
+        <label key="relation">{label(f.label || "You are their")}
+          <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
+            {RELATIONS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+        </label>
+      );
+    }
+    const value = o[f.key] as string | undefined;
+    return (
+      <label key={f.key}>
+        {label(f.label)}
+        {f.hint && <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>{f.hint}</span>}
+        {f.rows ? (
+          <textarea name={f.key} rows={f.rows} defaultValue={value} placeholder={f.placeholder} className={field} style={fieldStyle} />
+        ) : (
+          <input name={f.key} defaultValue={value} placeholder={f.placeholder} required={f.key === requiredKey(layout) && step === 1} className={field} style={fieldStyle} />
+        )}
+      </label>
+    );
+  };
+
+  // What was entered, in the customer's own words, for the review.
+  const filled = [...step1.fields, ...step2.fields].filter((f) => !f.relation && (o[f.key] as string | undefined)?.trim());
+  const headline = o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || "Name missing";
 
   return (
     <main className="mx-auto min-h-dvh max-w-xl px-6 py-8">
@@ -102,63 +133,20 @@ export default async function OrderWizard({
 
       {step === 1 && (
         <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">{living ? "Whose family is this?" : "Who is this for?"}</h1>
-          <label>{label(living ? "Your first name(s)" : "First name(s)")}
-            <input name="first" required defaultValue={o.first} className={field} style={fieldStyle} />
-          </label>
-          <label>{label(living ? "Your surname" : "Surname")}
-            <input name="surname" defaultValue={o.surname} className={field} style={fieldStyle} />
-          </label>
-          <label>{label(living ? "Your birth year (optional)" : "Born (date or year)")}
-            <input name="birth" defaultValue={o.birth} placeholder="e.g. 12 March 1948" className={field} style={fieldStyle} />
-          </label>
-          {!living && (
-            <>
-              <label>{label("Died (date or year)")}
-                <input name="death" defaultValue={o.death} placeholder="e.g. 2026" className={field} style={fieldStyle} />
-              </label>
-              <label>{label("Place of passing or burial (optional)")}
-                <input name="place" defaultValue={o.place} className={field} style={fieldStyle} />
-              </label>
-            </>
-          )}
-          <label>{label(living ? "A title for your tree (optional)" : "A short line to carry on it (optional)")}
-            <input name="epitaph" defaultValue={o.epitaph} maxLength={300} className={field} style={fieldStyle} />
-          </label>
+          <h1 className="font-serif text-2xl">{step1.title}</h1>
+          {step1.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step1.intro}</p>}
+          {step1.fields.map(renderField)}
           <button className={btn}>Continue</button>
         </form>
       )}
 
       {step === 2 && (
         <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">Who should we show?</h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>One name per line. Skip anything you do not know; you can add more later.</p>
-          {(["parents", "fatherParents", "motherParents", "spouse", "children", "siblings"] as const).map((k) => (
-            <label key={k}>{label({
-              parents: "Parents (father first, then mother)",
-              fatherParents: "Father's parents",
-              motherParents: "Mother's parents",
-              spouse: "Spouse",
-              children: "Children",
-              siblings: "Brothers and sisters",
-            }[k])}
-              <textarea name={k} rows={3} defaultValue={o[k]} className={field} style={fieldStyle} />
-            </label>
-          ))}
-          {living ? (
-            <input type="hidden" name="relation" value="other" />
-          ) : (
-            <label>{label("You are their")}
-              <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
-                <option value="child">Son or daughter</option>
-                <option value="spouse">Husband or wife</option>
-                <option value="sibling">Brother or sister</option>
-                <option value="other">Other relative or friend</option>
-              </select>
-            </label>
-          )}
+          <h1 className="font-serif text-2xl">{step2.title}</h1>
+          {step2.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step2.intro}</p>}
+          {step2.fields.map(renderField)}
           <div className="flex gap-3">
-            <Link href={`/order/${token}?step=1`} className="rounded-md border px-5 py-2.5 text-sm" style={{ borderColor: "var(--border)" }}>Back</Link>
+            <Link href={`/order/${token}?step=1`} className={ghost} style={ghostStyle}>Back</Link>
             <button className={btn}>Continue</button>
           </div>
         </form>
@@ -183,9 +171,9 @@ export default async function OrderWizard({
               </fieldset>
             );
           })}
-          <p className="text-sm font-medium">Price: {kes(price)}</p>
+          <p className="text-sm font-medium">Price: {kes(price)} <span className="font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
           <div className="flex gap-3">
-            <Link href={`/order/${token}?step=2`} className="rounded-md border px-5 py-2.5 text-sm" style={{ borderColor: "var(--border)" }}>Back</Link>
+            <Link href={`/order/${token}?step=2`} className={ghost} style={ghostStyle}>Back</Link>
             <button className={btn}>Continue</button>
           </div>
         </form>
@@ -197,28 +185,26 @@ export default async function OrderWizard({
         <section className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">Review your design</h1>
           <div className="rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-            <p className="text-lg font-semibold">{[o.first, o.surname].filter(Boolean).join(" ") || "Name missing"}</p>
-            <p style={{ color: "var(--muted)" }}>{[o.birth, o.death].filter(Boolean).join(" – ") || (living ? "" : "Dates not given")}</p>
-            {o.epitaph && <p className="mt-2 italic">&ldquo;{o.epitaph}&rdquo;</p>}
+            <p className="text-lg font-semibold">{headline}</p>
             <ul className="mt-3 list-disc pl-5" style={{ color: "var(--muted)" }}>
-              {(["parents", "fatherParents", "motherParents", "spouse", "children", "siblings"] as const).map((k) =>
-                lines(o[k]).length ? <li key={k}>{k.replace(/([A-Z])/g, " $1").toLowerCase()}: {lines(o[k]).join(", ")}</li> : null,
-              )}
+              {filled.map((f) => {
+                const v = (o[f.key] as string).trim();
+                const n = lines(v).length;
+                return <li key={f.key}>{f.label}: {f.rows ? (n > 4 ? `${n} entries` : lines(v).join(", ")) : v}</li>;
+              })}
             </ul>
             <p className="mt-3">{item.product.name}</p>
             <p className="mt-1 font-medium">{kes(amountDueNow(price))} <span className="font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
           </div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            {living
-              ? "When you place your order, this layout is locked for printing and a QR code is created on it. Anyone who scans the QR code can see the people on this tree, with birth years only, and relatives can ask to join it. You can keep shopping and check out when you are ready."
+            {pathway === "LIVING"
+              ? "When you place your order, this layout is locked for printing and a QR code is created on it. Anyone who scans the QR code can see the people on your family page, with birth years only, and relatives can ask to join it. You can keep shopping and check out when you are ready."
               : "When you place your order, this layout is locked for printing, their memorial page is published and a QR code is created on it. You can keep shopping and check out when you are ready."}
           </p>
-          {!o.first ? (
-            <Link href={`/order/${token}?step=1`} className={btn}>Add their name first</Link>
+          {!isReady(layout, o) ? (
+            <Link href={`/order/${token}?step=1`} className={btn}>Complete the first step</Link>
           ) : (
-            <Link href={`/order/${token}/add`} className={`${btn} text-center`}>
-              Add to cart
-            </Link>
+            <Link href={`/order/${token}/add`} className={`${btn} text-center`}>Add to cart</Link>
           )}
           <Link href={`/order/${token}?step=3`} className="text-center text-sm underline">Back</Link>
         </section>

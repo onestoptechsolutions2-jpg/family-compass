@@ -1,87 +1,13 @@
-import QRCode from "qrcode";
-
 import { lines, type DraftOptions } from "@/lib/order-shared";
+import { renderBadges, renderCalendar, renderCard, renderShirt } from "@/lib/print-layouts";
+import { PRINT_BRAND, SIZES_MM, SKINS, compass, esc, initials, qrPath, skinForMaterial, type PrintInput, type PrintSheet, type Skin } from "@/lib/print-kit";
 
-/** Printed brand, in one place until the Family Compass / MyRoots decision is made. */
-export const PRINT_BRAND = { name: "Family Compass", tagline: "Our Family. Our Heritage." };
+export { PRINT_BRAND, skinForMaterial };
+export type { PrintInput, PrintSheet, Skin };
 
-/** Physical sizes in mm, keyed by the size options seeded on products. */
-const SIZES_MM: Record<string, [number, number]> = {
-  standard: [200, 300],
-  square: [400, 400],
-  wall: [600, 400],
-  a2: [420, 594],
-  a1: [594, 841],
-};
 
-export type Skin = "slate" | "wood" | "paper";
-
-const SKINS: Record<
-  Skin,
-  { bg: string; frame: string; line: string; pillFill: string; pillStroke: string; text: string; sub: string; badge: string; badgeText: string; qrCard: string }
-> = {
-  slate: { bg: "#1b2333", frame: "#d8cdb6", line: "#cdc2ab", pillFill: "none", pillStroke: "#d8cdb6", text: "#efe6d3", sub: "#bfb49d", badge: "#d8cdb6", badgeText: "#1b2333", qrCard: "#efe6d3" },
-  wood: { bg: "#c68f5b", frame: "#4a2a14", line: "#4a2a14", pillFill: "#cf9c69", pillStroke: "#4a2a14", text: "#33190a", sub: "#5a3820", badge: "#4a2a14", badgeText: "#f3dfbd", qrCard: "#e9c99a" },
-  paper: { bg: "#ffffff", frame: "#111111", line: "#333333", pillFill: "none", pillStroke: "#111111", text: "#111111", sub: "#555555", badge: "#111111", badgeText: "#ffffff", qrCard: "#ffffff" },
-};
-
-/** Material chosen in the wizard decides how the sheet is skinned. */
-export function skinForMaterial(materialKey: string | undefined): Skin {
-  if (materialKey === "wood") return "wood";
-  if (materialKey === "tile" || materialKey === "granite") return "slate";
-  return "paper";
-}
-
-export type PrintInput = {
-  options: DraftOptions;
-  productName: string;
-  qrUrl: string;
-  /** "REMEMBERED" marks the focus person with a dagger; "LIVING" does not. */
-  pathway: "LIVING" | "REMEMBERED";
-};
-
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-const initials = (name: string) => {
-  const w = name.trim().split(/\s+/).filter(Boolean);
-  return ((w[0]?.[0] ?? "") + (w.length > 1 ? (w[w.length - 1]?.[0] ?? "") : "")).toUpperCase();
-};
-
-/** The QR as vector squares, so it prints sharp at any size. */
-function qrPath(text: string, x: number, y: number, size: number, ink: string): string {
-  const qr = QRCode.create(text, { errorCorrectionLevel: "M" });
-  const n = qr.modules.size;
-  const cell = size / n;
-  let d = "";
-  for (let r = 0; r < n; r++) {
-    for (let c = 0; c < n; c++) {
-      if (qr.modules.get(r, c)) {
-        d += `M${(x + c * cell).toFixed(3)} ${(y + r * cell).toFixed(3)}h${cell.toFixed(3)}v${cell.toFixed(3)}h${(-cell).toFixed(3)}z`;
-      }
-    }
-  }
-  return `<path d="${d}" fill="${ink}"/>`;
-}
-
-type Node = { name: string; sub?: string; focus?: boolean; dagger?: boolean };
+type Node = { name: string; sub?: string; focus?: boolean; dagger?: boolean; couple?: boolean };
 type Placed = Node & { cx: number; cy: number; w: number; h: number };
-
-/** A compass rose, drawn from paths (no fonts, no images). */
-function compass(cx: number, cy: number, r: number, color: string): string {
-  const pts = (k: number, a: number) => `${cx + Math.sin(a) * r * k},${cy - Math.cos(a) * r * k}`;
-  let star = "";
-  for (let i = 0; i < 4; i++) {
-    const a = (i * Math.PI) / 2;
-    const t = pts(1, a), l = pts(0.16, a - Math.PI / 4), rr = pts(0.16, a + Math.PI / 4);
-    star += `<polygon points="${t} ${rr} ${cx},${cy} ${l}" fill="${color}"/>`;
-    const a2 = a + Math.PI / 4;
-    star += `<polygon points="${pts(0.55, a2)} ${pts(0.13, a2 + Math.PI / 4)} ${cx},${cy} ${pts(0.13, a2 - Math.PI / 4)}" fill="${color}" opacity="0.6"/>`;
-  }
-  return (
-    `<circle cx="${cx}" cy="${cy}" r="${r * 0.92}" fill="none" stroke="${color}" stroke-width="${r * 0.05}"/>` + star
-  );
-}
 
 /**
  * The family tree as a print sheet, in real millimetres: focus person centre,
@@ -89,13 +15,19 @@ function compass(cx: number, cy: number, r: number, color: string): string {
  * in the foot. Names are never cut off: text wraps to two lines, then shrinks,
  * and anything unreadably small is reported in `warnings`.
  */
-export type PrintSheet = { svg: string; widthMm: number; heightMm: number; warnings: string[]; skin: Skin };
 
 export async function renderPrintSheet(
   input: PrintInput,
   sizeKey: string | undefined,
   skinOverride?: Skin,
 ): Promise<PrintSheet> {
+  // Layouts that are not a family tree draw themselves.
+  const skin0 = skinOverride ?? skinForMaterial(input.options.materialKey);
+  if (input.layout === "card") return renderCard(input, sizeKey, skinOverride);
+  if (input.layout === "calendar") return renderCalendar(input, sizeKey, skinOverride);
+  if (input.layout === "badges") return renderBadges(input, sizeKey, skinOverride);
+  if (input.layout === "shirt") return renderShirt(input, sizeKey);
+  void skin0;
   // Pass 1 finds the smallest font any name needs; pass 2 prints every name at
   // that one size, so the sheet reads as a single consistent piece.
   const first = await renderOnce(input, sizeKey, skinOverride, undefined);
@@ -120,18 +52,24 @@ async function renderOnce(
   if (!focusName) warnings.push("The name is missing.");
   const dates = [o.birth, o.death].filter(Boolean).join(" – ");
 
+  const layout = input.layout ?? "tree";
+  const wedding = layout === "wedding";
+  const banner = layout === "banner";
   const [father, mother] = lines(o.parents);
+  const [spouseFather, spouseMother] = lines(o.spouseParents);
   const fatherParents = lines(o.fatherParents);
   const motherParents = lines(o.motherParents);
   const siblings = lines(o.siblings);
   const spouse = lines(o.spouse)[0];
   const children = lines(o.children);
-  if ((fatherParents.length && !father) || (motherParents.length && !mother)) {
+  if (!wedding && ((fatherParents.length && !father) || (motherParents.length && !mother))) {
     warnings.push("Grandparents were given without their child, so they are not shown.");
   }
+  if (wedding && !spouse) warnings.push("Their partner's name is missing.");
 
   const total =
-    1 + [father, mother, spouse].filter(Boolean).length + fatherParents.length + motherParents.length + siblings.length + children.length;
+    1 + [father, mother, spouse, ...(wedding ? [spouseFather, spouseMother] : [])].filter(Boolean).length +
+    (wedding ? 0 : fatherParents.length + motherParents.length + siblings.length) + children.length;
   if (total > 24) warnings.push(`${total} people is above the 24 the layout is proven for; check legibility.`);
 
   // ---- geometry ----------------------------------------------------------
@@ -139,13 +77,18 @@ async function renderOnce(
   const m = S * 0.045; // frame inset
   const innerL = m * 1.7;
   const innerR = W - m * 1.7;
-  const footH = Math.min(H * 0.3, S * 0.32);
-  const top = m * 1.7;
+  const footH = banner ? S * 0.2 : Math.min(H * 0.3, S * 0.32); // a banner is short: give the names the room
+  const spouseFirst = (spouse ?? "").trim().split(/\s+/)[0] ?? "";
+  const heading = banner || wedding ? o.title?.trim() || (wedding && o.first ? `${o.first.trim().split(/\s+/)[0]} & ${spouseFirst || "…"}` : "") : "";
+  const subheading = wedding ? (o.year ?? "").trim() : "";
+  const headH = heading ? S * (subheading ? 0.19 : 0.14) : 0;
+  const top = m * 1.7 + headH;
   const treeBottom = H - footH - m;
-  const rowH = (treeBottom - top) / 4;
-  const rowY = [0, 1, 2, 3].map((i) => top + rowH * (i + 0.5));
+  const rowsN = wedding ? 3 : 4;
+  const rowH = (treeBottom - top) / rowsN;
+  const rowY = Array.from({ length: rowsN }, (_, i) => top + rowH * (i + 0.5));
   const ph = Math.min(rowH * 0.42, S * 0.07); // pill height
-  const minFont = W * 0.012;
+  const minFont = Math.min(W, S * 1.5) * 0.012; // a wide banner is read from a distance, not from its width
 
   const measure = (s: string, fs: number) => s.length * fs * 0.6;
   let minFs = Infinity;
@@ -206,7 +149,7 @@ async function renderOnce(
       ty += fs * 1.1;
     }
     if (n.sub) out.push(`<text x="${tx}" y="${ty + sub * 0.1}" font-size="${sub}" fill="${K.sub}">${esc(n.sub)}</text>`);
-    if (n.focus) {
+    if (n.focus && !n.couple) {
       out.push(`<text x="${cx}" y="${y - sw * 5}" font-size="${ph * 0.26}" letter-spacing="${ph * 0.03}" text-anchor="middle" fill="${K.sub}">FOCUS</text>`);
     }
     return { ...n, cx, cy, w, h };
@@ -234,9 +177,17 @@ async function renderOnce(
   };
   out.push(frame(m * 0.55, S * 0.004));
   out.push(frame(m * 0.85, S * 0.0018));
+  if (heading) {
+    const hs = Math.min(headH * (subheading ? 0.36 : 0.5), ((W - 6 * m) / Math.max(heading.length, 1)) / 0.56);
+    out.push(`<text x="${W / 2}" y="${m * 1.7 + headH * (subheading ? 0.5 : 0.62)}" font-size="${hs}" font-weight="700" text-anchor="middle" fill="${K.text}" font-family="Georgia, 'Times New Roman', serif">${esc(heading)}</text>`);
+    if (subheading) {
+      out.push(`<text x="${W / 2}" y="${m * 1.7 + headH * 0.82}" font-size="${hs * 0.5}" text-anchor="middle" fill="${K.sub}" letter-spacing="${hs * 0.03}">${esc(subheading)}</text>`);
+    }
+  }
 
   // ---- the tree ------------------------------------------------------------
   const maxPillW = W * 0.34;
+  if (!wedding) {
   const gp: Placed[] = [];
   const grand: Node[] = [];
   const grandSlots: (string | undefined)[] = [
@@ -289,11 +240,32 @@ async function renderOnce(
   const kids = row(children.map((k) => ({ name: k })), rowY[3]!, maxPillW);
   for (const k of kids) conn(focusP, k);
 
+  } else {
+    // Two families become one: both sets of parents above, the couple joined, children below.
+    const inner = innerR - innerL;
+    const slot4 = inner / 4;
+    const pw4 = Math.min(slot4 * 0.92, maxPillW);
+    const parentsRow = [father, mother, spouseFather, spouseMother];
+    const pp = parentsRow.map((n, i) => (n ? pill({ name: n }, innerL + slot4 * (i + 0.5), rowY[0]!, pw4, ph) : undefined));
+    const mid = innerL + inner / 2;
+    const off = inner * 0.235;
+    const cw = Math.min(inner * 0.4, maxPillW * 1.25);
+    const ch = ph * 1.45;
+    const a = pill({ name: focusName || "Name missing", focus: true, couple: true }, mid - off, rowY[1]!, cw, ch);
+    const b = pill({ name: spouse ?? "Partner", focus: true, couple: true }, mid + off, rowY[1]!, cw, ch);
+    for (const x of [pp[0], pp[1]]) if (x) conn(x, a);
+    for (const x of [pp[2], pp[3]]) if (x) conn(x, b);
+    out.push(`<line x1="${a.cx + a.w / 2}" y1="${a.cy}" x2="${b.cx - b.w / 2}" y2="${b.cy}" stroke="${K.line}" stroke-width="${S * 0.0035}" opacity="0.85"/>`);
+    out.push(`<text x="${mid}" y="${a.cy + ph * 0.22}" font-size="${ph * 0.7}" text-anchor="middle" fill="${K.text}" font-family="Georgia, 'Times New Roman', serif">&amp;</text>`);
+    const joint: Placed = { name: "", cx: mid, cy: a.cy, w: 0, h: ch };
+    for (const k of row(children.map((k) => ({ name: k })), rowY[2]!, maxPillW)) conn(joint, k);
+  }
+
   // ---- foot: brand left, QR right --------------------------------------------
   const fy = H - footH;
   const card = S * 0.012;
   const cap = Math.min(footH * 0.07, W * 0.018);
-  const qrSize = Math.min(footH * 0.5, W * 0.2);
+  const qrSize = Math.min(footH * 0.5, W * 0.2, footH - m * 1.2 - card * 2 - cap * 3.4); // always fits the foot
   const blockH = qrSize + card * 2 + cap * 3.4;
   const qy = fy + Math.max((footH - m * 1.2 - blockH) / 2, 0) + card;
   const qx = innerR - qrSize - card;

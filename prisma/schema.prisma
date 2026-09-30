@@ -2405,6 +2405,8 @@ model Product {
   sortOrder    Int            @default(0)
   /// shop aisle: memorial_stone | wall_art | books_print | events_merch
   aisle        String         @default("")
+  /// what the piece looks like and which questions it asks: see src/lib/layouts.ts
+  layout       String         @default("tree")
   /// the specialities needed to make it, in order (one entry = one partner, several = stages)
   skills       String[]       @default([])
   /// "direct" = the partner ships to the customer; "via_us" = it comes to us for a check first

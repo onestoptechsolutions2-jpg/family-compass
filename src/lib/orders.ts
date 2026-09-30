@@ -6,6 +6,7 @@ import { addChildRef, createBarePerson, setVitalEvent, type Db } from "@/lib/per
 import { getPaymentSettings } from "@/lib/payments";
 import { personalWorkspaceId } from "@/lib/workspace";
 import { lines, splitName, type DraftOptions } from "@/lib/order-shared";
+import { parseBirthdays } from "@/lib/print-layouts";
 
 export { lines, splitName, type DraftOptions };
 
@@ -39,6 +40,8 @@ async function family(tx: Db, treeId: string, p1: string | null, p2: string | nu
 }
 
 type Tx = Db;
+const normalise = (n: string) => n.trim().toLowerCase().replace(/\s+/g, " ");
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 type Ctx = {
   treeId: string;
   userId: string;
@@ -50,7 +53,7 @@ type ItemRow = {
   id: string;
   quantity: number;
   options: unknown;
-  product: { pathway: "LIVING" | "REMEMBERED"; basePriceKes: number; options: unknown };
+  product: { pathway: "LIVING" | "REMEMBERED"; layout: string; basePriceKes: number; options: unknown };
 };
 
 /**
@@ -62,12 +65,17 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
   const { treeId, userId, displayName } = ctx;
   const o = (item.options ?? {}) as DraftOptions;
   const isLiving = item.product.pathway === "LIVING";
+  const layout = item.product.layout;
+  // A wedding is about the couple, who may be ordered for by someone else, so it
+  // has its own subject like a memorial does. Every other Living piece (tree,
+  // banner, calendar, badges, shirt) is about the customer's own family.
+  const subjectIsCustomer = isLiving && layout !== "wedding";
 
-  // 1. The person the product is about. A Living product is about the
-  // customer, so their own Person is the subject; a Remembered product is
-  // about someone who has died, and the customer is added separately below.
+  // 1. The person the product is about. For the customer's own family that is
+  // their own Person; otherwise it is someone the customer names (a person who
+  // has died, or one of the couple), and the customer is added separately below.
   let subject: { id: string };
-  if (isLiving) {
+  if (subjectIsCustomer) {
     if (ctx.customerId) {
       subject = { id: ctx.customerId };
     } else {
@@ -86,9 +94,26 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     }
     if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
   } else {
-    subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: false }, tx);
+    subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: isLiving }, tx);
     if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
-    if (o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+    if (!isLiving && o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+  }
+
+  // A calendar's people with a full birth date become real people with a Birth event,
+  // so the family record grows from it. Entries without a year (an anniversary, a
+  // birthday with no year) stay on the calendar only.
+  if (layout === "calendar") {
+    const me = normalise([o.first, o.surname].filter(Boolean).join(" ") || displayName);
+    for (const e of parseBirthdays(o.birthdays).entries) {
+      if (!e.year) continue;
+      const date = `${e.day} ${MONTH_NAMES[e.month]} ${e.year}`;
+      if (normalise(e.name) === me) {
+        await setVitalEvent(treeId, subject.id, "Birth", date, "", tx);
+        continue;
+      }
+      const born = await person(tx, treeId, e.name);
+      await setVitalEvent(treeId, born.id, "Birth", date, "", tx);
+    }
   }
 
   // 2. Relatives.
@@ -125,6 +150,16 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     const sp = spouses[0] ? (await person(tx, treeId, spouses[0])).id : null;
     if (sp && spouses[0]) remember("spouse", spouses[0], sp);
     unionFamily = (await family(tx, treeId, subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
+    // The partner's own parents (a wedding tree): the second family the couple joins.
+    if (sp && layout === "wedding") {
+      const [sf, sm] = lines(o.spouseParents);
+      if (sf || sm) {
+        const f1 = sf ? (await person(tx, treeId, sf)).id : null;
+        const f2 = sm ? (await person(tx, treeId, sm)).id : null;
+        const pf = await family(tx, treeId, f1, f2, f1 && f2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
+        await addChildRef(pf.id, sp, undefined, tx);
+      }
+    }
     for (const k of kids) {
       const kid = await person(tx, treeId, k);
       remember("child", k, kid.id);

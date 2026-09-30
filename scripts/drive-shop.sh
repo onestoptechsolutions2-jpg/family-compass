@@ -16,7 +16,7 @@ ck "shop lists products with price and delivery included" "$(has 'delivery inclu
 ck "aisle filter: wall art shows the wooden tree" "$(has 'Wooden family tree' "$B/shop?aisle=wall_art")" "yes"
 ck "aisle filter: wall art hides the tombstone" "$(has 'Tombstone family tree' "$B/shop?aisle=wall_art")" "no"
 ck "aisle filter: memorial aisle shows the tombstone" "$(has 'Tombstone family tree' "$B/shop?aisle=memorial_stone")" "yes"
-ck "an empty aisle says it is being stocked" "$(has 'being stocked' "$B/shop?aisle=events_merch")" "yes"
+ck "an aisle with nothing that matches says so" "$(has 'Nothing matches' "$B/shop?aisle=events_merch&q=zzzqqq")" "yes"
 ck "search finds a product by word" "$(has 'Memorial tile plaque' "$B/shop?q=plaque")" "yes"
 ck "search with no match says so" "$(has 'Nothing matches' "$B/shop?q=zzzqqq")" "yes"
 ck "sort by price low to high renders" "$(code "$B/shop?sort=price_asc")" "200"

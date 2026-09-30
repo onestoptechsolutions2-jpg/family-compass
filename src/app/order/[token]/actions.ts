@@ -19,6 +19,11 @@ const TEXT_KEYS = [
   "spouse",
   "children",
   "siblings",
+  "spouseParents",
+  "title",
+  "year",
+  "birthdays",
+  "attendees",
   "materialKey",
   "sizeKey",
   "relation",
@@ -36,7 +41,7 @@ export async function saveStep(token: string, step: number, formData: FormData) 
   const next: Record<string, string> = { ...((item.options ?? {}) as Record<string, string>) };
   for (const key of TEXT_KEYS) {
     const v = formData.get(key);
-    if (typeof v === "string") next[key] = v.trim().slice(0, key === "epitaph" ? 300 : 600);
+    if (typeof v === "string") next[key] = v.trim().slice(0, key === "epitaph" ? 300 : key === "birthdays" || key === "attendees" ? 4000 : 600);
   }
   await db.orderItem.update({ where: { id: item.id }, data: { options: next as DraftOptions } });
 

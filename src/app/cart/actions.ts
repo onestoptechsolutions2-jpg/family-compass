@@ -8,6 +8,8 @@ import { getCart, removeItem, setQuantity } from "@/lib/cart";
 import { checkoutCart } from "@/lib/orders";
 import { userConsentState } from "@/lib/consent";
 import { notifyUser } from "@/lib/notify";
+import { isLayout, isReady } from "@/lib/layouts";
+import type { DraftOptions } from "@/lib/order-shared";
 
 export async function setQuantityAction(itemId: string, formData: FormData) {
   const user = await requireUser();
@@ -37,7 +39,7 @@ export async function checkoutAction(formData: FormData) {
   if (!delivery.contactName || !delivery.contactPhone || !delivery.deliveryText) {
     redirect("/cart?error=" + encodeURIComponent("Please fill in your name, phone and delivery address."));
   }
-  if (cart.items.some((i) => !(i.options as { first?: string } | null)?.first)) {
+  if (cart.items.some((i) => !isReady(isLayout(i.product.layout) ? i.product.layout : "tree", (i.options ?? {}) as DraftOptions))) {
     redirect("/cart?error=" + encodeURIComponent("One of your items has no name on it. Remove it and personalise it again."));
   }
 
