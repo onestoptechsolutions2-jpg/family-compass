@@ -63,10 +63,10 @@ function Frame({ children }: { children: React.ReactNode }) {
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
         <Link
-          href="/"
+          href="/shop"
           className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
         >
-          Build your own tree
+          Make one for your family
         </Link>
       </header>
       <div className="mt-6 flex-1">{children}</div>
@@ -362,16 +362,16 @@ export default async function SharedViewPage({
               "linear-gradient(120deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 40%, var(--surface)))",
           }}
         >
-          <h2 className="font-serif text-lg">Start your own family record</h2>
+          <h2 className="font-serif text-lg">Make one for your own family</h2>
           <p className="mx-auto mt-1 max-w-md text-sm" style={{ color: "var(--muted)" }}>
-            Add yourself, then your parents and children. Record your clan and the village you come
-            from. Free to build and share.
+            Family trees, memorial plaques and keepsakes, made from your family&apos;s names and
+            dates and delivered to your door. Every one carries a QR code to a page like this.
           </p>
           <Link
-            href="/start"
+            href="/shop"
             className="mt-3 inline-block rounded-full bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
           >
-            Get started
+            See what we make
           </Link>
         </section>
       </div>

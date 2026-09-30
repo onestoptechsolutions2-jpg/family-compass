@@ -62,14 +62,17 @@ export default async function MemorialPage({
     >
       <header className="flex items-center justify-between">
         <span className="font-semibold">🧭 Family Compass</span>
-        <Link href="/" className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
-          About
+        <Link href="/shop" className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
+          Shop
         </Link>
       </header>
       <div className="mt-8 flex-1">{children}</div>
       <footer className="mt-10 flex flex-col gap-3 border-t pt-4 text-xs" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
         <RecentMemorials exceptSlug={slug} />
-        <span>A memorial page on Family Compass.</span>
+        <span>
+          A memorial page on Family Compass.{" "}
+          <Link href="/shop" className="underline">Make a memorial or family tree for your family</Link>
+        </span>
       </footer>
     </main>
   );

@@ -13,3 +13,14 @@ export const PRODUCT_IMAGES: Record<string, { src: string; alt: string }[]> = {
 };
 
 export const productImage = (slug: string) => PRODUCT_IMAGES[slug]?.[0];
+
+/** Small versions for cards, so the landing page loads fast on a phone. */
+const THUMB: Record<string, string> = {
+  [GRANITE]: "/samples/thumb-granite-tombstone-tree-deceased-focus.jpg",
+  [WOOD_LIVING]: "/samples/thumb-wooden-wall-tree-focus-living.jpg",
+  [WOOD_SPOUSE]: "/samples/thumb-wooden-wall-tree-focus-spouse.jpg",
+};
+export const productThumb = (slug: string) => {
+  const im = productImage(slug);
+  return im ? { src: THUMB[im.src] ?? im.src, alt: im.alt } : undefined;
+};

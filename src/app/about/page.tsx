@@ -1,19 +1,28 @@
 import Link from "next/link";
 
 import { SiteFooter } from "@/components/SiteFooter";
+import { FamilyRecordPitch } from "@/components/FamilyRecordPitch";
 
-export const metadata = { title: "About the project" };
+export const metadata = { title: "About Family Compass" };
+export const dynamic = "force-dynamic";
 
 export default function AboutPage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <Link href="/" className="text-lg font-semibold">
-        🧭 Family Compass
-      </Link>
+    <main className="mx-auto max-w-5xl px-6 py-12">
+      <header className="flex items-center justify-between">
+        <Link href="/" className="text-lg font-semibold">
+          🧭 Family Compass
+        </Link>
+        <Link href="/shop" className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
+          Shop
+        </Link>
+      </header>
 
-      <h1 className="mt-8 font-serif text-3xl">About the project</h1>
+      <FamilyRecordPitch />
 
-      <div className="mt-6 flex flex-col gap-4 text-[15px] leading-relaxed">
+      <h1 className="mx-auto mt-20 max-w-3xl font-serif text-3xl">About the project</h1>
+
+      <div className="mx-auto mt-6 flex max-w-3xl flex-col gap-4 text-[15px] leading-relaxed">
         <p>
           Family Compass is a community genealogy and family-history research project for
           Kenyan families. It begins in Western Kenya — Luhya, Luo and neighbouring communities
