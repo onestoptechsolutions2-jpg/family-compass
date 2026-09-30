@@ -40,6 +40,20 @@ ck "cart shows a preview of the real design" "$(grep -c 'FULL FAMILY TREE' /tmp/
 ck "cart total equals the price, delivery included" "$(grep -o 'KES [0-9,]*' /tmp/cart.html | tr -d ',' | grep -c "KES $PRICE" | awk '{print ($1>0)?"yes":"no"}')" "yes"
 ck "cart has the shop header count" "$(grep -c 'Cart (1)' /tmp/cart.txt | awk '{print ($1>0)?"yes":"no"}')" "yes"
 
+# ---- editing an item in the cart -------------------------------------------------------
+EDIT=$(grep -o '/cart/edit/[a-z0-9]*' /tmp/cart.html | head -1)
+ck "each cart item has an Edit link" "$(echo "$EDIT" | grep -c '/cart/edit/')" "1"
+EDITLOC=$(loc -b "$C" $B$EDIT)
+ck "Edit opens the wizard on a copy" "$(echo "$EDITLOC" | grep -c '/order/.*step=1')" "1"
+ET=$(echo "$EDITLOC" | sed 's#.*/order/##; s#?.*##')
+ck "the wizard opens with the name already filled in" "$(curl -s -b "$C" "$B/order/$ET?step=1" | grep -c 'value="John"')" "1"
+ck "someone signed out cannot open the copy" "$(code "$B/order/$ET?step=1")" "404"
+loc -b "$C" $B/order/$ET/add > /dev/null
+text -b "$C" $B/cart > /tmp/cart2.txt
+ck "finishing the edit leaves one item, not two" "$(grep -o 'Tombstone family tree' /tmp/cart2.txt | wc -l | tr -d ' ')" "1"
+ck "the edited cart has a fresh Edit link" "$(curl -s -b "$C" $B/cart | grep -c '/cart/edit/')" "1"
+curl -s -b "$C" $B/cart > /tmp/cart.html
+
 # ---- checkout ------------------------------------------------------------------------
 ACTION=$(grep -o 'name="\$ACTION_ID_[a-f0-9]*"' /tmp/cart.html | head -1 | sed 's/name="//;s/"//')
 ck "checkout form is present" "$(echo "$ACTION" | grep -c ACTION_ID)" "1"
@@ -48,6 +62,7 @@ PAYLOC=$(curl -s -i -b "$C" -X POST $B/cart -F "$ACTION=" -F contactName="Ann Ka
 ck "placing the order goes to the payment page" "$(echo "$PAYLOC" | grep -c '^/pay/')" "1"
 ck "the payment page opens for the customer" "$(code -b "$C" $B$PAYLOC)" "200"
 PRICEC=$(node -e "console.log(Number($PRICE).toLocaleString('en-KE'))")
+ck "the payment page lists what is being paid for" "$(text -b "$C" $B$PAYLOC | grep -c "Tombstone family tree")" "1"
 ck "the payment page shows the full price" "$(text -b "$C" $B$PAYLOC | grep -c "$PRICEC" | awk '{print ($1>0)?"yes":"no"}')" "yes"
 
 # ---- after ordering ---------------------------------------------------------------------

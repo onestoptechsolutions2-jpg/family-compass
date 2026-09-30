@@ -49,6 +49,16 @@ export default async function PayPage({
   });
   if (!payment) notFound();
 
+  // For an order: what is being paid for, so the customer knows before they pay.
+  const orderLines =
+    payment.kind === "ORDER_DEPOSIT" && payment.orderId
+      ? await db.orderItem.findMany({
+          where: { orderId: payment.orderId },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, quantity: true, unitPriceKes: true, layoutSnapshot: true, product: { select: { name: true } } },
+        })
+      : [];
+
   // For an order deposit: the memorial family can be invited to while the order is made.
   const memorial =
     payment.kind === "ORDER_DEPOSIT" && payment.orderId
@@ -126,6 +136,22 @@ export default async function PayPage({
       <p className="text-sm" style={{ color: "var(--muted)" }}>
         For: {KIND_LABEL[payment.kind] ?? payment.kind}
       </p>
+      {orderLines.length > 0 && (
+        <ul className="mt-3 divide-y rounded-xl border text-sm" style={{ borderColor: "var(--border)" }}>
+          {orderLines.map((l) => {
+            const who = ((l.layoutSnapshot ?? {}) as { name?: string; title?: string }).title ?? ((l.layoutSnapshot ?? {}) as { name?: string }).name;
+            return (
+              <li key={l.id} className="flex items-baseline justify-between gap-3 px-3 py-2" style={{ borderColor: "var(--border)" }}>
+                <span>
+                  {l.product.name}{l.quantity > 1 ? ` × ${l.quantity}` : ""}
+                  {who ? <span style={{ color: "var(--muted)" }}> · {who}</span> : null}
+                </span>
+                <span>{payment.currency} {(l.unitPriceKes * l.quantity).toLocaleString()}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {payment.status === "PAID" ? (
         <p className="mt-4 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--success)" }}>

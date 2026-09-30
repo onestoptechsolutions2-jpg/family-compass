@@ -4,7 +4,7 @@
 import { PrismaClient, PaymentStatus } from "@prisma/client";
 
 import { seedPaymentSettings, seedProducts } from "../prisma/seed-lib";
-import { addGuestDraftToCart, addItemToCart, cartCount, cartTotal, getCart, removeItem, setQuantity } from "../src/lib/cart";
+import { addGuestDraftToCart, addItemToCart, cartCount, cartTotal, getCart, removeItem, setQuantity, startEditItem } from "../src/lib/cart";
 import { checkoutCart, fulfilDraft } from "../src/lib/orders";
 import { fulfilPayment } from "../src/lib/payments/fulfil";
 import {
@@ -123,6 +123,35 @@ async function main() {
   await markItemDelivered(stoneItem.id);
   check("all items delivered: the order is delivered", (await orderStatus(cart.id)) === "DELIVERED");
   check("the customer was told about their order", (await db.notification.count({ where: { userId: user.id, kind: "order.update" } })) >= 2);
+
+  // ---- editing an item already in the cart ------------------------------------------------------------
+  const editor = await db.user.create({ data: { email: `editor-${RUN}@example.com`, name: "Ann Kamau" } });
+  const typo = (await addItemToCart(editor.id, "tile-plaque-qr", { first: "Jhon", surname: "Kamau", birth: "1948", death: "2026", epitaph: "Rest well", matches: { x: "y" } } as never, 3))!;
+  const other = (await addItemToCart(editor.id, "family-tree-poster", { first: "Ann", surname: "Kamau" }))!;
+  const stranger2 = await db.user.create({ data: { email: `nosy-${RUN}@example.com`, name: "Nosy" } });
+  check("someone else cannot edit my item", (await startEditItem(stranger2.id, typo.id)) === null);
+  const draftToken = (await startEditItem(editor.id, typo.id))!;
+  check("editing makes a private copy to work on", !!draftToken);
+  const draft = await db.order.findUniqueOrThrow({ where: { guestToken: draftToken }, include: { items: true } });
+  const copy = draft.items[0]!;
+  const copied = copy.options as Record<string, unknown>;
+  check("the copy has everything as it was, and the quantity", copied.first === "Jhon" && copied.epitaph === "Rest well" && copy.quantity === 3, copied);
+  check("answers about the old names are not carried over", copied.matches === undefined);
+  check("the copy belongs to me, so no one else can open it", draft.userId === editor.id);
+  check("the original is untouched while I edit", (await db.orderItem.findUniqueOrThrow({ where: { id: typo.id } })).quantity === 3 && (await getCart(editor.id))!.items.length === 2);
+  await db.orderItem.update({ where: { id: copy.id }, data: { options: { ...copied, first: "John" } } });
+  check("someone else cannot put my edit in their cart", (await addGuestDraftToCart(stranger2.id, draftToken)) === null);
+  await addGuestDraftToCart(editor.id, draftToken);
+  const after = (await getCart(editor.id))!;
+  check("finishing the edit replaces the item, not adds a second", after.items.length === 2 && !after.items.some((i) => i.id === typo.id), after.items.map((i) => i.id));
+  const fixed = after.items.find((i) => (i.options as { first?: string }).first === "John");
+  check("the corrected name and the quantity are in the cart", !!fixed && fixed.quantity === 3);
+  check("the other item is untouched", after.items.some((i) => i.id === other.id));
+  await addGuestDraftToCart(editor.id, draftToken);
+  check("pressing 'add to cart' twice does not add it twice", (await getCart(editor.id))!.items.length === 2);
+  const cartId2 = after.id;
+  await checkoutCart(editor.id, cartId2, delivery);
+  check("after the order is placed nothing can be edited", (await startEditItem(editor.id, fixed!.id)) === null);
 
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASSED");
   await db.$disconnect();

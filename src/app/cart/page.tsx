@@ -94,6 +94,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
                         <input name="quantity" type="number" min={1} max={20} defaultValue={i.quantity} className="w-16 rounded-lg border px-2 py-1" style={fieldStyle} />
                         <button className="text-xs underline">Update</button>
                       </form>
+                      <Link href={`/cart/edit/${i.id}`} className="text-xs underline">Edit</Link>
                       <form action={removeItemAction.bind(null, i.id)}><button className="text-xs underline" style={{ color: "var(--muted)" }}>Remove</button></form>
                     </div>
                   </div>

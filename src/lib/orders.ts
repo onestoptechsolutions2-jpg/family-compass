@@ -250,7 +250,7 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
 
   // 4. The page the QR opens: a published memorial, or a shared family view
   // (with claims on, so relatives can find themselves and join).
-  const name = [o.first, o.surname].filter(Boolean).join(" ") || "Their";
+  const name = [o.first, o.surname].filter(Boolean).join(" ") || o.title?.trim() || o.surname?.trim() || "Their";
   let memorialId: string | null = null;
   let sharedViewId: string | null = null;
   if (isLiving) {

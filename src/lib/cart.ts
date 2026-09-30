@@ -3,6 +3,7 @@ import { OrderStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { unitPrice, type ProductOptions } from "@/lib/orders";
 import type { DraftOptions } from "@/lib/order-shared";
+import { randomToken } from "@/lib/slug";
 
 /**
  * The cart is the customer's one open order: status DRAFT, owned by their user,
@@ -51,8 +52,11 @@ export async function addGuestDraftToCart(userId: string, token: string): Promis
   if (guest.status !== OrderStatus.DRAFT) return guest.id;
 
   const cart = await getOrCreateCart(userId);
+  // A draft made by "Edit" replaces the item it was copied from.
+  const replaces = guest.notes?.match(/^replaces:(.+)$/)?.[1];
   await db.$transaction([
     db.orderItem.updateMany({ where: { orderId: guest.id }, data: { orderId: cart.id } }),
+    ...(replaces ? [db.orderItem.deleteMany({ where: { id: replaces, orderId: cart.id } })] : []),
     db.order.update({
       where: { id: cart.id },
       data: {
@@ -100,4 +104,27 @@ export async function addItemToCart(userId: string, productSlug: string, options
       options: { materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, ...options } as object,
     },
   });
+}
+
+/**
+ * Edit an item that is in the cart. The wizard works on drafts, so this makes a
+ * private copy of the item as a draft and returns its token; when the customer
+ * finishes and adds it to the cart, it replaces the original. The original stays
+ * in the cart, untouched, until then. Only the owner of an unpaid cart can do this.
+ */
+export async function startEditItem(userId: string, itemId: string): Promise<string | null> {
+  const item = await ownItem(userId, itemId);
+  if (!item) return null;
+  const { matches, ...options } = (item.options ?? {}) as DraftOptions; // answers about the old names no longer apply
+  void matches;
+  const token = randomToken(24);
+  await db.order.create({
+    data: {
+      guestToken: token,
+      userId,
+      notes: `replaces:${itemId}`,
+      items: { create: { productId: item.productId, quantity: item.quantity, unitPriceKes: item.unitPriceKes, options: options as object } },
+    },
+  });
+  return token;
 }

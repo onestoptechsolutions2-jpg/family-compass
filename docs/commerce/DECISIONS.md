@@ -87,3 +87,11 @@ second set of parents); No makes a separate person. Every question must be
 answered before checkout, and an answer can only be a person that was offered.
 First-time customers are asked nothing. Different spellings (Anne, Ann) are not
 guessed at. See src/lib/matching.ts.
+
+## Editing the cart (2026-09-30)
+
+Each cart item has an Edit link. It opens the wizard on a private copy with
+everything filled in; finishing replaces the original (quantity kept, answers
+about the old names dropped). Until then the original is untouched, so
+abandoning an edit loses nothing. Only the owner of an unpaid cart can edit.
+The payment page now lists what is being paid for.
