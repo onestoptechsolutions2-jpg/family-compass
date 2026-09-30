@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { productThumb } from "@/lib/product-images";
-import { sampleSvg } from "@/lib/sample-sheets";
 import type { ProductOptions } from "@/lib/orders";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -55,17 +54,11 @@ export default async function LandingPage() {
     where: { active: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
-  const withArt = await Promise.all(
-    products.map(async (p) => ({
-      p,
-      photo: productThumb(p.slug),
-      svg: productThumb(p.slug) ? null : await sampleSvg(p, origin),
-    })),
-  );
-  const qrSample = await sampleSvg(
-    { slug: "landing-qr", layout: "tree", pathway: "REMEMBERED", options: { materials: [{ key: "granite" }], sizes: [{ key: "square" }] } },
-    origin,
-  );
+  // a real photo where we have one; otherwise a small picture of the piece drawn with an example family
+  const withArt = products.map((p) => ({
+    p,
+    photo: productThumb(p.slug) ?? { src: `/api/sample/${p.slug}?v=${p.updatedAt.getTime()}`, alt: `Example of the ${p.name}` },
+  }));
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -127,7 +120,7 @@ export default async function LandingPage() {
               <Link href="/shop" className="text-sm underline">See the whole shop</Link>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {rows.map(({ p, photo, svg }) => {
+              {rows.map(({ p, photo }) => {
                 const po = (p.options ?? null) as ProductOptions | null;
                 const from = [...(po?.sizes ?? []), ...(po?.materials ?? [])].some((c) => c.addKes > 0);
                 return (
@@ -138,12 +131,15 @@ export default async function LandingPage() {
                     style={{ borderColor: "var(--border)", background: "var(--card)" }}
                   >
                     <div className="aspect-[4/3] w-full overflow-hidden" style={{ background: "var(--color-surface-2)" }}>
-                      {photo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photo.src} alt={photo.alt} width={640} height={480} className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="h-full w-full p-3" role="img" aria-label={`Example of the ${p.name}`} dangerouslySetInnerHTML={{ __html: svg ?? "" }} />
-                      )}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.src}
+                        alt={photo.alt}
+                        width={640}
+                        height={480}
+                        className={`h-full w-full ${photo.src.startsWith("/api/sample/") ? "object-contain p-2" : "object-cover"}`}
+                        loading="lazy"
+                      />
                     </div>
                     <div className="flex flex-1 flex-col p-4">
                       <h3 className="font-semibold">{p.name}</h3>
@@ -195,7 +191,8 @@ export default async function LandingPage() {
           </p>
           <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>You decide what is shared, and you can change it at any time.</p>
         </div>
-        <div className="mx-auto w-full max-w-sm overflow-hidden rounded-2xl border" style={{ borderColor: "var(--border)" }} role="img" aria-label="Example of a family tree with a QR code" dangerouslySetInnerHTML={{ __html: qrSample }} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/api/sample/landing-qr" alt="Example of a family tree with a QR code" width={720} height={720} loading="lazy" className="mx-auto w-full max-w-sm rounded-2xl border" style={{ borderColor: "var(--border)" }} />
       </section>
 
       <section className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)" }}>

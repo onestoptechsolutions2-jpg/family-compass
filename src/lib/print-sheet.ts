@@ -1,12 +1,13 @@
-import { lines, type DraftOptions } from "@/lib/order-shared";
+import { lines, pair, type DraftOptions } from "@/lib/order-shared";
 import { renderBadges, renderCalendar, renderCard, renderShirt } from "@/lib/print-layouts";
+import { SLOT_LABEL } from "@/lib/tree-edit";
 import { PRINT_BRAND, SIZES_MM, SKINS, compass, esc, initials, qrPath, skinForMaterial, type PrintInput, type PrintSheet, type Skin } from "@/lib/print-kit";
 
 export { PRINT_BRAND, skinForMaterial };
 export type { PrintInput, PrintSheet, Skin };
 
 
-type Node = { name: string; sub?: string; focus?: boolean; dagger?: boolean; couple?: boolean };
+type Node = { name: string; sub?: string; focus?: boolean; dagger?: boolean; couple?: boolean; slot?: string; ghost?: boolean };
 type Placed = Node & { cx: number; cy: number; w: number; h: number };
 
 /**
@@ -55,21 +56,22 @@ async function renderOnce(
   const layout = input.layout ?? "tree";
   const wedding = layout === "wedding";
   const banner = layout === "banner";
-  const [father, mother] = lines(o.parents);
-  const [spouseFather, spouseMother] = lines(o.spouseParents);
-  const fatherParents = lines(o.fatherParents);
-  const motherParents = lines(o.motherParents);
+  const ix = Boolean(input.interactive) && !wedding; // a tappable builder, not a finished piece
+  const [father, mother] = pair(o.parents);
+  const [spouseFather, spouseMother] = pair(o.spouseParents);
+  const fatherParents = pair(o.fatherParents);
+  const motherParents = pair(o.motherParents);
   const siblings = lines(o.siblings);
   const spouse = lines(o.spouse)[0];
   const children = lines(o.children);
-  if (!wedding && ((fatherParents.length && !father) || (motherParents.length && !mother))) {
+  if (!wedding && ((fatherParents.some(Boolean) && !father) || (motherParents.some(Boolean) && !mother))) {
     warnings.push("Grandparents were given without their child, so they are not shown.");
   }
   if (wedding && !spouse) warnings.push("Their partner's name is missing.");
 
   const total =
     1 + [father, mother, spouse, ...(wedding ? [spouseFather, spouseMother] : [])].filter(Boolean).length +
-    (wedding ? 0 : fatherParents.length + motherParents.length + siblings.length) + children.length;
+    (wedding ? 0 : fatherParents.filter(Boolean).length + motherParents.filter(Boolean).length + siblings.length) + children.length;
   if (total > 24) warnings.push(`${total} people is above the 24 the layout is proven for; check legibility.`);
 
   // ---- geometry ----------------------------------------------------------
@@ -122,7 +124,7 @@ async function renderOnce(
       ls = [name];
       fs = Math.max(room / (name.length * 0.6), minFont * 0.6);
     }
-    if (!n.focus) minFs = Math.min(minFs, fs);
+    if (!n.focus && !n.ghost) minFs = Math.min(minFs, fs);
     if (fs < minFont) warnings.push(`"${n.name}" prints smaller than ${minFont.toFixed(1)} mm; use a larger size or fewer names.`);
     return { ls, fs, badge };
   };
@@ -133,13 +135,32 @@ async function renderOnce(
     const y = cy - h / 2;
     const r = h / 2 * (n.focus ? 1 : 0.42);
     const sw = S * 0.0032;
+    // a tappable place: the whole pill answers a tap, empty or not
+    if (ix && n.slot) {
+      const label = n.ghost ? `Add ${n.name.toLowerCase()}` : `Change ${n.name}`;
+      out.push(`<g data-slot="${esc(n.slot)}" class="tb-slot${n.ghost ? " tb-ghost" : ""}" role="button" tabindex="0" aria-label="${esc(label)}" style="cursor:pointer">`);
+    }
+    if (n.ghost) {
+      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${K.bg}" fill-opacity="0.01" pointer-events="all" stroke="${K.pillStroke}" stroke-width="${sw}" stroke-dasharray="${sw * 4} ${sw * 3}" opacity="0.7"/>`);
+      const gx = x + h * 0.14 + badge / 2;
+      out.push(`<circle cx="${gx}" cy="${cy}" r="${badge / 2}" fill="none" stroke="${K.pillStroke}" stroke-width="${sw}" opacity="0.7"/>`);
+      out.push(`<text x="${gx}" y="${cy + badge * 0.2}" font-size="${badge * 0.62}" text-anchor="middle" fill="${K.text}" opacity="0.8">+</text>`);
+      // the label wraps like a name does, so it is never cut off at the edge of its place
+      let gy = cy - ((ls.length - 1) * fs * 1.1) / 2 + fs * 0.32;
+      for (const l of ls) {
+        out.push(`<text x="${x + h * 0.14 + badge + h * 0.16}" y="${gy}" font-size="${fs}" fill="${K.sub}" opacity="0.9">${esc(l)}</text>`);
+        gy += fs * 1.1;
+      }
+      out.push("</g>");
+      return { ...n, cx, cy, w, h };
+    }
     if (n.focus) {
       out.push(`<rect x="${x - sw * 2}" y="${y - sw * 2}" width="${w + sw * 4}" height="${h + sw * 4}" rx="${r + sw * 2}" fill="none" stroke="${K.pillStroke}" stroke-width="${sw}"/>`);
     }
-    out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${K.pillFill}" stroke="${K.pillStroke}" stroke-width="${sw * (n.focus ? 1.4 : 1)}"/>`);
+    out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${K.pillFill}"${ix ? ' pointer-events="all"' : ""} stroke="${K.pillStroke}" stroke-width="${sw * (n.focus ? 1.4 : 1)}"/>`);
     const bx = x + h * 0.14 + badge / 2;
     out.push(`<circle cx="${bx}" cy="${cy}" r="${badge / 2}" fill="${K.badge}"/>`);
-    out.push(`<text x="${bx}" y="${cy + badge * 0.13}" font-size="${badge * 0.36}" font-weight="700" text-anchor="middle" fill="${K.badgeText}">${esc(initials(n.name))}</text>`);
+    out.push(`<text x="${bx}" y="${cy + badge * 0.13}" font-size="${badge * 0.36}" font-weight="700" text-anchor="middle" fill="${K.badgeText}">${esc(n.name === "Add a name" ? "?" : initials(n.name))}</text>`);
     const tx = x + h * 0.14 + badge + h * 0.16;
     const sub = n.sub ? fs * 0.78 : 0;
     const blockH = ls.length * fs * 1.1 + (n.sub ? sub * 1.2 : 0);
@@ -152,13 +173,16 @@ async function renderOnce(
     if (n.focus && !n.couple) {
       out.push(`<text x="${cx}" y="${y - sw * 5}" font-size="${ph * 0.26}" letter-spacing="${ph * 0.03}" text-anchor="middle" fill="${K.sub}">FOCUS</text>`);
     }
+    if (ix && n.slot) out.push("</g>");
     return { ...n, cx, cy, w, h };
   };
 
   const conn = (a: Placed, b: Placed) => {
-    // from the bottom-centre of the upper pill to the top-centre of the lower one
+    // from the bottom-centre of the upper pill to the top-centre of the lower one;
+    // a line to an empty place is faint and dashed
+    const faint = a.ghost || b.ghost;
     out.push(
-      `<path d="M${a.cx} ${a.cy + a.h / 2} C${a.cx} ${(a.cy + b.cy) / 2} ${b.cx} ${(a.cy + b.cy) / 2} ${b.cx} ${b.cy - b.h / 2}" fill="none" stroke="${K.line}" stroke-width="${S * 0.0035}" stroke-linecap="round" opacity="0.85"/>`,
+      `<path d="M${a.cx} ${a.cy + a.h / 2} C${a.cx} ${(a.cy + b.cy) / 2} ${b.cx} ${(a.cy + b.cy) / 2} ${b.cx} ${b.cy - b.h / 2}" fill="none" stroke="${K.line}" stroke-width="${S * 0.0035}" stroke-linecap="round" opacity="${faint ? 0.3 : 0.85}"${faint ? ` stroke-dasharray="${S * 0.008} ${S * 0.006}"` : ""}/>`,
     );
   };
 
@@ -196,18 +220,25 @@ async function renderOnce(
     mother ? motherParents[0] : undefined,
     mother ? motherParents[1] : undefined,
   ];
-  const hasGrand = grandSlots.some(Boolean);
+  const hasGrand = grandSlots.some(Boolean) || (ix && Boolean(father || mother));
   const slotW = (innerR - innerL) / 4;
   const gw = Math.min(slotW * 0.92, maxPillW);
+  const gpIds = ["gp:ff", "gp:fm", "gp:mf", "gp:mm"];
   grandSlots.forEach((g, i) => {
-    if (g) gp[i] = pill({ name: g }, innerL + slotW * (i + 0.5), rowY[0]!, gw, ph);
+    const parentThere = i < 2 ? father : mother;
+    if (g) gp[i] = pill({ name: g, slot: ix ? gpIds[i] : undefined }, innerL + slotW * (i + 0.5), rowY[0]!, gw, ph);
+    else if (ix && parentThere) gp[i] = pill({ name: SLOT_LABEL[gpIds[i]!]!, slot: gpIds[i], ghost: true }, innerL + slotW * (i + 0.5), rowY[0]!, gw, ph);
   });
   void grand;
 
   const half = (innerR - innerL) / 2;
   const pw = Math.min(half * 0.6, maxPillW);
-  const fp = father ? pill({ name: father }, innerL + half * 0.5, rowY[1]!, pw, ph) : undefined;
-  const mp = mother ? pill({ name: mother }, innerL + half * 1.5, rowY[1]!, pw, ph) : undefined;
+  const fp = father
+    ? pill({ name: father, slot: ix ? "father" : undefined }, innerL + half * 0.5, rowY[1]!, pw, ph)
+    : ix ? pill({ name: "Father", slot: "father", ghost: true }, innerL + half * 0.5, rowY[1]!, pw, ph) : undefined;
+  const mp = mother
+    ? pill({ name: mother, slot: ix ? "mother" : undefined }, innerL + half * 1.5, rowY[1]!, pw, ph)
+    : ix ? pill({ name: "Mother", slot: "mother", ghost: true }, innerL + half * 1.5, rowY[1]!, pw, ph) : undefined;
   if (hasGrand) {
     if (fp) for (const g of [gp[0], gp[1]]) if (g) conn(g, fp);
     if (mp) for (const g of [gp[2], gp[3]]) if (g) conn(g, mp);
@@ -215,11 +246,12 @@ async function renderOnce(
 
   // focus row: siblings, focus, spouse
   const midRow: Node[] = [
-    ...siblings.map((s) => ({ name: s })),
-    { name: focusName || "Name missing", sub: dates || undefined, focus: true, dagger: input.pathway === "REMEMBERED" },
-    ...(spouse ? [{ name: spouse }] : []),
+    ...siblings.map((s, i) => ({ name: s, slot: ix ? `sibling:${i}` : undefined })),
+    ...(ix ? [{ name: "Brother or sister", slot: "sibling:new", ghost: true }] : []),
+    { name: focusName || (ix ? "Add a name" : "Name missing"), sub: dates || undefined, focus: true, dagger: input.pathway === "REMEMBERED", slot: ix ? "focus" : undefined },
+    ...(spouse ? [{ name: spouse, slot: ix ? "spouse" : undefined }] : ix ? [{ name: "Spouse", slot: "spouse", ghost: true }] : []),
   ];
-  const focusIdx = siblings.length;
+  const focusIdx = siblings.length + (ix ? 1 : 0);
   const slot = (innerR - innerL) / midRow.length;
   const focusW = Math.min(Math.max(slot * 0.92, W * 0.24), maxPillW * 1.2);
   const midPlaced = midRow.map((n, i) =>
@@ -237,7 +269,14 @@ async function renderOnce(
   }
 
   // children
-  const kids = row(children.map((k) => ({ name: k })), rowY[3]!, maxPillW);
+  const kids = row(
+    [
+      ...children.map((k, i) => ({ name: k, slot: ix ? `child:${i}` : undefined })),
+      ...(ix ? [{ name: "Child", slot: "child:new", ghost: true }] : []),
+    ],
+    rowY[3]!,
+    maxPillW,
+  );
   for (const k of kids) conn(focusP, k);
 
   } else {

@@ -5,7 +5,7 @@ import { slugify, randomToken, paymentReference } from "@/lib/slug";
 import { addChildRef, createBarePerson, setVitalEvent, type Db } from "@/lib/person-write";
 import { getPaymentSettings } from "@/lib/payments";
 import { personalWorkspaceId } from "@/lib/workspace";
-import { lines, normaliseName, splitName, type DraftOptions } from "@/lib/order-shared";
+import { lines, normaliseName, pair, splitName, type DraftOptions } from "@/lib/order-shared";
 import { parseBirthdays } from "@/lib/print-layouts";
 
 export { lines, normaliseName, splitName, type DraftOptions };
@@ -166,21 +166,21 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
   }
 
   // 2. Relatives.
-  const parents = lines(o.parents);
+  const [parentA, parentB] = pair(o.parents); // father, mother: each keeps its place
   const siblings = lines(o.siblings);
   // Names already created, so a customer who lists themselves is not added twice.
   const byName = new Map<string, string>();
   const remember = (kind: string, name: string, id: string) => byName.set(`${kind}:${name.trim().toLowerCase()}`, id);
   let parentsFamily: string | null = null;
-  if (parents.length || siblings.length) {
-    const p1 = parents[0] ? (await getPerson(parents[0])).id : null;
-    const p2 = parents[1] ? (await getPerson(parents[1])).id : null;
+  if (parentA || parentB || siblings.length) {
+    const p1 = parentA ? (await getPerson(parentA)).id : null;
+    const p2 = parentB ? (await getPerson(parentB)).id : null;
     // Each parent's own parents, so the family reaches one generation further up.
-    for (const [child, names] of [[p1, lines(o.fatherParents)], [p2, lines(o.motherParents)]] as const) {
-      if (!child || !names.length) continue;
-      const g1 = (await getPerson(names[0]!)).id;
+    for (const [child, names] of [[p1, pair(o.fatherParents)], [p2, pair(o.motherParents)]] as const) {
+      if (!child || !(names[0] || names[1])) continue;
+      const g1 = names[0] ? (await getPerson(names[0])).id : null;
       const g2 = names[1] ? (await getPerson(names[1])).id : null;
-      const gf = await getFamily(g1, g2, g2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
+      const gf = await getFamily(g1, g2, g1 && g2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
       await addChild(gf.id, child);
     }
     parentsFamily = (await getFamily(p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
@@ -201,7 +201,7 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     unionFamily = (await getFamily(subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
     // The partner's own parents (a wedding tree): the second family the couple joins.
     if (sp && layout === "wedding") {
-      const [sf, sm] = lines(o.spouseParents);
+      const [sf, sm] = pair(o.spouseParents);
       if (sf || sm) {
         const f1 = sf ? (await getPerson(sf)).id : null;
         const f2 = sm ? (await getPerson(sm)).id : null;

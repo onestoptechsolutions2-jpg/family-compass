@@ -10,11 +10,15 @@ import { renderPrintSheet } from "@/lib/print-sheet";
 import { isLayout, isReady, requiredKey, stepsFor, type Field, type Layout } from "@/lib/layouts";
 import { amountDueNow, lines, unitPrice, type DraftOptions, type ProductOptions } from "@/lib/orders";
 import { saveStep } from "./actions";
+import { TreeBuilder } from "@/components/TreeBuilder";
 
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
 
-const STEPS = ["About it", "The details", "Material and size", "Review"];
+/** A tree is built by tapping it; everything else is a short form. */
+const FLOW_FORM = ["about", "details", "material", "review"] as const;
+const FLOW_BUILD = ["build", "material", "review"] as const;
+const STEP_LABEL = { build: "Build your tree", about: "About it", details: "The details", material: "Material and size", review: "Review" } as const;
 const field = "mt-1 w-full rounded-lg border px-4 py-2.5 text-sm";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
 const btn = "rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700";
@@ -59,7 +63,12 @@ export default async function OrderWizard({
   const layout: Layout = isLayout(item.product.layout) ? item.product.layout : "tree";
   const pathway = item.product.pathway;
   const [step1, step2] = stepsFor(layout, pathway);
-  const step = Math.min(Math.max(Number(rawStep) || 1, 1), STEPS.length);
+  const tapTree = layout === "tree" || layout === "banner";
+  const flow: readonly (keyof typeof STEP_LABEL)[] = tapTree ? FLOW_BUILD : FLOW_FORM;
+  const step = Math.min(Math.max(Number(rawStep) || 1, 1), flow.length);
+  const current = flow[step - 1]!;
+  const at = (s: keyof typeof STEP_LABEL) => flow.indexOf(s) + 1;
+  const before = flow[step - 2] ? at(flow[step - 2]!) : 1;
   const o = (item.options ?? {}) as DraftOptions;
   const po = (item.product.options ?? null) as ProductOptions | null;
   const price = unitPrice(item.product.basePriceKes, po, o);
@@ -76,7 +85,7 @@ export default async function OrderWizard({
     previewOptions.sizeKey,
   );
   const previewSvg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
-  const preview = step >= 2 && (
+  const preview = (current === "details" || current === "material" || current === "review") && (
     <div className="mt-6">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
         Preview of your {item.product.name.toLowerCase()}
@@ -125,13 +134,29 @@ export default async function OrderWizard({
         ← {item.product.name}
       </Link>
       <p className="mt-4 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-        Step {step} of {STEPS.length} · {STEPS[step - 1]}
+        Step {step} of {flow.length} · {STEP_LABEL[current]}
       </p>
       <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--border)" }}>
-        <div className="h-1.5 rounded-full bg-brand-600" style={{ width: `${(step / STEPS.length) * 100}%` }} />
+        <div className="h-1.5 rounded-full bg-brand-600" style={{ width: `${(step / flow.length) * 100}%` }} />
       </div>
 
-      {step === 1 && (
+      {current === "build" && (
+        <section className="mt-6">
+          <h1 className="font-serif text-2xl">{pathway === "LIVING" ? "Build your family tree" : "Build their family tree"}</h1>
+          <TreeBuilder
+            token={token}
+            slug={item.product.slug}
+            initial={o}
+            pathway={pathway}
+            layout={layout}
+            origin={await publicOrigin()}
+            materialKey={previewOptions.materialKey}
+            productName={item.product.name}
+          />
+        </section>
+      )}
+
+      {current === "about" && (
         <form action={save} className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">{step1.title}</h1>
           {step1.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step1.intro}</p>}
@@ -140,19 +165,19 @@ export default async function OrderWizard({
         </form>
       )}
 
-      {step === 2 && (
+      {current === "details" && (
         <form action={save} className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">{step2.title}</h1>
           {step2.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step2.intro}</p>}
           {step2.fields.map(renderField)}
           <div className="flex gap-3">
-            <Link href={`/order/${token}?step=1`} className={ghost} style={ghostStyle}>Back</Link>
+            <Link href={`/order/${token}?step=${before}`} className={ghost} style={ghostStyle}>Back</Link>
             <button className={btn}>Continue</button>
           </div>
         </form>
       )}
 
-      {step === 3 && (
+      {current === "material" && (
         <form action={save} className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">Choose material and size</h1>
           {(["materials", "sizes"] as const).map((group) => {
@@ -173,7 +198,7 @@ export default async function OrderWizard({
           })}
           <p className="text-sm font-medium">Price: {kes(price)} <span className="font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
           <div className="flex gap-3">
-            <Link href={`/order/${token}?step=2`} className={ghost} style={ghostStyle}>Back</Link>
+            <Link href={`/order/${token}?step=${before}`} className={ghost} style={ghostStyle}>Back</Link>
             <button className={btn}>Continue</button>
           </div>
         </form>
@@ -181,7 +206,7 @@ export default async function OrderWizard({
 
       {preview}
 
-      {step === 4 && (
+      {current === "review" && (
         <section className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">Review your design</h1>
           <div className="rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
@@ -206,7 +231,7 @@ export default async function OrderWizard({
           ) : (
             <Link href={`/order/${token}/add`} className={`${btn} text-center`}>Add to cart</Link>
           )}
-          <Link href={`/order/${token}?step=3`} className="text-center text-sm underline">Back</Link>
+          <Link href={`/order/${token}?step=${before}`} className="text-center text-sm underline">Back</Link>
         </section>
       )}
     </main>

@@ -36,14 +36,17 @@ const SAMPLE: Record<Layout, (pathway: Pathway) => DraftOptions> = {
 const cache = new Map<string, string>();
 
 /**
- * A rendered example of a product, as a responsive SVG string, made once and kept.
+ * A rendered example of a product, as SVG at its real size, made once and kept.
  * It uses the product's own first material and size, so the example is what they get.
+ * `version` changes when the product does, so an edited product is drawn again.
  */
 export async function sampleSvg(
   p: { slug: string; layout: string; pathway: Pathway; options: unknown },
   origin: string,
+  version = "",
 ): Promise<string> {
-  const hit = cache.get(p.slug);
+  const key = `${p.slug}:${version}`;
+  const hit = cache.get(key);
   if (hit) return hit;
   const layout: Layout = isLayout(p.layout) ? p.layout : "tree";
   const po = (p.options ?? null) as ProductOptions | null;
@@ -52,7 +55,6 @@ export async function sampleSvg(
     { options, productName: p.slug, qrUrl: `${origin}/q/example`, pathway: p.pathway, layout },
     options.sizeKey,
   );
-  const svg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%" height="100%" preserveAspectRatio="xMidYMid meet"');
-  cache.set(p.slug, svg);
-  return svg;
+  cache.set(key, sheet.svg);
+  return sheet.svg;
 }

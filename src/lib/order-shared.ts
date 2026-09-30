@@ -41,6 +41,16 @@ export function lines(text: string | undefined): string[] {
     .slice(0, 40);
 }
 
+/**
+ * A couple in two fixed positions, first then second (father, mother). Unlike
+ * lines(), an empty first line keeps its place, so "\nMary" is a mother with no
+ * father recorded, and she is never mistaken for the father.
+ */
+export function pair(text: string | undefined): [string | undefined, string | undefined] {
+  const [a = "", b = ""] = (text ?? "").split(/\r?\n/).map((l) => l.trim());
+  return [a || undefined, b || undefined];
+}
+
 export function splitName(full: string): { first: string; surname: string } {
   const parts = full.trim().split(/\s+/);
   if (parts.length === 1) return { first: parts[0] ?? "", surname: "" };

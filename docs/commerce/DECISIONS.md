@@ -112,3 +112,10 @@ want that effortless feel, with the commercial step added at the end.
   link and remembered in their browser. The account is asked for at "Add to cart".
 - **Later:** import an existing tree (GEDCOM) and order from it. The importer
   already exists inside the app.
+
+## Builder: tap the tree (decided)
+- Every product opens the same free builder. Family trees and banners are built by tapping a person or a dashed "+" on the drawn tree (3 steps: build, material and size, review); other products keep a short form (4 steps).
+- Nothing to sign in to while building. The draft is saved on the server under a private link and remembered in the browser; sign-in is asked only at add-to-cart.
+- A browser can only set names and dates. Material, size, price and answers about existing family members are never taken from it.
+- GEDCOM import: later.
+- Landing page examples are small cached WebP pictures (`/api/sample/<slug>`), not inline drawings, so the page stays light (78 KB).

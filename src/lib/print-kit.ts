@@ -94,6 +94,11 @@ export type PrintInput = {
   pathway: Pathway;
   /** what the piece looks like; defaults to the family tree */
   layout?: Layout;
+  /**
+   * Draw it as a builder, not a finished piece: every person and every empty place
+   * ("+ Father", "+ Child") is tappable, marked with data-slot. Never used for printing.
+   */
+  interactive?: boolean;
 };
 
 export type PrintSheet = { svg: string; widthMm: number; heightMm: number; warnings: string[]; skin: Skin };

@@ -46,7 +46,7 @@ ck "each cart item has an Edit link" "$(echo "$EDIT" | grep -c '/cart/edit/')" "
 EDITLOC=$(loc -b "$C" $B$EDIT)
 ck "Edit opens the wizard on a copy" "$(echo "$EDITLOC" | grep -c '/order/.*step=1')" "1"
 ET=$(echo "$EDITLOC" | sed 's#.*/order/##; s#?.*##')
-ck "the wizard opens with the name already filled in" "$(curl -s -b "$C" "$B/order/$ET?step=1" | grep -c 'value="John"')" "1"
+ck "the builder opens with the family already on it" "$(curl -s -b "$C" "$B/order/$ET?step=1" | grep -c '&quot;first&quot;:&quot;John&quot;')" "1"
 ck "someone signed out cannot open the copy" "$(code "$B/order/$ET?step=1")" "404"
 loc -b "$C" $B/order/$ET/add > /dev/null
 text -b "$C" $B/cart > /tmp/cart2.txt

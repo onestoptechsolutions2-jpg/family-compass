@@ -6,6 +6,7 @@ import { kes } from "@/lib/money";
 import { PRODUCT_IMAGES } from "@/lib/product-images";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ShopHeader } from "@/components/ShopHeader";
+import { ContinueDraft } from "@/components/ContinueDraft";
 import { aisleLabel } from "@/lib/aisles";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       >
         Personalise and add to cart
       </Link>
+      <ContinueDraft slug={p.slug} />
 
       {(PRODUCT_IMAGES[p.slug] ?? []).length > 0 && (
         <div className="mt-6 flex flex-col gap-3">

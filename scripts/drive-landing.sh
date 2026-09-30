@@ -31,7 +31,9 @@ for name in $(j "d.off.map(n=>n.replace(/ /g,'_')).join(' ')"); do
 done
 ck "each card invites you to personalise" "$(grep -o 'Personalise' /tmp/landing.txt | wc -l | tr -d ' ')" "$NACTIVE"
 ck "products are grouped by what the visitor is doing" "$(yes $(grep -c -e 'Remembering someone' -e 'Celebrating your family' /tmp/landing.txt))" "yes"
-ck "cards without a photo show a real drawn example" "$([ $(grep -o '<svg' /tmp/landing.html | wc -l | tr -d ' ') -ge 2 ] && echo yes || echo no)" "yes"
+ck "cards without a photo show a drawn example, as a small picture" "$([ $(grep -o 'src="/api/sample/' /tmp/landing.html | wc -l | tr -d ' ') -ge 2 ] && echo yes || echo no)" "yes"
+ck "the example pictures are real, light images" "$(curl -s -o /tmp/ex.webp -w '%{content_type} %{size_download}' $B/api/sample/landing-qr | awk '{print ($1=="image/webp" && $2>1000 && $2<80000)?"yes":"no"}')" "yes"
+ck "an unknown or switched-off product has no example picture" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/sample/no-such-product)" "404"
 
 # how it works and why to trust it
 ck "how it works, in four steps" "$(yes $(grep -c 'Choose and personalise.*Pay by M-Pesa.*We make it.*It arrives' /tmp/landing.txt))" "yes"
