@@ -5,10 +5,10 @@ import { slugify, randomToken, paymentReference } from "@/lib/slug";
 import { addChildRef, createBarePerson, setVitalEvent, type Db } from "@/lib/person-write";
 import { getPaymentSettings } from "@/lib/payments";
 import { personalWorkspaceId } from "@/lib/workspace";
-import { lines, splitName, type DraftOptions } from "@/lib/order-shared";
+import { lines, normaliseName, splitName, type DraftOptions } from "@/lib/order-shared";
 import { parseBirthdays } from "@/lib/print-layouts";
 
-export { lines, splitName, type DraftOptions };
+export { lines, normaliseName, splitName, type DraftOptions };
 
 type Choice = { key: string; label: string; addKes: number };
 export type ProductOptions = { materials?: Choice[]; sizes?: Choice[] };
@@ -64,6 +64,44 @@ type ItemRow = {
 async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
   const { treeId, userId, displayName } = ctx;
   const o = (item.options ?? {}) as DraftOptions;
+
+  // People the customer said are already in their family: use them, do not make a second one.
+  const reuse = new Map<string, string>();
+  const answers = o.matches ?? {};
+  const wanted = [...new Set(Object.values(answers).filter((v) => v && v !== "new"))];
+  if (wanted.length) {
+    const ok = new Set((await tx.person.findMany({ where: { id: { in: wanted }, treeId }, select: { id: true } })).map((p) => p.id));
+    for (const [k, v] of Object.entries(answers)) if (ok.has(v)) reuse.set(k, v); // only their own family, never someone else's
+  }
+  const reused = new Set<string>();
+  const getPerson = async (full: string) => {
+    const id = reuse.get(normaliseName(full));
+    if (id) {
+      reused.add(id);
+      return { id };
+    }
+    return person(tx, treeId, full);
+  };
+  /** An existing couple is not made a second time. */
+  const getFamily = async (p1: string | null, p2: string | null, type: FamilyType = FamilyType.UNKNOWN) => {
+    if (p1 && p2) {
+      const existing = await tx.family.findFirst({
+        where: { treeId, OR: [{ partner1Id: p1, partner2Id: p2 }, { partner1Id: p2, partner2Id: p1 }] },
+        select: { id: true },
+      });
+      if (existing) return existing;
+    }
+    return family(tx, treeId, p1, p2, type);
+  };
+  /** A person who was already in the family keeps the parents they already have. */
+  const addChild = async (familyId: string, childId: string) => {
+    if (reused.has(childId) && (await tx.childRef.count({ where: { personId: childId } })) > 0) return;
+    await addChildRef(familyId, childId, undefined, tx);
+  };
+  const eventIfMissing = async (personId: string, type: "Birth" | "Death", date: string, place: string) => {
+    const has = await tx.eventRef.findFirst({ where: { personId, role: "PRIMARY", event: { type } }, select: { id: true } });
+    if (!has) await setVitalEvent(treeId, personId, type, date, place, tx);
+  };
   const isLiving = item.product.pathway === "LIVING";
   const layout = item.product.layout;
   // A wedding is about the couple, who may be ordered for by someone else, so it
@@ -94,9 +132,20 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     }
     if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
   } else {
-    subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: isLiving }, tx);
-    if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
-    if (!isLiving && o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+    const existing = reuse.get(normaliseName([o.first, o.surname].filter(Boolean).join(" ")));
+    if (existing) {
+      subject = { id: existing };
+      reused.add(existing);
+      if (o.birth) await eventIfMissing(existing, "Birth", o.birth, "");
+      if (!isLiving && o.death) {
+        await eventIfMissing(existing, "Death", o.death, o.place ?? "");
+        await tx.person.update({ where: { id: existing }, data: { living: false } }); // they have told us this person has died
+      }
+    } else {
+      subject = await createBarePerson(treeId, { first: o.first, surname: o.surname, living: isLiving }, tx);
+      if (o.birth) await setVitalEvent(treeId, subject.id, "Birth", o.birth, "", tx);
+      if (!isLiving && o.death) await setVitalEvent(treeId, subject.id, "Death", o.death, o.place ?? "", tx);
+    }
   }
 
   // A calendar's people with a full birth date become real people with a Birth event,
@@ -111,8 +160,8 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
         await setVitalEvent(treeId, subject.id, "Birth", date, "", tx);
         continue;
       }
-      const born = await person(tx, treeId, e.name);
-      await setVitalEvent(treeId, born.id, "Birth", date, "", tx);
+      const born = await getPerson(e.name);
+      await eventIfMissing(born.id, "Birth", date, "");
     }
   }
 
@@ -124,22 +173,22 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
   const remember = (kind: string, name: string, id: string) => byName.set(`${kind}:${name.trim().toLowerCase()}`, id);
   let parentsFamily: string | null = null;
   if (parents.length || siblings.length) {
-    const p1 = parents[0] ? (await person(tx, treeId, parents[0])).id : null;
-    const p2 = parents[1] ? (await person(tx, treeId, parents[1])).id : null;
+    const p1 = parents[0] ? (await getPerson(parents[0])).id : null;
+    const p2 = parents[1] ? (await getPerson(parents[1])).id : null;
     // Each parent's own parents, so the family reaches one generation further up.
     for (const [child, names] of [[p1, lines(o.fatherParents)], [p2, lines(o.motherParents)]] as const) {
       if (!child || !names.length) continue;
-      const g1 = (await person(tx, treeId, names[0]!)).id;
-      const g2 = names[1] ? (await person(tx, treeId, names[1])).id : null;
-      const gf = await family(tx, treeId, g1, g2, g2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
-      await addChildRef(gf.id, child, undefined, tx);
+      const g1 = (await getPerson(names[0]!)).id;
+      const g2 = names[1] ? (await getPerson(names[1])).id : null;
+      const gf = await getFamily(g1, g2, g2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
+      await addChild(gf.id, child);
     }
-    parentsFamily = (await family(tx, treeId, p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
-    await addChildRef(parentsFamily, subject.id, undefined, tx);
+    parentsFamily = (await getFamily(p1, p2, p1 && p2 ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
+    await addChild(parentsFamily, subject.id);
     for (const sib of siblings) {
-      const sb = await person(tx, treeId, sib);
+      const sb = await getPerson(sib);
       remember("sibling", sib, sb.id);
-      await addChildRef(parentsFamily, sb.id, undefined, tx);
+      await addChild(parentsFamily, sb.id);
     }
   }
 
@@ -147,23 +196,23 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
   const kids = lines(o.children);
   let unionFamily: string | null = null;
   if (spouses.length || kids.length) {
-    const sp = spouses[0] ? (await person(tx, treeId, spouses[0])).id : null;
+    const sp = spouses[0] ? (await getPerson(spouses[0])).id : null;
     if (sp && spouses[0]) remember("spouse", spouses[0], sp);
-    unionFamily = (await family(tx, treeId, subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
+    unionFamily = (await getFamily(subject.id, sp, sp ? FamilyType.MARRIED : FamilyType.UNKNOWN)).id;
     // The partner's own parents (a wedding tree): the second family the couple joins.
     if (sp && layout === "wedding") {
       const [sf, sm] = lines(o.spouseParents);
       if (sf || sm) {
-        const f1 = sf ? (await person(tx, treeId, sf)).id : null;
-        const f2 = sm ? (await person(tx, treeId, sm)).id : null;
-        const pf = await family(tx, treeId, f1, f2, f1 && f2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
-        await addChildRef(pf.id, sp, undefined, tx);
+        const f1 = sf ? (await getPerson(sf)).id : null;
+        const f2 = sm ? (await getPerson(sm)).id : null;
+        const pf = await getFamily(f1, f2, f1 && f2 ? FamilyType.MARRIED : FamilyType.UNKNOWN);
+        await addChild(pf.id, sp);
       }
     }
     for (const k of kids) {
-      const kid = await person(tx, treeId, k);
+      const kid = await getPerson(k);
       remember("child", k, kid.id);
-      await addChildRef(unionFamily, kid.id, undefined, tx);
+      await addChild(unionFamily, kid.id);
     }
   }
 
@@ -186,16 +235,16 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     });
     ctx.customerId = me.id;
     if (o.relation === "child") {
-      unionFamily ??= (await family(tx, treeId, subject.id, null)).id;
-      await addChildRef(unionFamily, me.id, undefined, tx);
+      unionFamily ??= (await getFamily(subject.id, null)).id;
+      await addChild(unionFamily, me.id);
     } else if (o.relation === "sibling") {
       if (!parentsFamily) {
-        parentsFamily = (await family(tx, treeId, null, null)).id;
-        await addChildRef(parentsFamily, subject.id, undefined, tx);
+        parentsFamily = (await getFamily(null, null)).id;
+        await addChild(parentsFamily, subject.id);
       }
-      await addChildRef(parentsFamily, me.id, undefined, tx);
+      await addChild(parentsFamily, me.id);
     } else if (o.relation === "spouse" && !spouses.length) {
-      await family(tx, treeId, subject.id, me.id, FamilyType.MARRIED);
+      await getFamily(subject.id, me.id, FamilyType.MARRIED);
     }
   }
 

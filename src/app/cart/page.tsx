@@ -8,6 +8,7 @@ import { cartTotal, getCart, lineTotal } from "@/lib/cart";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import type { DraftOptions } from "@/lib/order-shared";
 import { isLayout } from "@/lib/layouts";
+import { findMatchQuestions } from "@/lib/matching";
 import { ShopHeader } from "@/components/ShopHeader";
 import { checkoutAction, removeItemAction, setQuantityAction } from "./actions";
 
@@ -35,6 +36,8 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
   const cart = await getCart(user.id);
   const origin = await publicOrigin();
   const items = cart?.items ?? [];
+  // Names that look like people already in this customer's family: ask, do not guess.
+  const questions = await findMatchQuestions(user.id, items);
 
   // Delivery details: this basket's, else the last order's, else what we know.
   const last = cart?.contactName
@@ -101,6 +104,29 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
           </section>
 
           <form action={checkoutAction} className="flex h-fit flex-col gap-3 rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            {questions.length > 0 && (
+              <fieldset className="flex flex-col gap-4 rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
+                <legend className="px-1 text-base font-semibold">Is this someone already in your family?</legend>
+                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                  We found people in your family with the same names. Tell us which is which, so nobody is added twice.
+                </p>
+                {questions.map((q) => (
+                  <div key={`${q.itemId}:${q.key}`} className="flex flex-col gap-1">
+                    <p>You typed <strong>{q.typed}</strong> as {q.role}.</p>
+                    {q.candidates.map((c) => (
+                      <label key={c.id} className="flex items-start gap-2">
+                        <input type="radio" required name={`match:${q.itemId}:${q.key}`} value={c.id} className="mt-1" />
+                        <span>Yes, it is {c.name}{c.born ? `, born ${c.born}` : ""}{c.you ? " (you)" : ""}</span>
+                      </label>
+                    ))}
+                    <label className="flex items-start gap-2">
+                      <input type="radio" required name={`match:${q.itemId}:${q.key}`} value="new" className="mt-1" />
+                      <span>No, a different person</span>
+                    </label>
+                  </div>
+                ))}
+              </fieldset>
+            )}
             <h2 className="text-lg font-semibold">Delivery</h2>
             <label>Your name<input name="contactName" required defaultValue={prefill.name} className={field} style={fieldStyle} /></label>
             <label>Phone (WhatsApp if possible)<input name="contactPhone" required defaultValue={prefill.phone} className={field} style={fieldStyle} /></label>

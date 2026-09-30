@@ -8,6 +8,8 @@ import { getCart, removeItem, setQuantity } from "@/lib/cart";
 import { checkoutCart } from "@/lib/orders";
 import { userConsentState } from "@/lib/consent";
 import { notifyUser } from "@/lib/notify";
+import { findMatchQuestions, parseAnswers } from "@/lib/matching";
+import { db } from "@/lib/db";
 import { isLayout, isReady } from "@/lib/layouts";
 import type { DraftOptions } from "@/lib/order-shared";
 
@@ -41,6 +43,23 @@ export async function checkoutAction(formData: FormData) {
   }
   if (cart.items.some((i) => !isReady(isLayout(i.product.layout) ? i.product.layout : "tree", (i.options ?? {}) as DraftOptions))) {
     redirect("/cart?error=" + encodeURIComponent("One of your items has no name on it. Remove it and personalise it again."));
+  }
+
+  // Every "is this someone already in your family?" must be answered, and an answer
+  // can only be a person we offered, never an id someone typed in.
+  const questions = await findMatchQuestions(user.id, cart.items);
+  const answers = parseAnswers(formData);
+  for (const q of questions) {
+    const a = answers.get(q.itemId)?.[q.key];
+    if (a !== "new" && !q.candidates.some((c) => c.id === a)) {
+      redirect("/cart?error=" + encodeURIComponent(`Please tell us whether ${q.typed} is someone already in your family.`));
+    }
+  }
+  for (const item of cart.items) {
+    const mine = questions.filter((q) => q.itemId === item.id);
+    if (!mine.length) continue;
+    const chosen = Object.fromEntries(mine.map((q) => [q.key, answers.get(item.id)![q.key]!]));
+    await db.orderItem.update({ where: { id: item.id }, data: { options: { ...((item.options ?? {}) as object), matches: chosen } } });
   }
 
   const result = await checkoutCart(user.id, cart.id, delivery);

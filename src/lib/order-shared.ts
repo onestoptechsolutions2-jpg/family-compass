@@ -25,6 +25,8 @@ export type DraftOptions = {
   birthdays?: string;
   /** badges: one per line, "Name, relation to the host" */
   attendees?: string;
+  /** answers to "is this the same person already in your family?": normalised name -> person id, or "new" */
+  matches?: Record<string, string>;
   materialKey?: string;
   sizeKey?: string;
   relation?: "child" | "spouse" | "sibling" | "other";
@@ -44,3 +46,6 @@ export function splitName(full: string): { first: string; surname: string } {
   if (parts.length === 1) return { first: parts[0] ?? "", surname: "" };
   return { first: parts.slice(0, -1).join(" "), surname: parts[parts.length - 1] ?? "" };
 }
+
+/** One key for a name, so "Ann  Kamau" and "ann kamau" are the same person. */
+export const normaliseName = (n: string) => n.trim().toLowerCase().replace(/\s+/g, " ");

@@ -37,7 +37,7 @@ export function requiredKey(layout: Layout): keyof DraftOptions {
   return layout === "calendar" || layout === "badges" || layout === "shirt" ? "surname" : "first";
 }
 export function isReady(layout: Layout, o: DraftOptions): boolean {
-  return Boolean(o[requiredKey(layout)]?.trim());
+  return Boolean(String(o[requiredKey(layout)] ?? "").trim());
 }
 
 const family = (living: boolean): Field[] => [

@@ -44,8 +44,6 @@ Decided with the owner. Change only with the owner. Newest at the bottom.
   wood come to us, tile and print ship direct; editable per product).
 - Products for the books and print, and events and merchandise aisles, with the
   family data each needs and which speciality makes it.
-- Returning customers: match typed names against their own tree and ask "is this
-  the same person?" (decided, not built).
 - Editing an item already in the cart (today: remove it and personalise again).
 - Delivery cost for remote areas is absorbed in the price; revisit if margins
   suffer.
@@ -78,3 +76,14 @@ partners and shipping are the same for every layout. See src/lib/layouts.ts.
 - **Open:** T-shirts print black on a light shirt only; no dark-shirt or colour
   variant. Badges print on one sheet, not tear-off pages. The calendar is a
   one-page year planner, not a 12-page wall calendar.
+
+## Returning customers (2026-09-30)
+
+A customer who already has a family is asked, in the cart, "Is this someone
+already in your family?" for every typed name that looks like a person there:
+the same full name, or the same first name and surname ignoring middle names and
+capitals. Yes reuses that person (no second Peter Kamau, no second couple, no
+second set of parents); No makes a separate person. Every question must be
+answered before checkout, and an answer can only be a person that was offered.
+First-time customers are asked nothing. Different spellings (Anne, Ann) are not
+guessed at. See src/lib/matching.ts.
