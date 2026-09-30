@@ -95,3 +95,20 @@ everything filled in; finishing replaces the original (quantity kept, answers
 about the old names dropped). Until then the original is untouched, so
 abandoning an edit loses nothing. Only the owner of an unpaid cart can edit.
 The payment page now lists what is being paid for.
+
+## The landing page and the builder (2026-09-30)
+
+Reference: mysimplefamilytree.com, a free, private, no-sign-up tree builder. We
+want that effortless feel, with the commercial step added at the end.
+
+- **Landing page:** storefront first (a short promise, then finished pieces with
+  photos or drawn examples and prices, how it works, trust, and the QR explained).
+  Every product opens the same free builder. The old family-record pitch lives on
+  About. Brand: Family Compass.
+- **Builder:** the drawn tree is the editor. Tap a person to change them, tap a
+  "+" to add a parent, spouse, brother, sister or child. Same answers as the form,
+  so checkout, matching and printing are unchanged. Tree products first.
+- **No account to build.** A visitor's tree is saved on our server under a private
+  link and remembered in their browser. The account is asked for at "Add to cart".
+- **Later:** import an existing tree (GEDCOM) and order from it. The importer
+  already exists inside the app.
