@@ -2390,29 +2390,31 @@ enum OrderStatus {
 }
 
 model Product {
-  id           String         @id @default(cuid())
-  slug         String         @unique
-  pathway      ProductPathway
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  pathway         ProductPathway
   /// intent group shown in the catalogue: Remember, Honour, Preserve, Connect, Build, Display, Celebrate
-  group        String
-  name         String
-  summary      String
+  group           String
+  name            String
+  summary         String
   /// placeholder until supplier quotes are in; per-option prices live in options
-  basePriceKes Int
+  basePriceKes    Int
   /// wizard options: materials, sizes and their price adders
-  options      Json?
-  active       Boolean        @default(true)
-  sortOrder    Int            @default(0)
+  options         Json?
+  active          Boolean        @default(true)
+  sortOrder       Int            @default(0)
   /// shop aisle: memorial_stone | wall_art | books_print | events_merch
-  aisle        String         @default("")
+  aisle           String         @default("")
   /// what the piece looks like and which questions it asks: see src/lib/layouts.ts
-  layout       String         @default("tree")
+  layout          String         @default("tree")
+  /// set when an admin saves the price in Admin > Products; null means it is still the seeded placeholder
+  priceReviewedAt DateTime?
   /// the specialities needed to make it, in order (one entry = one partner, several = stages)
-  skills       String[]       @default([])
+  skills          String[]       @default([])
   /// "direct" = the partner ships to the customer; "via_us" = it comes to us for a check first
-  shipVia      String         @default("direct")
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  shipVia         String         @default("direct")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   items OrderItem[]
 

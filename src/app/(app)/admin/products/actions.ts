@@ -16,7 +16,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
   await db.product.update({
     where: { id: productId },
-    data: { basePriceKes: price, active, ...(summary ? { summary } : {}) },
+    data: { basePriceKes: price, active, priceReviewedAt: new Date(), ...(summary ? { summary } : {}) },
   });
   await writeAudit({
     actorId: admin.id,
