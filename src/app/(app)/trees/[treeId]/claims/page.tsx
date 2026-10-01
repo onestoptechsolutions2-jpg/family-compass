@@ -94,9 +94,9 @@ export default async function ClaimsPage({
               background: "var(--bg)",
               color:
                 c.status === "APPROVED"
-                  ? "#16a34a"
+                  ? "var(--success)"
                   : c.status === "REJECTED"
-                    ? "#dc2626"
+                    ? "var(--danger)"
                     : "var(--muted)",
             }}
           >

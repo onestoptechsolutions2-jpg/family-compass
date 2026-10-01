@@ -316,14 +316,14 @@ export default async function PersonDetailPage({
             <div>
               <h2 className="text-2xl font-semibold leading-tight">
                 {deceased ? (
-                  <span className="mr-1.5 align-middle text-lg font-bold" title="Deceased" style={{ color: "#000" }}>
+                  <span className="mr-1.5 align-middle text-lg font-bold" title="Deceased" style={{ color: "var(--muted)" }}>
                     ✝
                   </span>
                 ) : (
                   <span
                     className="mr-1.5 inline-block h-2.5 w-2.5 animate-pulse rounded-full align-middle"
                     title="Living"
-                    style={{ background: "#16a34a" }}
+                    style={{ background: "var(--success)" }}
                   />
                 )}
                 {!deceased && lifeNow.some((l) => l.category === "health") && (

@@ -52,7 +52,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         ← {aisleLabel(p.aisle) || "Shop"}
       </Link>
       <p className="mt-4 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>{p.group}</p>
-      <h1 className="mt-1 font-serif text-4xl text-[#3b2a1c]">{p.name}</h1>
+      <h1 className="mt-1 font-serif text-4xl text-[var(--fg)]">{p.name}</h1>
       <p className="mt-2 text-lg font-medium">{range.to > range.from ? "From " : ""}{kes(range.from)} <span className="text-sm font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
 
       <Link

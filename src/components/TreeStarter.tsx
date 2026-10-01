@@ -67,8 +67,8 @@ export function TreeStarter({ origin }: { origin: string }) {
       style={{ borderColor: "var(--border)", background: "var(--card)" }}
     >
       <form action={startFromLanding} className="flex flex-col gap-3">
-        <h1 className="font-serif text-3xl leading-tight text-[#3b2a1c] sm:text-4xl">Your family has a story.</h1>
-        <p className="text-[#4a3728]">
+        <h1 className="font-serif text-3xl leading-tight text-[var(--fg)] sm:text-4xl">Your family has a story.</h1>
+        <p className="text-[var(--muted)]">
           Tell us who it is for. Watch your family tree take shape as you type, then we make it and send it.
         </p>
 

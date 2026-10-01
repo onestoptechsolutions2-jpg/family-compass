@@ -1,6 +1,6 @@
 /**
- * Lightweight generated SVG art in a warm "peanut" palette (roasted shell
- * browns + cream). Pure markup, renders on the server, no image files.
+ * Lightweight generated SVG art in the app's charcoal, teal, and lime palette.
+ * Pure markup, renders on the server, no image files.
  *
  *  <PeanutArt variant="hero" />     full-bleed soft blobs for hero backdrops
  *  <PeanutArt variant="badge" />    a peanut silhouette medallion
@@ -9,12 +9,12 @@
 type Variant = "hero" | "badge" | "strip";
 
 const PEANUT = {
-  cream: "#F6ECDD",
-  sand: "#E7CDA4",
-  butter: "#D6A56B",
-  roast: "#A9773F",
-  shell: "#7A4E2D",
-  cocoa: "#5B3A22",
+  cream: "#10171b",
+  sand: "#17252a",
+  butter: "#25434a",
+  roast: "#176878",
+  shell: "#354d2a",
+  cocoa: "#b9e76a",
 };
 
 export function PeanutArt({

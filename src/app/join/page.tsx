@@ -25,8 +25,12 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
   const field = "mt-1 w-full rounded-lg border px-4 py-2.5 text-sm";
   const style = { borderColor: "var(--border)", background: "var(--card)" };
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
-      <Link href="/" className="mb-8 text-lg font-semibold">🧭 Family Compass</Link>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
+      <section className="rounded-xl border p-6 shadow-lg sm:p-8" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <Link href="/" className="mb-7 inline-flex items-center gap-2.5 font-semibold">
+        <span className="grid size-8 place-items-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
+        <span>Family Compass</span>
+      </Link>
       <h1 className="text-2xl font-semibold">Create your account</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
         So we can keep your designs and orders together. It takes a minute.
@@ -54,6 +58,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
         Already have an account?{" "}
         <Link href={`/login?callbackUrl=${encodeURIComponent(next)}`} className="underline">Sign in</Link>
       </p>
+      </section>
     </main>
   );
 }

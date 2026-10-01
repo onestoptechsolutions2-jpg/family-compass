@@ -23,9 +23,9 @@ export default async function LaunchPage({ searchParams }: { searchParams: Promi
           ["Ready for a test order by you", v.readyForTestOrder, "Sign in as admin, add a product to the cart and go through it as a customer would."],
           ["Ready for customers", v.readyForCustomers, "Everything a stranger needs to sign up, pay and receive."],
         ].map(([title, ok, note]) => (
-          <div key={String(title)} className="rounded-xl border p-4" style={{ borderColor: ok ? "var(--success, #15803d)" : "var(--border)", background: "var(--card)" }}>
+          <div key={String(title)} className="rounded-xl border p-4" style={{ borderColor: ok ? "var(--success)" : "var(--border)", background: "var(--card)" }}>
             <p className="text-sm font-medium">{title as string}</p>
-            <p className="mt-1 text-2xl font-semibold" style={{ color: ok ? "var(--success, #15803d)" : "var(--danger, #b45309)" }}>{ok ? "Yes" : "Not yet"}</p>
+            <p className="mt-1 text-2xl font-semibold" style={{ color: ok ? "var(--success)" : "var(--danger)" }}>{ok ? "Yes" : "Not yet"}</p>
             <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>{note as string}</p>
           </div>
         ))}
@@ -45,8 +45,8 @@ export default async function LaunchPage({ searchParams }: { searchParams: Promi
             ? `Email is set up. Send a test to ${admin.email} to be sure it really arrives (check spam too).`
             : "Email is not set up yet. Set EMAIL_SERVER and EMAIL_FROM where the site is hosted, redeploy, then come back and press the button."}
         </p>
-        {test === "ok" && <p role="status" className="mt-2 font-medium" style={{ color: "var(--success, #15803d)" }}>Sent. Check your inbox.</p>}
-        {test && test !== "ok" && <p role="alert" className="mt-2" style={{ color: "var(--danger, #b45309)" }}>It did not send: {test}</p>}
+        {test === "ok" && <p role="status" className="mt-2 font-medium" style={{ color: "var(--success)" }}>Sent. Check your inbox.</p>}
+        {test && test !== "ok" && <p role="alert" className="mt-2" style={{ color: "var(--danger)" }}>It did not send: {test}</p>}
         <form action={sendTestEmail} className="mt-3">
           <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Send me a test email</button>
         </form>

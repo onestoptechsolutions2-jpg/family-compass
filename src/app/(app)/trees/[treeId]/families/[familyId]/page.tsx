@@ -148,7 +148,7 @@ export default async function FamilyDetailPage({
               </p>
             )}
             {linkStatus?.status === "CONFIRMED" && (
-              <p style={{ color: "#16a34a" }}>
+              <p style={{ color: "var(--success)" }}>
                 ✓ Connected — this marriage and its children are also recorded in{" "}
                 {linkStatus.otherTreeNames.join(", ") || "another tree"}.
               </p>

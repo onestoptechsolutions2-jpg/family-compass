@@ -3,7 +3,7 @@ import Link from "next/link";
 type Part = { key: string; label: string; pct: number };
 
 const RAMP =
-  "linear-gradient(90deg, #ef4444 0%, #f97316 28%, #eab308 55%, #84cc16 78%, #22c55e 100%)";
+  "linear-gradient(90deg, var(--danger) 0%, var(--warning) 35%, var(--primary) 68%, var(--success) 100%)";
 
 /** The scaled-gradient fill: reaches `v`% wide and ends on the colour for `v`. */
 function fillStyle(v: number): React.CSSProperties {
@@ -52,7 +52,7 @@ export function EnergyRow({
 /**
  * "Family energy" meter. A single gradient-filled bar whose fill both reaches
  * `value`% wide AND ends on the colour for that score — the gradient
- * (red → amber → green) is scaled so 0–value maps onto the whole ramp, so a
+ * (danger → warning → cyan → success) is scaled so 0–value maps onto the whole ramp, so a
  * low score shows only the warm end and a full score shows the whole sweep.
  */
 export function EnergyBar({
@@ -99,7 +99,7 @@ export function EnergyBar({
                 className="inline-block h-1.5 w-1.5 rounded-full"
                 style={{
                   background:
-                    p.pct >= 66 ? "#22c55e" : p.pct >= 33 ? "#eab308" : "#ef4444",
+                    p.pct >= 66 ? "var(--success)" : p.pct >= 33 ? "var(--warning)" : "var(--danger)",
                 }}
               />
               {p.label} <span className="tabular-nums">{p.pct}%</span>

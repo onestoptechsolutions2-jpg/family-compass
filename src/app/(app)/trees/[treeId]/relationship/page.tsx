@@ -105,7 +105,7 @@ export default async function RelationshipPage({
         <div
           className="rounded-xl border p-5"
           style={{
-            borderColor: sameClan || close ? "#ef4444" : "var(--color-brand-600)",
+            borderColor: sameClan || close ? "var(--danger)" : "var(--color-brand-600)",
             background: "var(--card)",
           }}
         >

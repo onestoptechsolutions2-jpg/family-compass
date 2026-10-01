@@ -22,8 +22,8 @@ export default async function LivingPage() {
       <Link href="/" className="text-sm hover:underline" style={{ color: "var(--muted)" }}>
         ← Home
       </Link>
-      <h1 className="mt-4 font-serif text-4xl text-[#3b2a1c]">Build your family story.</h1>
-      <p className="mt-3 max-w-2xl text-lg text-[#4a3728]">
+      <h1 className="mt-4 font-serif text-4xl text-[var(--fg)]">Build your family story.</h1>
+      <p className="mt-3 max-w-2xl text-lg text-[var(--muted)]">
         Every piece carries a QR code that opens your family page, so relatives can find themselves, join, and add their side.
       </p>
 

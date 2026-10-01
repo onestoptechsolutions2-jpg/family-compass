@@ -259,7 +259,7 @@ export default async function TreeSettingsPage({
   );
 
   const danger = (
-    <section className="rounded-xl border p-4" style={{ borderColor: "#ef4444" }}>
+    <section className="rounded-xl border p-4" style={{ borderColor: "var(--danger)" }}>
       <h3 className="font-medium text-red-600">Danger zone</h3>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
         Deleting a tree permanently removes all its people, families, media and shares.

@@ -217,7 +217,7 @@ export default async function MergesPage({
                     <span className="font-medium">{c.name}</span>
                     <span
                       className="rounded-full px-2 py-0.5 text-[10px] uppercase"
-                      style={{ background: "var(--bg)", color: c.tier === "likely" ? "#16a34a" : "var(--muted)" }}
+                      style={{ background: "var(--bg)", color: c.tier === "likely" ? "var(--success)" : "var(--muted)" }}
                     >
                       {c.tier === "likely" ? "likely match" : "possible match"}
                     </span>
@@ -357,7 +357,7 @@ export default async function MergesPage({
                   style={{
                     background: "var(--bg)",
                     color:
-                      r.status === "EXECUTED" ? "#16a34a" : r.status === "REJECTED" ? "#dc2626" : "var(--muted)",
+                      r.status === "EXECUTED" ? "var(--success)" : r.status === "REJECTED" ? "var(--danger)" : "var(--muted)",
                   }}
                 >
                   {r.status.toLowerCase()}
@@ -377,7 +377,7 @@ export default async function MergesPage({
                     className="rounded-full border px-2 py-0.5 text-xs"
                     style={{
                       borderColor: "var(--border)",
-                      color: approvedTreeIds.has(t.treeId) ? "#16a34a" : "var(--muted)",
+                      color: approvedTreeIds.has(t.treeId) ? "var(--success)" : "var(--muted)",
                     }}
                   >
                     {approvedTreeIds.has(t.treeId) ? "✓ " : "· "}
@@ -436,7 +436,7 @@ export default async function MergesPage({
                             <td className="px-2 py-1.5">{p.clan ?? "—"}</td>
                             <td className="px-2 py-1.5">{p.eventCount}</td>
                             <td className="px-2 py-1.5">{p.mediaCount}</td>
-                            <td className="px-2 py-1.5 font-medium" style={winner ? { color: "#16a34a" } : undefined}>
+                            <td className="px-2 py-1.5 font-medium" style={winner ? { color: "var(--success)" } : undefined}>
                               {p.detailScore}
                               {winner ? " ✓ more detail" : ""}
                             </td>

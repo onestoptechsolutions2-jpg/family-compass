@@ -38,7 +38,7 @@ export default async function OrdersPage() {
     return (
       <main className="mx-auto min-h-dvh max-w-3xl px-4 py-6">
         <ShopHeader />
-        <h1 className="font-serif text-3xl text-[#3b2a1c]">My orders</h1>
+        <h1 className="font-serif text-3xl text-[var(--fg)]">My orders</h1>
         <Link href="/login?callbackUrl=%2Forders" className="mt-4 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white">Sign in or create an account</Link>
       </main>
     );
@@ -65,7 +65,7 @@ export default async function OrdersPage() {
   return (
     <main className="mx-auto min-h-dvh max-w-3xl px-4 py-6">
       <ShopHeader />
-      <h1 className="font-serif text-3xl text-[#3b2a1c]">My orders</h1>
+      <h1 className="font-serif text-3xl text-[var(--fg)]">My orders</h1>
       {orders.length === 0 && (
         <div className="mt-6 rounded-2xl border p-6 text-sm" style={{ borderColor: "var(--border)" }}>
           <p className="font-medium">You have not ordered anything yet.</p>

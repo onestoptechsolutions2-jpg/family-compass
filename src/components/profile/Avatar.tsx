@@ -1,9 +1,9 @@
 import { MediaThumb } from "@/components/media/MediaThumb";
 
 function tint(gender?: string): [string, string] {
-  if (gender === "MALE") return ["#6366f1", "#4338ca"];
-  if (gender === "FEMALE") return ["#ec4899", "#be185d"];
-  return ["#dcb888", "#a9773f"];
+  if (gender === "MALE") return ["var(--tree-male)", "#075765"];
+  if (gender === "FEMALE") return ["#789a3c", "var(--tree-female)"];
+  return ["#687789", "var(--tree-other)"];
 }
 
 export function Avatar({

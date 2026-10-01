@@ -89,7 +89,7 @@ export default async function SurnamesPage({
       </p>
 
       {nearMatches.length > 0 && (
-        <div className="rounded-xl border p-4" style={{ borderColor: "#ef4444", background: "var(--card)" }}>
+        <div className="rounded-xl border p-4" style={{ borderColor: "var(--danger)", background: "var(--card)" }}>
           <h2 className="text-sm font-medium text-red-600">Possible spelling variants</h2>
           <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
             These pairs are close enough in spelling that one is likely a typo for the other —
@@ -154,7 +154,7 @@ export default async function SurnamesPage({
               ))}
             </ul>
             {r.clans.size > 1 && (
-              <p className="mt-2 text-xs" style={{ color: "var(--warning, #b7791f)" }}>
+              <p className="mt-2 text-xs" style={{ color: "var(--warning)" }}>
                 Split across {r.clans.size} clans — worth checking.
               </p>
             )}

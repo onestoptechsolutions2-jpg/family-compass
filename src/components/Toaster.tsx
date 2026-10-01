@@ -8,9 +8,9 @@ type Toast = { id: string; type: FlashType; message: string };
 
 const ICON: Record<FlashType, string> = { success: "✓", error: "✕", info: "i" };
 const ACCENT: Record<FlashType, string> = {
-  success: "var(--success, #16a34a)",
-  error: "var(--danger, #dc2626)",
-  info: "var(--accent, #2563eb)",
+  success: "var(--success)",
+  error: "var(--danger)",
+  info: "var(--primary)",
 };
 const LIFETIME_MS = 4500;
 

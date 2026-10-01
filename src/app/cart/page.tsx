@@ -28,7 +28,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
     return (
       <main className="mx-auto min-h-dvh max-w-3xl px-4 py-6">
         <ShopHeader />
-        <h1 className="font-serif text-3xl text-[#3b2a1c]">Your cart</h1>
+        <h1 className="font-serif text-3xl text-[var(--fg)]">Your cart</h1>
         <p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>Sign in to see your cart. Anything you personalised is kept for you.</p>
         <Link href="/login?callbackUrl=%2Fcart" className="mt-4 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white">Sign in or create an account</Link>
       </main>
@@ -65,7 +65,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
   return (
     <main className="mx-auto min-h-dvh max-w-4xl px-4 py-6">
       <ShopHeader />
-      <h1 className="font-serif text-3xl text-[#3b2a1c]">Your cart</h1>
+      <h1 className="font-serif text-3xl text-[var(--fg)]">Your cart</h1>
       {added && <p className="mt-2 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)" }}>Added to your cart.</p>}
       {error && <p className="mt-2 rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>{error}</p>}
 

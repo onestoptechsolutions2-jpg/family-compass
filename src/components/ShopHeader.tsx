@@ -10,28 +10,34 @@ export async function ShopHeader({ q, sent, confirmed }: { q?: string; sent?: bo
   const count = user ? await cartCount(user.id) : 0;
   return (
     <>
-    <header className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-3" style={{ borderColor: "var(--border)" }}>
-      <Link href="/" className="font-semibold">🧭 Family Compass</Link>
-      <Link href="/shop" className="text-sm hover:underline">Shop</Link>
-      <form action="/shop" className="order-last w-full sm:order-none sm:ml-2 sm:w-auto sm:flex-1">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search the shop"
-          aria-label="Search the shop"
-          className="w-full rounded-lg border px-3 py-1.5 text-sm sm:max-w-sm"
-          style={{ borderColor: "var(--border)", background: "var(--card)" }}
-        />
-      </form>
-      <nav className="ml-auto flex items-center gap-4 text-sm">
-        {user && <Link href="/orders" className="hover:underline">My orders</Link>}
-        <Link href="/cart" className="rounded-lg border px-3 py-1.5 font-medium" style={{ borderColor: "var(--border)" }}>
-          Cart{count > 0 ? ` (${count})` : ""}
+      <header
+        className="mb-8 grid grid-cols-1 items-center gap-3 border-b pb-4 sm:grid-cols-[auto_auto_minmax(12rem,1fr)_auto]"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <Link href="/" className="flex items-center gap-2.5 font-semibold">
+          <span className="grid size-8 place-items-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
+          <span>Family Compass</span>
         </Link>
-        {!user && <Link href="/login?callbackUrl=%2Fshop" className="hover:underline">Sign in</Link>}
-      </nav>
-    </header>
-    {user && <VerifyBanner userId={user.id} sent={sent} confirmed={confirmed} />}
+        <Link href="/shop" className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--link)] hover:bg-[var(--surface-2)]">Shop</Link>
+        <form action="/shop" className="w-full">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Search the shop"
+            aria-label="Search the shop"
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+          />
+        </form>
+        <nav className="flex items-center gap-3 text-sm sm:justify-self-end">
+          {user && <Link href="/orders" className="rounded-md px-2 py-1.5 hover:bg-[var(--surface-2)]">My orders</Link>}
+          <Link href="/cart" className="rounded-md border px-3 py-1.5 font-medium" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+            Cart{count > 0 ? ` (${count})` : ""}
+          </Link>
+          {!user && <Link href="/login?callbackUrl=%2Fshop" className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Sign in</Link>}
+        </nav>
+      </header>
+      {user && <VerifyBanner userId={user.id} sent={sent} confirmed={confirmed} />}
     </>
   );
 }

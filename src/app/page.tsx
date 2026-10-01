@@ -86,10 +86,10 @@ export default async function LandingPage() {
 
       {/* One promise, then straight to the pieces. */}
       <section className="pb-2 pt-2">
-        <h1 className="max-w-3xl font-serif text-3xl leading-tight text-[#3b2a1c] sm:text-5xl">
+        <h1 className="max-w-3xl font-serif text-3xl leading-tight text-[var(--fg)] sm:text-5xl">
           Keepsakes made from your family&apos;s story.
         </h1>
-        <p className="mt-3 max-w-2xl text-base text-[#4a3728] sm:text-lg">
+        <p className="mt-3 max-w-2xl text-base text-[var(--muted)] sm:text-lg">
           Family trees, memorial plaques and more, made from the names and dates you give us and delivered to your door.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
@@ -112,7 +112,7 @@ export default async function LandingPage() {
           <section key={door.id} id={door.id} className="mt-8 scroll-mt-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
-                <h2 className="font-serif text-2xl text-[#3b2a1c]">{door.title}</h2>
+                <h2 className="font-serif text-2xl text-[var(--fg)]">{door.title}</h2>
                 <p className="text-sm" style={{ color: "var(--muted)" }}>{door.line}</p>
               </div>
               <Link href="/shop" className="text-sm underline">See the whole shop</Link>
@@ -159,7 +159,7 @@ export default async function LandingPage() {
       })}
 
       <section id="how" className="mt-14 scroll-mt-4">
-        <h2 className="font-serif text-2xl text-[#3b2a1c]">How it works</h2>
+        <h2 className="font-serif text-2xl text-[var(--fg)]">How it works</h2>
         <ol className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map(([t, d], i) => (
             <li key={t} className="rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
@@ -182,8 +182,8 @@ export default async function LandingPage() {
 
       <section className="mt-14 grid items-center gap-6 rounded-3xl border p-6 sm:p-8 lg:grid-cols-[1fr_1fr]" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
         <div>
-          <h2 className="font-serif text-2xl text-[#3b2a1c]">Every piece opens a living family page.</h2>
-          <p className="mt-3 text-[15px] leading-relaxed text-[#4a3728]">
+          <h2 className="font-serif text-2xl text-[var(--fg)]">Every piece opens a living family page.</h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-[var(--muted)]">
             Scan the QR code on a plaque, a tree or a calendar and you land on the family&apos;s own page: their names, their
             stories, the memories relatives add over the years. The piece is the beginning. The family page keeps growing.
           </p>

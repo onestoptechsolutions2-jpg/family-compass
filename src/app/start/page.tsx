@@ -84,7 +84,7 @@ export default async function StartPage({
                     className="rounded-full px-2 py-0.5 text-[10px] uppercase"
                     style={{
                       background: "var(--bg)",
-                      color: c.tier === "likely" ? "#16a34a" : "var(--muted)",
+                      color: c.tier === "likely" ? "var(--success)" : "var(--muted)",
                     }}
                   >
                     {c.tier === "likely" ? "likely you" : "possible match"}
@@ -127,8 +127,8 @@ export default async function StartPage({
       <section className="relative overflow-hidden rounded-2xl border" style={{ borderColor: "var(--border)" }}>
         <PeanutArt variant="hero" className="absolute inset-0 h-full w-full opacity-70" />
         <div className="relative px-6 py-10">
-          <h1 className="font-serif text-2xl text-[#3b2a1c]">Start with yourself.</h1>
-          <p className="mt-2 text-sm text-[#4a3728]">
+          <h1 className="font-serif text-2xl text-[var(--fg)]">Start with yourself.</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
             Add yourself, then your parents, then your children. Record your clan and where you come
             from. Free to build and share with relatives.
           </p>

@@ -388,16 +388,16 @@ export function TreeExplorer({
         >
           <defs>
             <linearGradient id="g-male" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#6366f1" />
-              <stop offset="1" stopColor="#4338ca" />
+              <stop offset="0" stopColor="#159aad" />
+              <stop offset="1" stopColor="var(--tree-male)" />
             </linearGradient>
             <linearGradient id="g-female" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#f472b6" />
-              <stop offset="1" stopColor="#db2777" />
+              <stop offset="0" stopColor="#89aa4e" />
+              <stop offset="1" stopColor="var(--tree-female)" />
             </linearGradient>
             <linearGradient id="g-other" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#94a3b8" />
-              <stop offset="1" stopColor="#475569" />
+              <stop offset="0" stopColor="#728398" />
+              <stop offset="1" stopColor="var(--tree-other)" />
             </linearGradient>
             <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
               <circle cx="1.5" cy="1.5" r="1.5" fill="var(--border)" opacity="0.5" />
@@ -510,10 +510,10 @@ export function TreeExplorer({
                     s.generation === 0
                       ? "var(--color-brand-600)"
                       : p.gender === "MALE"
-                        ? "#c7d2fe"
+                        ? "var(--tree-male-soft)"
                         : p.gender === "FEMALE"
-                          ? "#fbcfe8"
-                          : "#e2e8f0";
+                          ? "var(--tree-female-soft)"
+                          : "var(--tree-other-soft)";
                   return (
                     <g
                       key={s.key}
@@ -539,7 +539,7 @@ export function TreeExplorer({
                             transform={`translate(${s.labelX},${s.labelY}) rotate(${s.labelAngleDeg})`}
                             textAnchor="middle"
                             fontSize={s.generation <= 2 ? 11 : 9}
-                            fill="#1e293b"
+                            fill="var(--fg)"
                           >
                             {(p.given || p.surname || p.name).slice(0, s.generation <= 2 ? 12 : 8)}
                           </text>
@@ -592,7 +592,11 @@ export function TreeExplorer({
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
                     style={{
                       background:
-                        p.gender === "MALE" ? "#4338ca" : p.gender === "FEMALE" ? "#db2777" : "#475569",
+                        p.gender === "MALE"
+                          ? "var(--tree-male)"
+                          : p.gender === "FEMALE"
+                            ? "var(--tree-female)"
+                            : "var(--tree-other)",
                     }}
                   >
                     {((p.given[0] ?? "") + (p.surname[0] ?? "")).toUpperCase() || "?"}

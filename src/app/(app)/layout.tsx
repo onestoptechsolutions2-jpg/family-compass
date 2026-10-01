@@ -33,17 +33,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <OfflineSupport />
       <header
         className="sticky top-0 z-10 border-b backdrop-blur"
-        style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--bg) 85%, transparent)" }}
+        style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--surface) 88%, transparent)" }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Link href="/app" className="shrink-0 font-semibold">
-            🧭 <span className="hidden sm:inline">Family </span>Compass
+          <Link href="/app" className="flex shrink-0 items-center gap-2.5 font-semibold">
+            <span className="flex size-8 items-center justify-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
+            <span><span className="hidden sm:inline">Family </span>Compass</span>
           </Link>
 
           <div className="flex items-center gap-3">
             <CommandPalette />
-            <Link href="/notifications" className="relative hover:underline" title="Notifications">
-              🔔
+              <Link href="/notifications" className="relative rounded-md border px-2 py-1 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--border)" }} title="Notifications">
+              <span aria-hidden>◎</span><span className="sr-only">Notifications</span>
               {unread > 0 && (
                 <span
                   className="absolute -right-2 -top-1 rounded-full px-1 text-[10px] font-semibold text-white"
@@ -84,16 +85,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 className="absolute right-0 z-20 mt-2 w-56 rounded-xl border p-2 text-sm shadow-lg"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}
               >
-                <Link href="/app?trees=1" className="block rounded-md px-2 py-2 hover:bg-black/5">Your trees</Link>
-                <Link href="/guide" className="block rounded-md px-2 py-2 hover:bg-black/5">Guide</Link>
-                <Link href="/communities" className="block rounded-md px-2 py-2 hover:bg-black/5">Communities</Link>
-                <Link href="/discover" className="block rounded-md px-2 py-2 hover:bg-black/5">Discover</Link>
-                <Link href="/research" className="block rounded-md px-2 py-2 hover:bg-black/5">Research</Link>
-                <Link href="/developers" className="block rounded-md px-2 py-2 hover:bg-black/5">Developers</Link>
+                <Link href="/app?trees=1" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Your trees</Link>
+                <Link href="/guide" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Guide</Link>
+                <Link href="/communities" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Communities</Link>
+                <Link href="/discover" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Discover</Link>
+                <Link href="/research" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Research</Link>
+                <Link href="/developers" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Developers</Link>
                 {user.isPlatformAdmin && (
-                  <Link href="/admin" className="block rounded-md px-2 py-2 hover:bg-black/5">Admin</Link>
+                  <Link href="/admin" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Admin</Link>
                 )}
-                <Link href="/account" className="block rounded-md px-2 py-2 hover:bg-black/5">Account</Link>
+                <Link href="/account" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Account</Link>
                 <div className="truncate px-2 py-1 text-xs" style={{ color: "var(--muted)" }}>{user.email}</div>
                 <form action={doSignOut} className="px-2 pt-1">
                   <button className="w-full rounded-md border px-2.5 py-1.5 text-left" style={{ borderColor: "var(--border)" }}>

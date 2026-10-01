@@ -50,7 +50,7 @@ export default async function ShopPage({
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 py-6">
       <ShopHeader q={term} sent={sent === "1"} confirmed={confirmed === "1"} />
-      <h1 className="font-serif text-3xl text-[#3b2a1c]">Shop</h1>
+      <h1 className="font-serif text-3xl text-[var(--fg)]">Shop</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
         Everything is made for your family, from the names and dates you give us. Delivery is included in every price.
       </p>

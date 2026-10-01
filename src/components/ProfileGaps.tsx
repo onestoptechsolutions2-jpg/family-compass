@@ -97,7 +97,7 @@ export function ProfileGaps({
               className="inline-block h-1.5 w-1.5 rounded-full"
               style={{
                 background:
-                  g.present >= g.target ? "#22c55e" : g.present > 0 ? "#eab308" : "#ef4444",
+                  g.present >= g.target ? "var(--success)" : g.present > 0 ? "var(--warning)" : "var(--danger)",
               }}
             />
             {g.label} <span className="tabular-nums">{Math.min(g.present, g.target)}/{g.target}</span>

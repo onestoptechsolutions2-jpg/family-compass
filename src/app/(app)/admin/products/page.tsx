@@ -95,7 +95,7 @@ export default async function AdminProductsPage() {
                 <p className="mt-1 truncate text-xs" style={{ color: "var(--muted)" }}>{i === 0 ? "Main photo" : im.alt || "Photo"}</p>
                 <div className="mt-1 flex gap-3 text-xs">
                   {i > 0 && <form action={makeMainPhoto.bind(null, im.id)}><button className="underline">Make main</button></form>}
-                  <form action={deletePhoto.bind(null, im.id)}><button className="underline" style={{ color: "var(--danger, #b45309)" }}>Remove</button></form>
+                  <form action={deletePhoto.bind(null, im.id)}><button className="underline" style={{ color: "var(--danger)" }}>Remove</button></form>
                 </div>
               </div>
             ))}

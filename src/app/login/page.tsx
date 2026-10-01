@@ -24,9 +24,11 @@ export default async function LoginPage({
   const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
-      <Link href="/" className="mb-8 text-lg font-semibold">
-        🧭 Family Compass
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-5 py-10">
+      <section className="rounded-xl border p-6 shadow-lg sm:p-8" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <Link href="/" className="mb-7 inline-flex items-center gap-2.5 font-semibold">
+        <span className="grid size-8 place-items-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
+        <span>Family Compass</span>
       </Link>
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
@@ -104,16 +106,17 @@ export default async function LoginPage({
         </form>
 
         {env.SHOP_SIGNUP && (
-          <div className="rounded-lg border p-4 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+          <div className="border-t pt-4 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
             <p className="font-medium" style={{ color: "var(--fg)" }}>New here?</p>
             <p className="mt-1">
               <Link href={`/join?next=${encodeURIComponent(callbackUrl)}`} className="underline">Create an account</Link> to order and keep your designs.
             </p>
           </div>
         )}
+      </section>
 
         <div
-          className="rounded-lg border p-4 text-sm"
+          className="border-t px-1 pt-4 text-sm"
           style={{ borderColor: "var(--border)", color: "var(--muted)" }}
         >
           <p className="font-medium" style={{ color: "var(--fg)" }}>
@@ -126,7 +129,7 @@ export default async function LoginPage({
         </div>
 
         <div
-          className="rounded-lg border p-4 text-sm"
+          className="border-t px-1 pt-4 text-sm"
           style={{ borderColor: "var(--border)", color: "var(--muted)" }}
         >
           <p className="font-medium" style={{ color: "var(--fg)" }}>

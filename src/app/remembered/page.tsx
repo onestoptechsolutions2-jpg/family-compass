@@ -22,8 +22,8 @@ export default async function RememberedPage() {
       <Link href="/" className="text-sm hover:underline" style={{ color: "var(--muted)" }}>
         ← Home
       </Link>
-      <h1 className="mt-4 font-serif text-4xl text-[#3b2a1c]">Preserve their story forever.</h1>
-      <p className="mt-3 max-w-2xl text-lg text-[#4a3728]">
+      <h1 className="mt-4 font-serif text-4xl text-[var(--fg)]">Preserve their story forever.</h1>
+      <p className="mt-3 max-w-2xl text-lg text-[var(--muted)]">
         Every plaque carries a QR code that opens their memorial, then their family, so visitors can move
         from the stone to the people and the stories.
       </p>

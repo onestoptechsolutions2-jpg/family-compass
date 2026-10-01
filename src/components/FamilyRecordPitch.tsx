@@ -66,12 +66,12 @@ function ProductMockup() {
   return (
     <div
       className="relative rounded-2xl border p-5 shadow-lg"
-      style={{ borderColor: "#00000014", background: "#fffaf2" }}
+      style={{ borderColor: "var(--border)", background: "var(--elevated)" }}
     >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs" style={{ color: "var(--muted)" }}>Good evening, Amina</p>
-          <p className="font-serif text-lg text-[#3b2a1c]">Otieno Family</p>
+          <p className="font-serif text-lg text-[var(--fg)]">Otieno Family</p>
         </div>
         <span
           className="grid h-9 w-9 place-items-center rounded-full text-xs font-semibold text-white"
@@ -82,14 +82,14 @@ function ProductMockup() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border p-3" style={{ borderColor: "#00000010" }}>
+        <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
           <p className="text-xs" style={{ color: "var(--muted)" }}>People recorded</p>
-          <p className="mt-1 text-2xl font-semibold text-[#3b2a1c]">142</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--fg)]">142</p>
           <p className="text-xs" style={{ color: "var(--color-brand-700)" }}>+3 this month</p>
         </div>
-        <div className="rounded-xl border p-3" style={{ borderColor: "#00000010" }}>
+        <div className="rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
           <p className="text-xs" style={{ color: "var(--muted)" }}>Generations connected</p>
-          <p className="mt-1 text-2xl font-semibold text-[#3b2a1c]">4</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--fg)]">4</p>
           <p className="text-xs" style={{ color: "var(--muted)" }}>0 duplicates</p>
         </div>
       </div>
@@ -104,7 +104,7 @@ function ProductMockup() {
             <li
               key={a.who + a.when}
               className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
-              style={{ borderColor: "#00000010" }}
+              style={{ borderColor: "var(--border)" }}
             >
               <span>
                 <strong>{a.who}</strong> {a.what}
@@ -141,10 +141,10 @@ export async function FamilyRecordPitch() {
             <p className="text-sm font-medium uppercase tracking-wide" style={{ color: "var(--color-brand-700)" }}>
               A living record of how families are made
             </p>
-            <h2 className="mt-3 font-serif text-4xl leading-tight text-[#3b2a1c] sm:text-5xl">
+            <h2 className="mt-3 font-serif text-4xl leading-tight text-[var(--fg)] sm:text-5xl">
               Family is the people you share a history with.
             </h2>
-            <p className="mt-5 max-w-xl text-lg text-[#4a3728]">
+            <p className="mt-5 max-w-xl text-lg text-[var(--muted)]">
               One place for the family you were born into and the family you chose — recorded
               together, and never duplicated when your families meet.
             </p>
@@ -152,7 +152,11 @@ export async function FamilyRecordPitch() {
               <Link href={appHref ?? "/start"} className="rounded-lg bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700">
                 {user ? "Open Family Compass" : "Start free"}
               </Link>
-              <Link href="/discover" className="rounded-lg border border-[#00000022] bg-white/70 px-5 py-3 font-medium text-[#3b2a1c] backdrop-blur">
+              <Link
+                href="/discover"
+                className="rounded-lg border px-5 py-3 font-medium text-[var(--fg)] backdrop-blur"
+                style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--surface) 86%, transparent)" }}
+              >
                 Explore public trees
               </Link>
             </div>

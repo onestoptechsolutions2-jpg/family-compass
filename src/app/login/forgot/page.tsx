@@ -8,8 +8,12 @@ export const metadata = { title: "Forgot your password" };
 export default async function ForgotPage({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
   const { sent } = await searchParams;
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
-      <Link href="/" className="mb-8 text-lg font-semibold">🧭 Family Compass</Link>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
+      <section className="rounded-xl border p-6 shadow-lg sm:p-8" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <Link href="/" className="mb-7 inline-flex items-center gap-2.5 font-semibold">
+        <span className="grid size-8 place-items-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
+        <span>Family Compass</span>
+      </Link>
       <h1 className="text-2xl font-semibold">Forgot your password?</h1>
       {sent ? (
         <p className="mt-4 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)" }}>
@@ -28,6 +32,7 @@ export default async function ForgotPage({ searchParams }: { searchParams: Promi
         </p>
       )}
       <p className="mt-6 text-sm"><Link href="/login" className="underline">Back to sign in</Link></p>
+      </section>
     </main>
   );
 }

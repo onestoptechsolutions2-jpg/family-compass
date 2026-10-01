@@ -79,9 +79,9 @@ export default async function ImportPage({
                     style={{
                       color:
                         j.status === "COMPLETED"
-                          ? "#16a34a"
+                          ? "var(--success)"
                           : j.status === "FAILED"
-                            ? "#dc2626"
+                            ? "var(--danger)"
                             : "var(--muted)",
                     }}
                   >

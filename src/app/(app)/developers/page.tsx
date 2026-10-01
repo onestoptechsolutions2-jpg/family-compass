@@ -169,7 +169,7 @@ export default async function DevelopersPage() {
                   {h.deliveries.map((d) => (
                     <li key={d.id}>
                       {d.createdAt.toISOString().slice(5, 16).replace("T", " ")} · {d.event} ·{" "}
-                      <span style={{ color: d.status === "SUCCESS" ? "var(--color-brand-600)" : d.status === "FAILED" ? "#dc2626" : undefined }}>
+                      <span style={{ color: d.status === "SUCCESS" ? "var(--success)" : d.status === "FAILED" ? "var(--danger)" : undefined }}>
                         {d.status}
                       </span>
                       {d.statusCode ? ` (${d.statusCode})` : ""}
