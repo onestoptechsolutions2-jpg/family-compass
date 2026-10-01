@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { MAX_PHOTOS_PER_PRODUCT, processPhoto } from "@/lib/product-photos";
 import { VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 
 const wholeKes = (v: FormDataEntryValue | null, what: string) => {
@@ -52,4 +53,51 @@ export async function updateProduct(productId: string, formData: FormData) {
   revalidatePath("/remembered");
   revalidatePath("/shop");
   revalidatePath("/");
+}
+
+/** Add a photo to a product. It is re-encoded and resized; the first one becomes the main photo. */
+export async function uploadPhoto(productId: string, formData: FormData) {
+  const admin = await requirePlatformAdmin();
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a photo to upload.");
+  const count = await db.productImage.count({ where: { productId } });
+  if (count >= MAX_PHOTOS_PER_PRODUCT) throw new Error(`A product can have up to ${MAX_PHOTOS_PER_PRODUCT} photos. Remove one first.`);
+  const { bytes, thumb, mimeType } = await processPhoto(Buffer.from(await file.arrayBuffer()), file.type);
+  const last = await db.productImage.findFirst({ where: { productId }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
+  const img = await db.productImage.create({
+    data: {
+      productId,
+      bytes: new Uint8Array(bytes),
+      thumb: new Uint8Array(thumb),
+      mimeType,
+      alt: String(formData.get("alt") ?? "").trim().slice(0, 200),
+      sortOrder: (last?.sortOrder ?? -1) + 1,
+      uploadedById: admin.id,
+    },
+    select: { id: true },
+  });
+  await writeAudit({ actorId: admin.id, action: "product.photo_add", targetType: "product", targetId: productId, meta: { imageId: img.id } });
+  revalidateShop();
+}
+
+export async function deletePhoto(imageId: string) {
+  const admin = await requirePlatformAdmin();
+  const img = await db.productImage.delete({ where: { id: imageId }, select: { productId: true } });
+  await writeAudit({ actorId: admin.id, action: "product.photo_remove", targetType: "product", targetId: img.productId, meta: { imageId } });
+  revalidateShop();
+}
+
+/** Make a photo the main one, the first the shop shows. */
+export async function makeMainPhoto(imageId: string) {
+  const admin = await requirePlatformAdmin();
+  const img = await db.productImage.findUniqueOrThrow({ where: { id: imageId }, select: { productId: true } });
+  const first = await db.productImage.findFirst({ where: { productId: img.productId }, orderBy: { sortOrder: "asc" }, select: { sortOrder: true } });
+  await db.productImage.update({ where: { id: imageId }, data: { sortOrder: (first?.sortOrder ?? 0) - 1 } });
+  await writeAudit({ actorId: admin.id, action: "product.photo_main", targetType: "product", targetId: img.productId, meta: { imageId } });
+  revalidateShop();
+}
+
+function revalidateShop() {
+  for (const path of ["/admin/products", "/shop", "/"]) revalidatePath(path);
+  revalidatePath("/shop/[slug]", "page");
 }

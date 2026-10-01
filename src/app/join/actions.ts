@@ -10,6 +10,7 @@ import { hashPassword, passwordProblem } from "@/lib/password";
 import { startDbSession } from "@/lib/session";
 import { clientIpFromHeaders } from "@/lib/user-agent";
 import { ensurePersonalWorkspace } from "@/lib/workspace";
+import { sendVerifyEmail } from "@/lib/verify-email";
 import { safeNext } from "./safe-next";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -39,5 +40,6 @@ export async function createAccount(formData: FormData) {
   });
   await ensurePersonalWorkspace(user.id, name);
   await startDbSession(user.id);
+  await sendVerifyEmail(user.id, { welcome: true });
   redirect(next);
 }

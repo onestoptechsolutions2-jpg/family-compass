@@ -133,10 +133,10 @@ export function evaluate(s: LaunchState): { checks: Check[]; readyForTestOrder: 
       id: "email",
       label: "Customers get email updates",
       ok: s.emailConfigured,
-      forCustomers: false,
+      forCustomers: true,
       forTestOrder: false,
-      detail: s.emailConfigured ? "Email is set up." : "Not set up: customers still see updates in the app, but no email is sent.",
-      fix: "Set EMAIL_SERVER and EMAIL_FROM. Recommended, not required.",
+      detail: s.emailConfigured ? "Email is set up. Use the test button below to confirm it really sends." : "Not set up: nobody can reset a forgotten password, nobody gets receipts or updates by email, and you are not emailed when a payment needs checking.",
+      fix: "Set EMAIL_SERVER (for example smtps://user:password@smtp.yourprovider.com:465) and EMAIL_FROM (for example Family Compass <shop@yourdomain>), then redeploy and press the test button.",
     },
     {
       id: "first-order",

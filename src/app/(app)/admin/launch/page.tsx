@@ -2,12 +2,15 @@ import Link from "next/link";
 
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { evaluate, loadLaunchState } from "@/lib/launch-check";
+import { hasEmailProvider } from "@/lib/env";
+import { sendTestEmail } from "./actions";
 
 export const metadata = { title: "Launch check" };
 export const dynamic = "force-dynamic";
 
-export default async function LaunchPage() {
-  await requirePlatformAdmin();
+export default async function LaunchPage({ searchParams }: { searchParams: Promise<{ test?: string }> }) {
+  const admin = await requirePlatformAdmin();
+  const { test } = await searchParams;
   const v = evaluate(await loadLaunchState());
   const todo = v.checks.filter((c) => !c.ok);
 
@@ -34,6 +37,20 @@ export default async function LaunchPage() {
           <code>docs/commerce/FIRST-ORDER.md</code>. Payments to verify are under <Link href="/admin/payments" className="underline">Payments</Link>.
         </p>
       )}
+
+      <section className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <p className="font-medium">Email</p>
+        <p className="mt-1" style={{ color: "var(--muted)" }}>
+          {hasEmailProvider
+            ? `Email is set up. Send a test to ${admin.email} to be sure it really arrives (check spam too).`
+            : "Email is not set up yet. Set EMAIL_SERVER and EMAIL_FROM where the site is hosted, redeploy, then come back and press the button."}
+        </p>
+        {test === "ok" && <p role="status" className="mt-2 font-medium" style={{ color: "var(--success, #15803d)" }}>Sent. Check your inbox.</p>}
+        {test && test !== "ok" && <p role="alert" className="mt-2" style={{ color: "var(--danger, #b45309)" }}>It did not send: {test}</p>}
+        <form action={sendTestEmail} className="mt-3">
+          <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Send me a test email</button>
+        </form>
+      </section>
 
       <ul className="flex flex-col gap-2">
         {v.checks.map((c) => (

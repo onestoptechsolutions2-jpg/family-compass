@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { AISLES, aisleLabel } from "@/lib/aisles";
-import { productImage } from "@/lib/product-images";
+import { cardPhoto, photosFor } from "@/lib/product-photos";
 import { priceRange, type ProductOptions } from "@/lib/product-pricing";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -22,9 +22,9 @@ const SORTS: Record<string, Prisma.ProductOrderByWithRelationInput> = {
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aisle?: string; q?: string; sort?: string }>;
+  searchParams: Promise<{ aisle?: string; q?: string; sort?: string; sent?: string; confirmed?: string }>;
 }) {
-  const { aisle = "", q = "", sort = "featured" } = await searchParams;
+  const { aisle = "", q = "", sort = "featured", sent, confirmed } = await searchParams;
   const term = q.trim().slice(0, 80);
   const where: Prisma.ProductWhereInput = {
     active: true,
@@ -35,6 +35,7 @@ export default async function ShopPage({
     db.product.findMany({ where, orderBy: SORTS[sort] ?? SORTS.featured }),
     db.product.groupBy({ by: ["aisle"], where: { active: true }, _count: true }),
   ]);
+  const shown = await photosFor(products);
   const total = counts.reduce((n, c) => n + c._count, 0);
   const countOf = (k: string) => counts.find((c) => c.aisle === k)?._count ?? 0;
 
@@ -48,7 +49,7 @@ export default async function ShopPage({
 
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 py-6">
-      <ShopHeader q={term} />
+      <ShopHeader q={term} sent={sent === "1"} confirmed={confirmed === "1"} />
       <h1 className="font-serif text-3xl text-[#3b2a1c]">Shop</h1>
       <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
         Everything is made for your family, from the names and dates you give us. Delivery is included in every price.
@@ -78,12 +79,12 @@ export default async function ShopPage({
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
-          const img = productImage(p.slug) ?? { src: `/api/sample/${p.slug}?v=${p.updatedAt.getTime()}`, alt: `Example of the ${p.name}` };
+          const img = cardPhoto(shown.get(p.id)!, p.slug);
           const range = priceRange(p.basePriceKes, (p.options ?? null) as ProductOptions | null, p.layout);
           return (
             <Link key={p.id} href={`/shop/${p.slug}`} className="overflow-hidden rounded-2xl border transition hover:shadow-md" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.src} alt={img.alt} width={640} height={480} className={`aspect-[4/3] w-full ${img.src.startsWith("/api/sample/") ? "object-contain p-2" : "object-cover"}`} style={{ background: "var(--color-surface-2)" }} loading="lazy" />
+              <img src={img.src} alt={img.alt} width={640} height={480} className="aspect-[4/3] w-full object-cover" style={{ background: "var(--color-surface-2)" }} loading="lazy" />
               <div className="p-4">
                 <p className="text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>{aisleLabel(p.aisle) || p.group}</p>
                 <h2 className="mt-1 font-semibold">{p.name}</h2>

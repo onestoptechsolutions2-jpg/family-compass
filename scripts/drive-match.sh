@@ -15,7 +15,7 @@ ck "it names what was typed and who they are to the piece" "$(grep -c 'You typed
 ck "it offers the person already there, with a birth year" "$(grep -c 'Yes, it is Peter Kamau' /tmp/mcart.txt)" "1"
 ck "it always offers 'a different person'" "$(grep -c 'No, a different person' /tmp/mcart.txt)" "1"
 
-ACTION=$(grep -o 'name="\$ACTION_ID_[a-f0-9]*"' /tmp/mcart.html | head -1 | sed 's/name="//;s/"//')
+ACTION=$(cat /tmp/mcart.html | node scripts/action-id.mjs - contactName)
 KEY_MARY="match:$ITEM:mary wanjiku"; KEY_PETER="match:$ITEM:peter kamau"
 post() { curl -s -i -b "$C" -X POST $B/cart -F "$ACTION=" -F contactName="Ann Kamau" -F contactPhone=0700111222 -F deliveryText="Karen, Nairobi" "$@"; }
 

@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
-import { productThumb } from "@/lib/product-images";
+import { cardPhoto, photosFor } from "@/lib/product-photos";
 import { priceRange, type ProductOptions } from "@/lib/product-pricing";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -54,11 +54,9 @@ export default async function LandingPage() {
     where: { active: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
-  // a real photo where we have one; otherwise a small picture of the piece drawn with an example family
-  const withArt = products.map((p) => ({
-    p,
-    photo: productThumb(p.slug) ?? { src: `/api/sample/${p.slug}?v=${p.updatedAt.getTime()}`, alt: `Example of the ${p.name}` },
-  }));
+  // an uploaded photo, else our own, else a generic picture of the piece
+  const shown = await photosFor(products);
+  const withArt = products.map((p) => ({ p, photo: cardPhoto(shown.get(p.id)!, p.slug) }));
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -137,7 +135,7 @@ export default async function LandingPage() {
                         alt={photo.alt}
                         width={640}
                         height={480}
-                        className={`h-full w-full ${photo.src.startsWith("/api/sample/") ? "object-contain p-2" : "object-cover"}`}
+                        className="h-full w-full object-cover"
                         loading="lazy"
                       />
                     </div>

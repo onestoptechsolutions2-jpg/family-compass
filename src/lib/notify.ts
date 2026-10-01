@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { Role } from "@prisma/client";
 import type { EventName } from "@/lib/events-catalog";
 import { sendPushToUser } from "@/lib/push";
-import { sendEmail } from "@/lib/email";
+import { sendBranded } from "@/lib/email";
 import { hasEmailProvider } from "@/lib/env";
 import { publicOrigin } from "@/lib/origin";
 
@@ -15,6 +15,10 @@ type NotifyInput = {
   treeId?: string | null;
   /** also email the person (order updates); everything else stays in the app */
   email?: boolean;
+  /** lines listed in the email, such as what was ordered */
+  items?: string[];
+  /** the email's button label, "Open" by default */
+  button?: string;
 };
 
 /** In-app notification for one user, plus a device push if they've enabled it. */
@@ -49,11 +53,12 @@ async function emailUser(userId: string, n: NotifyInput): Promise<void> {
   try {
     const u = await db.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
     if (!u?.email) return;
-    const link = n.linkPath ? `\n\n${(await publicOrigin()).replace(/\/$/, "")}${n.linkPath}` : "";
-    await sendEmail({
-      to: u.email,
-      subject: n.title,
-      text: `Hello${u.name ? ` ${u.name.split(" ")[0]}` : ""},\n\n${n.title}${n.body ? `\n${n.body}` : ""}${link}\n\nFamily Compass`,
+    const url = n.linkPath ? `${(await publicOrigin()).replace(/\/$/, "")}${n.linkPath}` : "";
+    await sendBranded(u.email, n.title, {
+      heading: n.title,
+      paragraphs: [`Hello${u.name ? ` ${u.name.split(" ")[0]}` : ""},`, ...(n.body ? [n.body] : [])],
+      items: n.items,
+      button: url ? { label: n.button ?? "Open", url } : undefined,
     });
   } catch (err) {
     console.error("[notify] email failed", err);
@@ -149,6 +154,12 @@ export async function notifyPlatformAdmins(
       select: { id: true },
     });
     await fanOut(admins.map((a) => a.id), n);
+    // The people running the shop are not watching the app: an alert about a payment, a quote or an
+    // application also goes to their inbox, unless it says otherwise.
+    if (n.email !== false) {
+      const people = await db.user.findMany({ where: { isPlatformAdmin: true }, select: { id: true } });
+      await Promise.all(people.map((a) => emailUser(a.id, n)));
+    }
   } catch (err) {
     console.error("[notify] notifyPlatformAdmins failed", err);
   }

@@ -136,3 +136,8 @@ want that effortless feel, with the commercial step added at the end.
 - Colour and finish (granite shade, wood tone, paper, frame colour, shirt colour) show in the preview. A shirt's ink follows the shirt colour so it is readable. The server only accepts choices the product offers.
 - Admin, Products: each choice's price, and the generation rule, are editable per product. Seeding never overwrites an admin's price.
 - Journey and principles: `docs/commerce/JOURNEY.md`.
+
+## Product photos and email (decided)
+- **Photos:** an admin uploads photos per product in Admin, Products (JPEG, PNG or WebP, up to 8 MB, up to 8 per product). They are re-encoded to WebP, resized and stored in the database, so they survive redeploys. The first is the main photo; any can be made main or removed. Shown in this order: uploaded photos, then the finished-product photos we already hold, then a generic picture (the drawn piece set in a simple scene: framed, plaque, paper print, T-shirt, banner). A product that is off sale shows its photos to admins only.
+- **Email:** every message is a branded formatted email with a plain-text part. Sent: welcome with a confirm-your-email link, receipt for an order (lists items and total, button to pay), order updates, payment receipt, password sign-in link. The people running the shop are emailed when a payment needs checking or a partner quote or application arrives. A confirm link only confirms; it can never sign anyone in. Email is now "needed for customers" in the launch check, with a test button that reports the real error.
+- Email stays optional for the app to run, and a failure to send never breaks an order.

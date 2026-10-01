@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
-import { PRODUCT_IMAGES } from "@/lib/product-images";
+import { photosFor } from "@/lib/product-photos";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ShopHeader } from "@/components/ShopHeader";
 import { ContinueDraft } from "@/components/ContinueDraft";
@@ -25,7 +25,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const po = (p.options ?? null) as ProductOptions | null;
   const range = priceRange(p.basePriceKes, po, p.layout);
-  const photos = PRODUCT_IMAGES[p.slug] ?? [];
+  const photos = (await photosFor([p])).get(p.id)!;
+  const drawn = photos.every((x) => x.src.startsWith("/api/sample/"));
   const living = p.pathway === "LIVING";
   const back = living ? "/living" : "/remembered";
   const answers = [
@@ -63,14 +64,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <ContinueDraft slug={p.slug} />
 
       <div className="mt-6 flex flex-col gap-3">
-        {photos.length > 0 ? photos.map((im) => (
+        {photos.map((im) => (
           // eslint-disable-next-line @next/next/no-img-element
-          <img key={im.src} src={im.src} alt={im.alt} className="w-full rounded-2xl border" style={{ borderColor: "var(--border)" }} loading="lazy" />
-        )) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/api/sample/${p.slug}?v=${p.updatedAt.getTime()}`} alt={`Example of the ${p.name}`} width={720} height={720} className="mx-auto w-full max-w-md rounded-2xl border bg-white p-2" style={{ borderColor: "var(--border)" }} />
-        )}
-        <p className="text-xs" style={{ color: "var(--muted)" }}>{photos.length ? "Sample of the finished product." : "An example, drawn with a sample family."} Yours carries your family.</p>
+          <img key={im.src} src={im.src} alt={im.alt} width={1200} height={900} className="w-full rounded-2xl border" style={{ borderColor: "var(--border)" }} loading="lazy" />
+        ))}
+        <p className="text-xs" style={{ color: "var(--muted)" }}>{drawn ? "An illustration, drawn with a sample family." : "Sample of the finished product."} Yours carries your family.</p>
       </div>
 
       {po && VARIANT_GROUPS.some((g) => (po[g.list]?.length ?? 0) > 1) && (

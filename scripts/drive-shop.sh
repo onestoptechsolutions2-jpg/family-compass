@@ -55,7 +55,7 @@ ck "the edited cart has a fresh Edit link" "$(curl -s -b "$C" $B/cart | grep -c 
 curl -s -b "$C" $B/cart > /tmp/cart.html
 
 # ---- checkout ------------------------------------------------------------------------
-ACTION=$(grep -o 'name="\$ACTION_ID_[a-f0-9]*"' /tmp/cart.html | head -1 | sed 's/name="//;s/"//')
+ACTION=$(cat /tmp/cart.html | node scripts/action-id.mjs - contactName)
 ck "checkout form is present" "$(echo "$ACTION" | grep -c ACTION_ID)" "1"
 ck "checkout without an address is refused" "$(curl -s -i -b "$C" -X POST $B/cart -F "$ACTION=" -F contactName=Ann -F contactPhone= -F deliveryText= | grep -i '^location' | grep -c 'error=')" "1"
 PAYLOC=$(curl -s -i -b "$C" -X POST $B/cart -F "$ACTION=" -F contactName="Ann Kamau" -F contactPhone=0700111222 -F deliveryText="Karen, Nairobi" | grep -i '^location' | tr -d '\r' | sed 's/^[Ll]ocation: //')

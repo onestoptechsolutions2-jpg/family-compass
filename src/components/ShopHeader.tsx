@@ -2,12 +2,14 @@ import Link from "next/link";
 
 import { cartCount } from "@/lib/cart";
 import { getSessionUser } from "@/lib/rbac";
+import { VerifyBanner } from "@/components/VerifyBanner";
 
 /** The shop's top bar: search, orders, cart. Same on every shop page. */
-export async function ShopHeader({ q }: { q?: string }) {
+export async function ShopHeader({ q, sent, confirmed }: { q?: string; sent?: boolean; confirmed?: boolean }) {
   const user = await getSessionUser();
   const count = user ? await cartCount(user.id) : 0;
   return (
+    <>
     <header className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-3" style={{ borderColor: "var(--border)" }}>
       <Link href="/" className="font-semibold">🧭 Family Compass</Link>
       <Link href="/shop" className="text-sm hover:underline">Shop</Link>
@@ -29,5 +31,7 @@ export async function ShopHeader({ q }: { q?: string }) {
         {!user && <Link href="/login?callbackUrl=%2Fshop" className="hover:underline">Sign in</Link>}
       </nav>
     </header>
+    {user && <VerifyBanner userId={user.id} sent={sent} confirmed={confirmed} />}
+    </>
   );
 }

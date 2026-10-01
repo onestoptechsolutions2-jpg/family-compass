@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 
 import { db } from "@/lib/db";
 import { hasEmailProvider } from "@/lib/env";
-import { sendEmail } from "@/lib/email";
+import { sendBranded } from "@/lib/email";
 import { hitLimit } from "@/lib/api/rate-limit";
 import { mintLoginLink } from "@/lib/login-token";
 import { clientIpFromHeaders } from "@/lib/user-agent";
@@ -18,10 +18,11 @@ export async function sendResetLink(formData: FormData) {
     const user = await db.user.findUnique({ where: { email }, select: { id: true, name: true } });
     if (user) {
       const link = await mintLoginLink(user.id, { days: 1, purpose: "reset" });
-      await sendEmail({
-        to: email,
-        subject: "Your Family Compass sign-in link",
-        text: `Hello ${user.name ?? ""},\n\nUse this link to sign in (it works once, for 24 hours):\n${link}\n\nThen open Account to choose a new password. If you did not ask for this, ignore this email.\n\nFamily Compass`,
+      await sendBranded(email, "Your Family Compass sign-in link", {
+        heading: "Sign in to Family Compass",
+        paragraphs: [`Hello${user.name ? ` ${user.name.split(" ")[0]}` : ""},`, "Use this link to sign in. It works once, for 24 hours. Then open Account to choose a new password."],
+        button: { label: "Sign in", url: link },
+        footnote: "If you did not ask for this, ignore this email. Nobody can sign in without it.",
       });
     }
   }

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/rbac";
-import { getCart, removeItem, setQuantity } from "@/lib/cart";
+import { cartTotal, getCart, lineTotal, removeItem, setQuantity } from "@/lib/cart";
 import { checkoutCart } from "@/lib/orders";
 import { userConsentState } from "@/lib/consent";
 import { notifyUser } from "@/lib/notify";
@@ -69,7 +69,15 @@ export async function checkoutAction(formData: FormData) {
   // /consent without remembering where they were going; send them ourselves.
   const pay = `/pay/${result.paymentId}`;
   // A receipt for the order, with the way back to pay if they leave the page.
-  await notifyUser(user.id, { kind: "order.placed", title: "We received your order", body: "Pay by M-Pesa and we will start making it.", linkPath: pay, email: true });
+  await notifyUser(user.id, {
+    kind: "order.placed",
+    title: "We received your order",
+    body: `Pay KES ${cartTotal(cart.items).toLocaleString("en-KE")} by M-Pesa and we will start making it. Delivery is included.`,
+    items: [...cart.items.map((i) => `${i.product.name} x ${i.quantity}: KES ${lineTotal(i).toLocaleString("en-KE")}`), `Total: KES ${cartTotal(cart.items).toLocaleString("en-KE")}`],
+    button: "Pay now",
+    linkPath: pay,
+    email: true,
+  });
   if ((await userConsentState(user.id)).stale) redirect(`/consent?next=${encodeURIComponent(pay)}`);
   redirect(pay);
 }

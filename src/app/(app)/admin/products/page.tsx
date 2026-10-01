@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
-import { updateProduct } from "./actions";
+import { photoUrl, MAX_PHOTOS_PER_PRODUCT } from "@/lib/product-photos";
+import { deletePhoto, makeMainPhoto, updateProduct, uploadPhoto } from "./actions";
 
 export const metadata = { title: "Products" };
 export const dynamic = "force-dynamic";
@@ -11,7 +12,10 @@ const fieldStyle = { borderColor: "var(--border)", background: "var(--bg)" } as 
 
 export default async function AdminProductsPage() {
   await requirePlatformAdmin();
-  const products = await db.product.findMany({ orderBy: [{ pathway: "asc" }, { sortOrder: "asc" }] });
+  const products = await db.product.findMany({
+    orderBy: [{ pathway: "asc" }, { sortOrder: "asc" }],
+    include: { images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, alt: true } } },
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -21,8 +25,8 @@ export default async function AdminProductsPage() {
         disappear from the shop but keep their existing orders.
       </p>
       {products.map((p) => (
+        <div key={p.id} className="flex flex-col gap-2">
         <form
-          key={p.id}
           action={updateProduct.bind(null, p.id)}
           className="flex flex-col gap-3 rounded-xl border p-4 text-sm"
           style={{ borderColor: "var(--border)", background: "var(--card)" }}
@@ -79,6 +83,38 @@ export default async function AdminProductsPage() {
             </div>
           </details>
         </form>
+        <details className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <summary className="cursor-pointer text-xs" style={{ color: "var(--muted)" }}>
+            Photos ({p.images.length}){p.images.length === 0 ? ": none yet, the shop shows a drawn example" : ""}
+          </summary>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {p.images.map((im, i) => (
+              <div key={im.id} className="w-36">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl(im.id, true)} alt={im.alt || p.name} width={144} height={108} className="aspect-[4/3] w-full rounded-lg border object-cover" style={{ borderColor: "var(--border)" }} loading="lazy" />
+                <p className="mt-1 truncate text-xs" style={{ color: "var(--muted)" }}>{i === 0 ? "Main photo" : im.alt || "Photo"}</p>
+                <div className="mt-1 flex gap-3 text-xs">
+                  {i > 0 && <form action={makeMainPhoto.bind(null, im.id)}><button className="underline">Make main</button></form>}
+                  <form action={deletePhoto.bind(null, im.id)}><button className="underline" style={{ color: "var(--danger, #b45309)" }}>Remove</button></form>
+                </div>
+              </div>
+            ))}
+          </div>
+          {p.images.length < MAX_PHOTOS_PER_PRODUCT && (
+            <form action={uploadPhoto.bind(null, p.id)} encType="multipart/form-data" className="mt-3 flex flex-wrap items-end gap-3">
+              <label>
+                <span className="block text-xs" style={{ color: "var(--muted)" }}>Photo (JPEG, PNG or WebP, up to 8 MB)</span>
+                <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required className="mt-1 text-sm" />
+              </label>
+              <label className="min-w-48 flex-1">
+                <span className="block text-xs" style={{ color: "var(--muted)" }}>Describe it (for people who cannot see it)</span>
+                <input name="alt" maxLength={200} className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder={`e.g. ${p.name} on a wall`} />
+              </label>
+              <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Upload</button>
+            </form>
+          )}
+        </details>
+        </div>
       ))}
     </div>
   );
