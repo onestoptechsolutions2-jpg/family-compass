@@ -5,6 +5,7 @@ import { PrismaClient, PaymentStatus } from "@prisma/client";
 
 import { seedPaymentSettings, seedProducts } from "../prisma/seed-lib";
 import { fulfilDraft } from "../src/lib/orders";
+import { priceBreakdown, type ProductOptions } from "../src/lib/product-pricing";
 import { fulfilPayment } from "../src/lib/payments/fulfil";
 
 const db = new PrismaClient();
@@ -43,7 +44,8 @@ async function run(slug: string, options: Record<string, string>, contactName: s
   check(`${slug}: user has a primary tree`, !!u.primaryTreeId, u);
   check(`${slug}: person is claimed by the user`, !!(await db.person.findFirst({ where: { id: u.personId ?? "", claimedByUserId: user.id } })));
   check(`${slug}: order awaiting deposit`, order.status === "AWAITING_DEPOSIT", order.status);
-  check(`${slug}: total = base price`, order.totalKes === product.basePriceKes, order.totalKes);
+  const expected = priceBreakdown(product.basePriceKes, product.options as ProductOptions | null, product.layout, options).total;
+  check(`${slug}: total = the price the customer was shown`, order.totalKes === expected, [order.totalKes, expected]);
   check(`${slug}: full price due up front`, order.depositKes === order.totalKes, order.depositKes);
   check(`${slug}: one deposit payment for the deposit amount`, order.payments.length === 1 && order.payments[0]!.amountKes === order.depositKes, order.payments);
   const item = order.items[0]!;

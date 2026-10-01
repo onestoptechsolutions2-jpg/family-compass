@@ -6,6 +6,8 @@ import { renderPrintSheet } from "@/lib/print-sheet";
 import { cleanName, getSlot, removeSlot, setSlot, slotLabel } from "@/lib/tree-edit";
 import type { DraftOptions } from "@/lib/order-shared";
 import type { Layout, Pathway } from "@/lib/layouts";
+import { priceBreakdown, type ProductOptions } from "@/lib/product-pricing";
+import { kes } from "@/lib/money";
 import { autosaveBuilder, continueBuilder } from "@/app/order/[token]/builder-actions";
 
 const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
@@ -29,7 +31,10 @@ type Props = {
   layout: Layout;
   origin: string;
   materialKey?: string;
+  finishKey?: string;
   productName: string;
+  /** so the price can be shown as the tree grows */
+  pricing?: { basePriceKes: number; po: ProductOptions; sizeKey?: string };
 };
 
 /**
@@ -38,7 +43,7 @@ type Props = {
  * is saved as you go under a private link that only this browser (and whoever you
  * send it to) holds.
  */
-export function TreeBuilder({ token, slug, initial, pathway, layout, origin, materialKey, productName }: Props) {
+export function TreeBuilder({ token, slug, initial, pathway, layout, origin, materialKey, finishKey, productName, pricing }: Props) {
   const [options, setOptions] = useState<DraftOptions>(initial);
   const [svg, setSvg] = useState("");
   const [narrow, setNarrow] = useState(false);
@@ -77,7 +82,7 @@ export function TreeBuilder({ token, slug, initial, pathway, layout, origin, mat
     const t = setTimeout(async () => {
       const sizeKey = narrow ? "standard" : "square";
       const r = await renderPrintSheet(
-        { options: { ...options, materialKey, sizeKey }, productName, qrUrl: `${origin}/q/yourcode`, pathway, layout, interactive: true },
+        { options: { ...options, materialKey, finishKey, sizeKey }, productName, qrUrl: `${origin}/q/yourcode`, pathway, layout, interactive: true },
         sizeKey,
       );
       if (live) setSvg(r.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"'));
@@ -86,7 +91,7 @@ export function TreeBuilder({ token, slug, initial, pathway, layout, origin, mat
       live = false;
       clearTimeout(t);
     };
-  }, [options, narrow, materialKey, productName, origin, pathway, layout]);
+  }, [options, narrow, materialKey, finishKey, productName, origin, pathway, layout]);
 
   // Save quietly as they go.
   useEffect(() => {
@@ -152,6 +157,7 @@ export function TreeBuilder({ token, slug, initial, pathway, layout, origin, mat
 
   const filled = editing ? Boolean(getSlot(options, editing)) : false;
   const hasName = Boolean([options.first, options.surname].filter(Boolean).join(" ").trim());
+  const priced = pricing ? priceBreakdown(pricing.basePriceKes, pricing.po, layout, { ...options, materialKey, finishKey, sizeKey: pricing.sizeKey }) : null;
   const set = (k: keyof DraftOptions) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setOptions((o) => ({ ...o, [k]: e.target.value }));
 
@@ -249,6 +255,15 @@ export function TreeBuilder({ token, slug, initial, pathway, layout, origin, mat
             </label>
           )}
         </div>
+      )}
+
+      {priced && priced.generations !== null && (
+        <p className="rounded-xl border p-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }} aria-live="polite">
+          <strong>{priced.generations} {priced.generations === 1 ? "generation" : "generations"}</strong> so far · from <strong>{kes(priced.total)}</strong>, delivery included.
+          {priced.included !== null && pricing?.po.generations && (
+            <span style={{ color: "var(--muted)" }}> The price includes {priced.included}; each extra adds {kes(pricing.po.generations.perExtraKes)}.</span>
+          )}
+        </p>
       )}
 
       <form action={continueBuilder.bind(null, token)} className="flex flex-wrap items-center gap-3">

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { productThumb } from "@/lib/product-images";
-import type { ProductOptions } from "@/lib/orders";
+import { priceRange, type ProductOptions } from "@/lib/product-pricing";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -122,7 +122,7 @@ export default async function LandingPage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rows.map(({ p, photo }) => {
                 const po = (p.options ?? null) as ProductOptions | null;
-                const from = [...(po?.sizes ?? []), ...(po?.materials ?? [])].some((c) => c.addKes > 0);
+                const range = priceRange(p.basePriceKes, po, p.layout);
                 return (
                   <Link
                     key={p.id}
@@ -145,7 +145,7 @@ export default async function LandingPage() {
                       <h3 className="font-semibold">{p.name}</h3>
                       <p className="mt-1 line-clamp-2 text-sm" style={{ color: "var(--muted)" }}>{p.summary}</p>
                       <p className="mt-3 font-medium">
-                        {from ? "From " : ""}{kes(p.basePriceKes)}{" "}
+                        {range.to > range.from ? "From " : ""}{kes(range.from)}{" "}
                         <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>delivery included</span>
                       </p>
                       <span className="mt-3 inline-block self-start rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white group-hover:bg-brand-700">

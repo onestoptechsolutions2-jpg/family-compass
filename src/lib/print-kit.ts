@@ -27,7 +27,7 @@ export const SIZES_MM: Record<string, [number, number]> = {
   banner: [2000, 1000],
 };
 
-export type Skin = "slate" | "wood" | "paper";
+export type Skin = "slate" | "slategrey" | "wood" | "walnut" | "paper" | "cream";
 
 export const SKINS: Record<
   Skin,
@@ -35,6 +35,9 @@ export const SKINS: Record<
 > = {
   slate: { bg: "#1b2333", frame: "#d8cdb6", line: "#cdc2ab", pillFill: "none", pillStroke: "#d8cdb6", text: "#efe6d3", sub: "#bfb49d", badge: "#d8cdb6", badgeText: "#1b2333", qrCard: "#efe6d3" },
   wood: { bg: "#c68f5b", frame: "#4a2a14", line: "#4a2a14", pillFill: "#cf9c69", pillStroke: "#4a2a14", text: "#33190a", sub: "#5a3820", badge: "#4a2a14", badgeText: "#f3dfbd", qrCard: "#e9c99a" },
+  slategrey: { bg: "#4a5058", frame: "#e6e6e0", line: "#dcdcd4", pillFill: "none", pillStroke: "#e6e6e0", text: "#f4f4ef", sub: "#cfcfc7", badge: "#e6e6e0", badgeText: "#2b2f35", qrCard: "#f2f2ec" },
+  walnut: { bg: "#6b4328", frame: "#f0d9b5", line: "#e8cfa6", pillFill: "#76492c", pillStroke: "#f0d9b5", text: "#fbefd9", sub: "#e2c79d", badge: "#f0d9b5", badgeText: "#3a2210", qrCard: "#e9c99a" },
+  cream: { bg: "#f6f0e1", frame: "#111111", line: "#333333", pillFill: "none", pillStroke: "#111111", text: "#111111", sub: "#555555", badge: "#111111", badgeText: "#f6f0e1", qrCard: "#fffdf6" },
   paper: { bg: "#ffffff", frame: "#111111", line: "#333333", pillFill: "none", pillStroke: "#111111", text: "#111111", sub: "#555555", badge: "#111111", badgeText: "#ffffff", qrCard: "#ffffff" },
 };
 
@@ -43,6 +46,28 @@ export function skinForMaterial(materialKey: string | undefined): Skin {
   if (materialKey === "wood") return "wood";
   if (materialKey === "tile" || materialKey === "granite") return "slate";
   return "paper";
+}
+
+/** Material and finish together decide how the sheet is skinned. */
+export function skinFor(materialKey: string | undefined, finishKey: string | undefined): Skin {
+  const base = skinForMaterial(materialKey);
+  if (base === "slate" && finishKey === "grey") return "slategrey";
+  if (base === "wood" && finishKey === "dark") return "walnut";
+  if (base === "paper" && finishKey === "cream") return "cream";
+  return base;
+}
+
+/** T-shirt colours: the shirt itself, and the ink that shows on it. */
+export const SHIRT_COLOURS: Record<string, { shirt: string; ink: string; sub: string }> = {
+  white: { shirt: "#f4f4f4", ink: "#111111", sub: "#555555" },
+  black: { shirt: "#1c1c1c", ink: "#f3f3f3", sub: "#c9c9c9" },
+  navy: { shirt: "#1d2a4a", ink: "#f3f3f3", sub: "#c9d0e0" },
+  maroon: { shirt: "#6a1f2b", ink: "#f6ecec", sub: "#e3c9cd" },
+};
+
+/** What the piece is printed on, for showing it in a preview. Only a shirt has one. */
+export function previewBackground(layout: string | undefined, finishKey: string | undefined): string | undefined {
+  return layout === "shirt" ? (SHIRT_COLOURS[finishKey ?? "white"] ?? SHIRT_COLOURS.white!).shirt : undefined;
 }
 
 export const esc = (s: string) =>

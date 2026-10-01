@@ -121,7 +121,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 5000,
       sortOrder: 10,
       layout: "card",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "card", label: "Matt card, printed both sides", addKes: 0 },
@@ -143,7 +143,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 3500,
       sortOrder: 20,
       layout: "calendar",
-      active: false,
+      active: true,
       options: {
         materials: [{ key: "paper", label: "Printed paper", addKes: 0 }],
         sizes: [
@@ -161,7 +161,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 9500,
       sortOrder: 30,
       layout: "tree",
-      active: false,
+      active: true,
       options: {
         materials: [{ key: "poster", label: "Framed print", addKes: 0 }],
         sizes: [
@@ -179,7 +179,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 1500,
       sortOrder: 10,
       layout: "shirt",
-      active: false,
+      active: true,
       options: {
         materials: [{ key: "cotton", label: "Cotton T-shirt", addKes: 0 }],
         sizes: [
@@ -200,7 +200,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 3000,
       sortOrder: 20,
       layout: "badges",
-      active: false,
+      active: true,
       options: {
         materials: [{ key: "card", label: "Printed card badges", addKes: 0 }],
         sizes: [
@@ -218,7 +218,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 12000,
       sortOrder: 30,
       layout: "banner",
-      active: false,
+      active: true,
       options: {
         materials: [{ key: "vinyl", label: "Vinyl banner", addKes: 0 }],
         sizes: [{ key: "banner", label: "Banner (200 x 100 cm)", addKes: 0 }],
@@ -233,7 +233,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 18000,
       sortOrder: 40,
       layout: "wedding",
-      active: false,
+      active: true,
       options: {
         materials: [{ key: "wood", label: "Solid wood", addKes: 0 }],
         sizes: [{ key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 }],
@@ -248,7 +248,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 6500,
       sortOrder: 50,
       layout: "wedding",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "poster", label: "Printed poster", addKes: 0 },
@@ -268,7 +268,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 12500,
       sortOrder: 60,
       layout: "wedding",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "poster", label: "Framed print", addKes: 0 },
@@ -288,7 +288,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 7500,
       sortOrder: 40,
       layout: "tree",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "poster", label: "Printed poster", addKes: 0 },
@@ -308,7 +308,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 11000,
       sortOrder: 50,
       layout: "tree",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "poster", label: "Framed print", addKes: 0 },
@@ -328,7 +328,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 14000,
       sortOrder: 60,
       layout: "tree",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "wood", label: "Solid wood", addKes: 0 },
@@ -348,7 +348,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
       basePriceKes: 6500,
       sortOrder: 40,
       layout: "tree",
-      active: false,
+      active: true,
       options: {
         materials: [
           { key: "wood", label: "Solid wood", addKes: 0 },
@@ -384,6 +384,69 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
     await db.product.upsert({ where: { slug: p.slug }, create: { ...p, ...r }, update: {} });
     await db.product.updateMany({ where: { slug: p.slug, skills: { isEmpty: true } }, data: { skills: r.skills, shipVia: r.shipVia } });
     await db.product.updateMany({ where: { slug: p.slug, aisle: "" }, data: { aisle: r.aisle } });
+  }
+  await seedVariants(db);
+}
+
+type Choice = { key: string; label: string; addKes: number };
+const stone: Choice[] = [
+  { key: "black", label: "Black", addKes: 0 },
+  { key: "grey", label: "Grey", addKes: 0 },
+];
+const woodTone = (dark: number): Choice[] => [
+  { key: "light", label: "Light oak", addKes: 0 },
+  { key: "dark", label: "Dark walnut", addKes: dark },
+];
+const paper: Choice[] = [
+  { key: "white", label: "White paper", addKes: 0 },
+  { key: "cream", label: "Cream paper", addKes: 300 },
+];
+const frame: Choice[] = [
+  { key: "black", label: "Black frame", addKes: 0 },
+  { key: "oak", label: "Oak frame", addKes: 500 },
+  { key: "white", label: "White frame", addKes: 0 },
+];
+const shirts: Choice[] = [
+  { key: "white", label: "White", addKes: 0 },
+  { key: "black", label: "Black", addKes: 0 },
+  { key: "navy", label: "Navy", addKes: 0 },
+  { key: "maroon", label: "Maroon", addKes: 0 },
+];
+
+/**
+ * Colour and finish for every product, and what an extra generation costs.
+ * A tree piece includes two generations (the person and their parents); each one
+ * more (grandparents, children) adds to the price, because more is engraved or printed.
+ * Added only where a product does not have them yet, so a price an admin changed is kept.
+ */
+const VARIANTS: Record<string, { finishes?: Choice[]; generations?: { included: number; perExtraKes: number } }> = {
+  "tile-plaque-qr": { finishes: stone, generations: { included: 2, perExtraKes: 3000 } },
+  "tombstone-family-tree": { finishes: [{ key: "black", label: "Black granite", addKes: 0 }, { key: "grey", label: "Grey granite", addKes: 3000 }], generations: { included: 2, perExtraKes: 5000 } },
+  "family-tree-poster": { finishes: paper, generations: { included: 2, perExtraKes: 1000 } },
+  "wooden-family-tree": { finishes: woodTone(1500), generations: { included: 2, perExtraKes: 2000 } },
+  "memorial-prayer-cards": { finishes: paper },
+  "family-birthday-calendar": { finishes: paper },
+  "framed-family-tree-print": { finishes: frame, generations: { included: 2, perExtraKes: 1000 } },
+  "reunion-tshirt": { finishes: shirts },
+  "reunion-banner": { generations: { included: 2, perExtraKes: 1500 } },
+  "wedding-family-tree": { finishes: woodTone(1500), generations: { included: 2, perExtraKes: 2000 } },
+  "wedding-tree-poster": { finishes: paper, generations: { included: 2, perExtraKes: 800 } },
+  "wedding-tree-framed": { finishes: frame, generations: { included: 2, perExtraKes: 1200 } },
+  "memorial-tree-poster": { finishes: paper, generations: { included: 2, perExtraKes: 900 } },
+  "memorial-tree-framed": { finishes: frame, generations: { included: 2, perExtraKes: 1200 } },
+  "memorial-wood-tree": { finishes: woodTone(1500), generations: { included: 2, perExtraKes: 1800 } },
+  "desk-family-tree": { finishes: woodTone(800), generations: { included: 2, perExtraKes: 800 } },
+};
+
+export async function seedVariants(db: PrismaClient): Promise<void> {
+  for (const [slug, v] of Object.entries(VARIANTS)) {
+    const row = await db.product.findUnique({ where: { slug }, select: { id: true, options: true } });
+    if (!row) continue;
+    const have = (row.options ?? {}) as Record<string, unknown>;
+    const add: Record<string, unknown> = {};
+    if (v.finishes && !have.finishes) add.finishes = v.finishes;
+    if (v.generations && !have.generations) add.generations = v.generations;
+    if (Object.keys(add).length) await db.product.update({ where: { id: row.id }, data: { options: { ...have, ...add } as object } });
   }
 }
 

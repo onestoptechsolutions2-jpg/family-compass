@@ -10,16 +10,16 @@ import { parseBirthdays } from "@/lib/print-layouts";
 
 export { lines, normaliseName, splitName, type DraftOptions };
 
-type Choice = { key: string; label: string; addKes: number };
-export type ProductOptions = { materials?: Choice[]; sizes?: Choice[] };
+import { priceBreakdown, type ProductOptions } from "@/lib/product-pricing";
+
+export type { ProductOptions };
 
 /** Full payment up front: nothing is made until the whole price is paid (docs/commerce/DECISIONS.md). */
 export const PAY_UP_FRONT_SHARE = 1;
 
-export function unitPrice(basePriceKes: number, productOptions: ProductOptions | null, o: DraftOptions): number {
-  const add = (list: Choice[] | undefined, key: string | undefined) =>
-    list?.find((c) => c.key === key)?.addKes ?? 0;
-  return basePriceKes + add(productOptions?.materials, o.materialKey) + add(productOptions?.sizes, o.sizeKey);
+/** The price of one piece: the base, plus the variants chosen, plus the generations it carries. */
+export function unitPrice(basePriceKes: number, productOptions: ProductOptions | null, o: DraftOptions, layout?: string): number {
+  return priceBreakdown(basePriceKes, productOptions, layout, o).total;
 }
 
 /** What the customer pays before production starts. */
@@ -291,7 +291,7 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
   });
 
   // 5. Freeze the layout and price the line.
-  const price = unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, o);
+  const price = unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, o, item.product.layout);
   await tx.orderItem.update({
     where: { id: item.id },
     data: {

@@ -45,6 +45,7 @@ export async function startFromLanding(formData: FormData) {
     children: field(formData, "children", 600),
     materialKey: po?.materials?.[0]?.key,
     sizeKey: po?.sizes?.[0]?.key,
+    finishKey: po?.finishes?.[0]?.key,
   };
 
   const token = randomToken(24);

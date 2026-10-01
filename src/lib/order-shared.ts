@@ -29,6 +29,8 @@ export type DraftOptions = {
   matches?: Record<string, string>;
   materialKey?: string;
   sizeKey?: string;
+  /** colour and finish: granite shade, wood tone, paper, frame or shirt colour */
+  finishKey?: string;
   relation?: "child" | "spouse" | "sibling" | "other";
 };
 

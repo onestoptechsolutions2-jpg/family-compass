@@ -1,9 +1,9 @@
 import { lines, pair, type DraftOptions } from "@/lib/order-shared";
 import { renderBadges, renderCalendar, renderCard, renderShirt } from "@/lib/print-layouts";
 import { SLOT_LABEL } from "@/lib/tree-edit";
-import { PRINT_BRAND, SIZES_MM, SKINS, compass, esc, initials, qrPath, skinForMaterial, type PrintInput, type PrintSheet, type Skin } from "@/lib/print-kit";
+import { PRINT_BRAND, SIZES_MM, SKINS, compass, esc, initials, qrPath, skinFor, skinForMaterial, type PrintInput, type PrintSheet, type Skin } from "@/lib/print-kit";
 
-export { PRINT_BRAND, skinForMaterial };
+export { PRINT_BRAND, skinForMaterial, skinFor };
 export type { PrintInput, PrintSheet, Skin };
 
 
@@ -23,10 +23,11 @@ export async function renderPrintSheet(
   skinOverride?: Skin,
 ): Promise<PrintSheet> {
   // Layouts that are not a family tree draw themselves.
-  const skin0 = skinOverride ?? skinForMaterial(input.options.materialKey);
-  if (input.layout === "card") return renderCard(input, sizeKey, skinOverride);
-  if (input.layout === "calendar") return renderCalendar(input, sizeKey, skinOverride);
-  if (input.layout === "badges") return renderBadges(input, sizeKey, skinOverride);
+  const skin0 = skinOverride ?? skinFor(input.options.materialKey, input.options.finishKey);
+  const paperSkin = skinOverride ?? (skin0 === "cream" ? "cream" : undefined);
+  if (input.layout === "card") return renderCard(input, sizeKey, paperSkin);
+  if (input.layout === "calendar") return renderCalendar(input, sizeKey, paperSkin);
+  if (input.layout === "badges") return renderBadges(input, sizeKey, paperSkin);
   if (input.layout === "shirt") return renderShirt(input, sizeKey);
   void skin0;
   // Pass 1 finds the smallest font any name needs; pass 2 prints every name at
@@ -44,7 +45,7 @@ async function renderOnce(
 ): Promise<PrintSheet & { minFs: number }> {
   const [W, H] = SIZES_MM[sizeKey ?? "standard"] ?? SIZES_MM.standard!;
   const o = input.options;
-  const skin = skinOverride ?? skinForMaterial(o.materialKey);
+  const skin = skinOverride ?? skinFor(o.materialKey, o.finishKey);
   const K = SKINS[skin];
   const warnings: string[] = [];
   let out: string[] = [];

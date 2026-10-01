@@ -50,7 +50,7 @@ export async function sampleSvg(
   if (hit) return hit;
   const layout: Layout = isLayout(p.layout) ? p.layout : "tree";
   const po = (p.options ?? null) as ProductOptions | null;
-  const options: DraftOptions = { ...SAMPLE[layout](p.pathway), materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key };
+  const options: DraftOptions = { ...SAMPLE[layout](p.pathway), materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, finishKey: po?.finishes?.[0]?.key };
   const sheet = await renderPrintSheet(
     { options, productName: p.slug, qrUrl: `${origin}/q/example`, pathway: p.pathway, layout },
     options.sizeKey,

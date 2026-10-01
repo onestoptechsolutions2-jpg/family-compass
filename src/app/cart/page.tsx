@@ -8,6 +8,8 @@ import { cartTotal, getCart, lineTotal } from "@/lib/cart";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import type { DraftOptions } from "@/lib/order-shared";
 import { isLayout } from "@/lib/layouts";
+import { generationsOf, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { previewBackground } from "@/lib/print-kit";
 import { findMatchQuestions } from "@/lib/matching";
 import { ShopHeader } from "@/components/ShopHeader";
 import { checkoutAction, removeItemAction, setQuantityAction } from "./actions";
@@ -77,16 +79,16 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
           <section className="flex flex-col gap-4">
             {items.map((i, n) => {
               const o = (i.options ?? {}) as DraftOptions;
-              const po = i.product.options as { materials?: { key: string; label: string }[]; sizes?: { key: string; label: string }[] } | null;
-              const material = po?.materials?.find((m) => m.key === o.materialKey)?.label;
-              const size = po?.sizes?.find((m) => m.key === o.sizeKey)?.label;
+              const po = i.product.options as ProductOptions | null;
+              const variants = VARIANT_GROUPS.map((g) => po?.[g.list]?.find((m) => m.key === o[g.key])?.label).filter(Boolean);
+              const gens = generationsOf(i.product.layout, o);
               return (
                 <article key={i.id} className="flex gap-4 rounded-2xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                  <div className="w-28 shrink-0 overflow-hidden rounded-lg border sm:w-36" style={{ borderColor: "var(--border)" }} dangerouslySetInnerHTML={{ __html: thumbs[n]! }} />
+                  <div className="w-28 shrink-0 self-start overflow-hidden rounded-lg border sm:w-36" style={{ borderColor: "var(--border)", background: previewBackground(i.product.layout, o.finishKey) }} dangerouslySetInnerHTML={{ __html: thumbs[n]! }} />
                   <div className="min-w-0 flex-1 text-sm">
                     <h2 className="font-semibold">{i.product.name}</h2>
                     <p style={{ color: "var(--muted)" }}>For {o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || o.surname || "—"}</p>
-                    <p style={{ color: "var(--muted)" }}>{[material, size].filter(Boolean).join(" · ")}</p>
+                    <p style={{ color: "var(--muted)" }}>{[...variants, gens !== null ? `${gens} ${gens === 1 ? "generation" : "generations"}` : null].filter(Boolean).join(" · ")}</p>
                     <p className="mt-2 font-medium">{kes(lineTotal(i))}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
                       <form action={setQuantityAction.bind(null, i.id)} className="flex items-center gap-2">

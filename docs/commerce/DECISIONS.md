@@ -128,3 +128,11 @@ want that effortless feel, with the commercial step added at the end.
 
 ## More products (added, all OFF until priced)
 - Wedding tree poster and framed, funeral display poster, framed memorial tree, wooden memorial tree, desk family tree. Each reuses an existing layout, so there is nothing new to draw. Switch each on in Admin, Products after saving a real price.
+
+## Shop is open; variants and generation pricing (decided)
+- Every product is on sale (seed creates them on; a one-off migration, `shop_open`, switches on those already in production). Prices and generation rates are still placeholders: set the real ones in Admin, Products. Saving a product marks it price-reviewed, and the launch check still lists any that are not.
+- Price = base + material + colour/finish + size + (generations beyond those included x the product's rate). One shared function (`src/lib/product-pricing.ts`) runs in the browser for the live price and on the server for the price charged.
+- Generations = rows of family a tree piece shows: the person, parents, grandparents, children. Two are included; each more adds. Cards, calendars, badges and shirts have variants but no generation charge.
+- Colour and finish (granite shade, wood tone, paper, frame colour, shirt colour) show in the preview. A shirt's ink follows the shirt colour so it is readable. The server only accepts choices the product offers.
+- Admin, Products: each choice's price, and the generation rule, are editable per product. Seeding never overwrites an admin's price.
+- Journey and principles: `docs/commerce/JOURNEY.md`.

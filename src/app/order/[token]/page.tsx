@@ -8,9 +8,12 @@ import { getSessionUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import { isLayout, isReady, requiredKey, stepsFor, type Field, type Layout } from "@/lib/layouts";
-import { amountDueNow, lines, unitPrice, type DraftOptions, type ProductOptions } from "@/lib/orders";
+import { amountDueNow, lines, type DraftOptions } from "@/lib/orders";
+import { priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { previewBackground } from "@/lib/print-kit";
 import { saveStep } from "./actions";
 import { TreeBuilder } from "@/components/TreeBuilder";
+import { VariantPicker } from "@/components/VariantPicker";
 
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
@@ -71,7 +74,6 @@ export default async function OrderWizard({
   const before = flow[step - 2] ? at(flow[step - 2]!) : 1;
   const o = (item.options ?? {}) as DraftOptions;
   const po = (item.product.options ?? null) as ProductOptions | null;
-  const price = unitPrice(item.product.basePriceKes, po, o);
   const save = saveStep.bind(null, token, step);
 
   // The customer sees exactly what will be made, updated as they build it.
@@ -79,18 +81,21 @@ export default async function OrderWizard({
     ...o,
     materialKey: o.materialKey ?? po?.materials?.[0]?.key,
     sizeKey: o.sizeKey ?? po?.sizes?.[0]?.key,
+    finishKey: o.finishKey ?? po?.finishes?.[0]?.key,
   };
+  const priced = priceBreakdown(item.product.basePriceKes, po, layout, previewOptions);
+  const price = priced.total;
   const sheet = await renderPrintSheet(
     { options: previewOptions, productName: item.product.name, qrUrl: `${await publicOrigin()}/q/yourcode`, pathway, layout },
     previewOptions.sizeKey,
   );
   const previewSvg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
-  const preview = (current === "details" || current === "material" || current === "review") && (
+  const preview = (current === "details" || current === "review") && (
     <div className="mt-6">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
         Preview of your {item.product.name.toLowerCase()}
       </p>
-      <div className="mt-2 overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: layout === "shirt" ? "#e8e8e8" : undefined }} dangerouslySetInnerHTML={{ __html: previewSvg }} />
+      <div className="mt-2 overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: previewBackground(layout, previewOptions.finishKey) }} dangerouslySetInnerHTML={{ __html: previewSvg }} />
       {sheet.warnings.length > 0 && (
         <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }}>
           {sheet.warnings.map((w) => <li key={w}>{w}</li>)}
@@ -151,7 +156,9 @@ export default async function OrderWizard({
             layout={layout}
             origin={await publicOrigin()}
             materialKey={previewOptions.materialKey}
+            finishKey={previewOptions.finishKey}
             productName={item.product.name}
+            pricing={{ basePriceKes: item.product.basePriceKes, po: po ?? {}, sizeKey: previewOptions.sizeKey }}
           />
         </section>
       )}
@@ -180,23 +187,16 @@ export default async function OrderWizard({
       {current === "material" && (
         <form action={save} className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">Choose material and size</h1>
-          {(["materials", "sizes"] as const).map((group) => {
-            const key = group === "materials" ? "materialKey" : "sizeKey";
-            const list = po?.[group] ?? [];
-            if (!list.length) return null;
-            return (
-              <fieldset key={group} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
-                <legend className="px-1 text-sm font-medium">{group === "materials" ? "Material" : "Size"}</legend>
-                {list.map((c, i) => (
-                  <label key={c.key} className="mt-2 flex items-center gap-2 text-sm">
-                    <input type="radio" name={key} value={c.key} defaultChecked={o[key] === c.key || (!o[key] && i === 0)} />
-                    {c.label}{c.addKes ? ` (+${kes(c.addKes)})` : ""}
-                  </label>
-                ))}
-              </fieldset>
-            );
-          })}
-          <p className="text-sm font-medium">Price: {kes(price)} <span className="font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
+          <VariantPicker
+            basePriceKes={item.product.basePriceKes}
+            po={po ?? {}}
+            layout={layout}
+            pathway={pathway}
+            productName={item.product.name}
+            origin={await publicOrigin()}
+            options={previewOptions}
+            initialSvg={previewSvg}
+          />
           <div className="flex gap-3">
             <Link href={`/order/${token}?step=${before}`} className={ghost} style={ghostStyle}>Back</Link>
             <button className={btn}>Continue</button>
@@ -218,8 +218,21 @@ export default async function OrderWizard({
                 return <li key={f.key}>{f.label}: {f.rows ? (n > 4 ? `${n} entries` : lines(v).join(", ")) : v}</li>;
               })}
             </ul>
-            <p className="mt-3">{item.product.name}</p>
-            <p className="mt-1 font-medium">{kes(amountDueNow(price))} <span className="font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
+            <p className="mt-3 font-medium">{item.product.name}</p>
+            <ul className="mt-1 list-disc pl-5" style={{ color: "var(--muted)" }}>
+              {VARIANT_GROUPS.map((g) => {
+                const c = po?.[g.list]?.find((x) => x.key === previewOptions[g.key]);
+                return c ? <li key={g.key}>{g.title}: {c.label}</li> : null;
+              })}
+              {priced.generations !== null && <li>{priced.generations} {priced.generations === 1 ? "generation" : "generations"} of family</li>}
+            </ul>
+            <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+              <div className="flex justify-between"><span>Base price</span><span>{kes(priced.base)}</span></div>
+              {priced.adds.map((a) => (
+                <div key={a.label} className="flex justify-between" style={{ color: "var(--muted)" }}><span>{a.label}</span><span>+{kes(a.kes)}</span></div>
+              ))}
+              <div className="mt-2 flex justify-between text-base font-semibold"><span>Total <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></span><span>{kes(amountDueNow(price))}</span></div>
+            </div>
           </div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
             {pathway === "LIVING"

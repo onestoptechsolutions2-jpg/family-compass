@@ -1,5 +1,6 @@
 import { lines } from "@/lib/order-shared";
 import {
+  SHIRT_COLOURS,
   PRINT_BRAND, SKINS, SIZES_MM, compass, esc, fitSize, qrPath, wrapText,
   type PrintInput, type PrintSheet, type Skin,
 } from "@/lib/print-kit";
@@ -264,7 +265,8 @@ export function renderBadges(input: PrintInput, sizeKey: string | undefined, ski
  * ------------------------------------------------------------------------------------------ */
 export function renderShirt(input: PrintInput, sizeKey: string | undefined): PrintSheet {
   const o = input.options;
-  const K = SKINS.paper;
+  const shirt = SHIRT_COLOURS[o.finishKey ?? "white"] ?? SHIRT_COLOURS.white!;
+  const K = { ...SKINS.paper, text: shirt.ink, sub: shirt.sub, frame: shirt.ink };
   const warnings: string[] = [];
   const [W, H] = SIZES_MM[sizeKey ?? "tee_m"] ?? [300, 400];
   const family = (o.surname ?? "").trim();

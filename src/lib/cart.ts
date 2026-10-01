@@ -30,8 +30,8 @@ export async function cartCount(userId: string): Promise<number> {
 }
 
 /** Line prices as the customer sees them. Delivery is included, so the total is the sum. */
-export function lineTotal(item: { quantity: number; options: unknown; product: { basePriceKes: number; options: unknown } }) {
-  return unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, (item.options ?? {}) as DraftOptions) * item.quantity;
+export function lineTotal(item: { quantity: number; options: unknown; product: { basePriceKes: number; options: unknown; layout: string } }) {
+  return unitPrice(item.product.basePriceKes, item.product.options as ProductOptions | null, (item.options ?? {}) as DraftOptions, item.product.layout) * item.quantity;
 }
 export function cartTotal(items: Parameters<typeof lineTotal>[0][]) {
   return items.reduce((n, i) => n + lineTotal(i), 0);
@@ -101,7 +101,7 @@ export async function addItemToCart(userId: string, productSlug: string, options
       productId: product.id,
       quantity: Math.min(Math.max(Math.floor(quantity) || 1, 1), 20),
       unitPriceKes: product.basePriceKes,
-      options: { materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, ...options } as object,
+      options: { materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, finishKey: po?.finishes?.[0]?.key, ...options } as object,
     },
   });
 }
