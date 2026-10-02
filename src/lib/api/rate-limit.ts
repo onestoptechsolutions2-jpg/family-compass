@@ -25,17 +25,36 @@ export function checkRateLimit(keyId: string): { ok: true } | { ok: false; retry
   return { ok: true };
 }
 
-const windows = new Map<string, number[]>();
+type Window = { hits: number[]; expires: number };
+const windows = new Map<string, Window>();
+/** Never keep more keys than this: a flood of made-up addresses must not be able to fill memory. */
+const MAX_KEYS = 20_000;
+let calls = 0;
+
+/** Forget windows that have run out, and if there are still too many, the oldest. */
+function sweep(now: number) {
+  for (const [k, w] of windows) if (w.expires <= now) windows.delete(k);
+  if (windows.size > MAX_KEYS) {
+    let drop = windows.size - Math.floor(MAX_KEYS * 0.8);
+    for (const k of windows.keys()) {
+      if (drop-- <= 0) break;
+      windows.delete(k);
+    }
+  }
+}
 
 /** Sliding window: at most `max` hits per `windowSec` for `key`. Per app instance. */
 export function hitLimit(key: string, max: number, windowSec: number): boolean {
   const now = Date.now();
-  const recent = (windows.get(key) ?? []).filter((t) => now - t < windowSec * 1000);
-  if (recent.length >= max) {
-    windows.set(key, recent);
-    return false;
-  }
-  recent.push(now);
-  windows.set(key, recent);
+  if (++calls % 500 === 0 || windows.size > MAX_KEYS) sweep(now);
+  const w = windows.get(key) ?? { hits: [], expires: 0 };
+  w.hits = w.hits.filter((t) => now - t < windowSec * 1000);
+  w.expires = now + windowSec * 1000;
+  windows.set(key, w);
+  if (w.hits.length >= max) return false;
+  w.hits.push(now);
   return true;
 }
+
+/** For tests: how many keys are being remembered. */
+export const trackedKeys = () => windows.size;

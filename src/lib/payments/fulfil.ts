@@ -21,7 +21,7 @@ import { createJobsForOrder } from "@/lib/jobs";
  */
 export async function fulfilPayment(
   paymentId: string,
-  opts: { verifiedById?: string | null; note?: string; providerRef?: string | null } = {},
+  opts: { verifiedById?: string | null; note?: string; providerRef?: string | null; receivedKes?: number | null } = {},
 ): Promise<{ ok: boolean; alreadyPaid?: boolean }> {
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
@@ -44,15 +44,20 @@ export async function fulfilPayment(
   if (!payment) return { ok: false };
   if (payment.status === PaymentStatus.PAID) return { ok: true, alreadyPaid: true };
 
-  await db.payment.update({
-    where: { id: paymentId },
+  // Claim the payment in one conditional write. Two approvals at the same moment (a double click,
+  // an admin and the STK callback) would both pass a read-then-write check and both release the work;
+  // only the one whose write changes a row may go on.
+  const claimed = await db.payment.updateMany({
+    where: { id: paymentId, status: { not: PaymentStatus.PAID } },
     data: {
       status: PaymentStatus.PAID,
       verifiedById: opts.verifiedById ?? null,
       verifiedAt: new Date(),
+      ...(opts.receivedKes != null ? { receivedKes: opts.receivedKes } : {}),
       ...(opts.providerRef ? { providerRef: opts.providerRef, mpesaCode: opts.providerRef } : {}),
     },
   });
+  if (claimed.count === 0) return { ok: true, alreadyPaid: true };
 
   const treeId = payment.treeId ?? payment.generationJob?.treeId ?? null;
   let summary = opts.note ?? "payment verified";

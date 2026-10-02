@@ -10,6 +10,7 @@ import { notifyTreeManagers } from "@/lib/notify";
 import { emitEvent, emitTreeEvent } from "@/lib/webhooks";
 import { resolveGuestRelationship } from "@/lib/queries/memorial";
 import { isFlowerKind, isTributeReaction } from "@/lib/memorial-flowers";
+import { clientIpFromHeaders } from "@/lib/user-agent";
 
 /** One-tap tribute (flower / candle / wreath / heart). No message, no review. */
 export async function layFlower(slug: string, formData: FormData) {
@@ -32,7 +33,7 @@ export async function layFlower(slug: string, formData: FormData) {
 
   const h = await headers();
   await db.memorialFlower.create({
-    data: { memorialId: m.id, kind, name, ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null },
+    data: { memorialId: m.id, kind, name, ip: clientIpFromHeaders(h) },
   });
   jar.set(key, String(laid + 1), { httpOnly: true, sameSite: "lax", path: `/m/${slug}`, maxAge: 86400 });
 
@@ -75,7 +76,7 @@ export async function replyToTribute(slug: string, entryId: string, formData: Fo
       name,
       message,
       status: m.guestbookModerated ? "PENDING" : "APPROVED",
-      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      ip: clientIpFromHeaders(h),
     },
   });
 
@@ -108,7 +109,7 @@ export async function reactToTribute(slug: string, entryId: string, formData: Fo
   if (!entry) redirect(`/m/${slug}#tributes`);
 
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  const ip = clientIpFromHeaders(h) ?? "anon";
   await db.tributeReaction.upsert({
     where: { entryId_ip_emoji: { entryId, ip, emoji } },
     create: { entryId, emoji, ip },
@@ -185,7 +186,7 @@ export async function postGuestbook(slug: string, formData: FormData) {
       message,
       phone,
       status: m.guestbookModerated ? "PENDING" : "APPROVED",
-      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      ip: clientIpFromHeaders(h),
     },
     select: { id: true, status: true },
   });

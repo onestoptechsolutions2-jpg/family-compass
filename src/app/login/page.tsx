@@ -11,11 +11,11 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string; deleted?: string }>;
 }) {
   const user = await getSessionUser();
   if (user) redirect("/app");
-  const { callbackUrl = "/app", error } = await searchParams;
+  const { callbackUrl = "/app", error, deleted } = await searchParams;
   const denied = error === "AccessDenied";
   const badLink = error === "BadLink";
   const badCreds = error === "BadCredentials";
@@ -37,6 +37,11 @@ export default async function LoginPage({
           : "Access is invite-only. Open the sign-in link your family admin sends you on WhatsApp."}
       </p>
 
+      {deleted && (
+        <p role="status" className="mt-4 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)" }}>
+          Your account has been deleted.
+        </p>
+      )}
       {denied && (
         <p className="mt-4 rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>
           That address isn&apos;t approved. Ask an admin to invite you, then try again.

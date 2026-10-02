@@ -48,6 +48,10 @@ export function SiteFooter({ links }: { links?: React.ReactNode }) {
         <a href="mailto:partnerships@laitor.co.ke" className="hover:underline">
           partnerships@laitor.co.ke
         </a>
+        <span aria-hidden>·</span>
+        <a href="/policies" className="hover:underline">
+          Policies and refunds
+        </a>
       </div>
     </footer>
   );

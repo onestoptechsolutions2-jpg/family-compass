@@ -1616,6 +1616,12 @@ model Payment {
   providerRef       String?
   resultCode        Int?
   resultDesc        String?
+  /// what actually arrived, as the person who checked it saw it (or Safaricom reported it)
+  receivedKes       Int?
+  /// money given back to the customer (a cancelled order), in whole KES
+  refundedKes       Int           @default(0)
+  refundedAt        DateTime?
+  refundNote        String?
   status            PaymentStatus @default(PENDING)
   rejectionReason   String?       @db.Text
   verifiedById      String?

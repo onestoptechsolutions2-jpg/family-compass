@@ -3,8 +3,8 @@
  * in a way that needs fresh consent. Every signed-in user is re-prompted at
  * /consent until their User.consentVersion matches this.
  */
-export const POLICY_VERSION = "2026-09";
-export const POLICY_EFFECTIVE = "1 September 2026";
+export const POLICY_VERSION = "2026-10";
+export const POLICY_EFFECTIVE = "7 October 2026";
 
 export const PROJECT_NAME = "Family Compass";
 export const PROJECT_TAGLINE =

@@ -19,6 +19,7 @@ export default async function AdminPaymentsPage() {
       currency: true,
       creditsGranted: true,
       mpesaCode: true,
+      receivedKes: true,
       payerPhone: true,
       status: true,
       rejectionReason: true,
@@ -28,6 +29,13 @@ export default async function AdminPaymentsPage() {
     },
   });
 
+  // codes claimed by more than one payment still in play: the same real payment cannot be two
+  const claimed = await db.payment.groupBy({
+    by: ["mpesaCode"],
+    where: { mpesaCode: { not: null }, status: { in: ["AWAITING_VERIFICATION", "PAID"] } },
+    _count: true,
+  });
+  const shared = new Set(claimed.filter((c) => c._count > 1).map((c) => c.mpesaCode));
   const awaiting = payments.filter((p) => p.status === "AWAITING_VERIFICATION");
   const others = payments.filter((p) => p.status !== "AWAITING_VERIFICATION");
 
@@ -49,6 +57,10 @@ export default async function AdminPaymentsPage() {
       <div className="min-w-32">
         <div className="font-mono">{p.mpesaCode ?? "—"}</div>
         <div style={{ color: "var(--muted)" }}>{p.payerPhone ?? ""}</div>
+        {p.mpesaCode && shared.has(p.mpesaCode) && (
+          <div className="font-medium" style={{ color: "var(--danger)" }}>Same code on another payment</div>
+        )}
+        {p.receivedKes != null && <div style={{ color: "var(--muted)" }}>received {p.currency} {p.receivedKes.toLocaleString()}</div>}
       </div>
       <div className="min-w-24" style={{ color: "var(--muted)" }}>
         {p.status.toLowerCase().replace(/_/g, " ")}
@@ -56,7 +68,19 @@ export default async function AdminPaymentsPage() {
       </div>
       {actionable && (
         <div className="ml-auto flex items-center gap-2">
-          <form action={approvePayment.bind(null, p.id)}>
+          <form action={approvePayment.bind(null, p.id)} className="flex items-center gap-1">
+            <label className="text-xs" style={{ color: "var(--muted)" }}>
+              Arrived ({p.currency})
+              <input
+                name="receivedKes"
+                type="number"
+                min={0}
+                required
+                defaultValue={p.amountKes}
+                className="ml-1 w-24 rounded-md border px-2 py-1 text-sm"
+                style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--fg)" }}
+              />
+            </label>
             <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">
               Approve
             </button>

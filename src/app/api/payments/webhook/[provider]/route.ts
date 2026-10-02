@@ -35,14 +35,25 @@ export async function POST(
     }
     const payment = await db.payment.findFirst({
       where: { checkoutRequestId: cb.checkoutRequestId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, amountKes: true },
     });
     if (!payment) {
       return NextResponse.json({ ResultCode: 0, ResultDesc: "unknown checkout" }, { status: 200 });
     }
 
-    if (cb.resultCode === 0) {
-      await fulfilPayment(payment.id, { note: "M-Pesa STK", providerRef: cb.receipt ?? null });
+    if (cb.resultCode === 0 && cb.amount != null && cb.amount < payment.amountKes && payment.status !== PaymentStatus.PAID) {
+      // Safaricom says it succeeded but for less than is due: never release work on that, a person decides.
+      await db.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.AWAITING_VERIFICATION,
+          receivedKes: cb.amount,
+          mpesaCode: cb.receipt ?? null,
+          rejectionReason: `Paid KES ${cb.amount.toLocaleString()} of KES ${payment.amountKes.toLocaleString()} due`,
+        },
+      });
+    } else if (cb.resultCode === 0) {
+      await fulfilPayment(payment.id, { note: "M-Pesa STK", providerRef: cb.receipt ?? null, receivedKes: cb.amount ?? null });
     } else if (payment.status !== PaymentStatus.PAID) {
       await db.payment.update({
         where: { id: payment.id },

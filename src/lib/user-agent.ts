@@ -34,15 +34,33 @@ export function describeDevice(ua: string | null | undefined): string {
   return s.slice(0, 60);
 }
 
-/** First hop of an X-Forwarded-For header, or null. */
-export function clientIp(fwd: string | null | undefined): string | null {
-  const first = fwd?.split(",")[0]?.trim();
-  return first || null;
+/**
+ * How many reverse proxies sit in front of the app and append the address they saw to
+ * X-Forwarded-For. One (Coolify's) by default. Zero means the header is not trusted at all.
+ */
+function trustedHops(): number {
+  const n = Number(process.env.TRUSTED_PROXY_HOPS ?? 1);
+  return Number.isInteger(n) && n >= 0 && n <= 5 ? n : 1;
 }
 
-/** Best-effort client IP from a request's headers (X-Forwarded-For, then X-Real-IP). */
+/**
+ * The client's address from an X-Forwarded-For header, or null.
+ *
+ * Each proxy appends the address it received the request from, so the entries on the LEFT are
+ * whatever the client chose to claim and must never be trusted: a client sending
+ * `X-Forwarded-For: 1.2.3.4` is seen by the proxy as `1.2.3.4, <real address>`. Take the entry
+ * the last trusted proxy added, `hops` from the right.
+ */
+export function clientIp(fwd: string | null | undefined, hops: number = trustedHops()): string | null {
+  if (hops === 0) return null;
+  const parts = (fwd ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  return parts[Math.max(0, parts.length - hops)] ?? null;
+}
+
+/** Best-effort client IP from a request's headers, for rate limits and audit trails. */
 export function clientIpFromHeaders(h: Headers): string | null {
-  return clientIp(h.get("x-forwarded-for")) ?? h.get("x-real-ip") ?? null;
+  return clientIp(h.get("x-forwarded-for")) ?? (trustedHops() > 0 ? h.get("x-real-ip") : null) ?? null;
 }
 
 /**

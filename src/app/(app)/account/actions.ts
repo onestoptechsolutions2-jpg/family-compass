@@ -10,6 +10,8 @@ import { setResearchConsent } from "@/lib/consent";
 import { sessionCookieName } from "@/lib/session";
 import { flashOk, flashErr } from "@/lib/flash";
 import { NOTIFY_GROUPS } from "@/lib/push";
+import { eraseAccount } from "@/lib/erase-account";
+import { hitLimit } from "@/lib/api/rate-limit";
 
 export async function setNotifyPrefs(formData: FormData) {
   const me = await requireUser();
@@ -100,4 +102,33 @@ export async function revokeOtherSessions() {
   });
   await flashOk("Signed out everywhere else.");
   redirect("/account");
+}
+
+/**
+ * Delete the account and the family data in it. Asks for the word DELETE and, if the account has a
+ * password, the password, so a stray tap or someone else on an open phone cannot do it.
+ */
+export async function deleteMyAccount(formData: FormData) {
+  const me = await requireUser();
+  if (!hitLimit(`erase:${me.id}`, 5, 3600)) {
+    await flashErr("Too many attempts. Please try again later.");
+    redirect("/account");
+  }
+  if (String(formData.get("confirm") ?? "").trim() !== "DELETE") {
+    await flashErr("Type DELETE in capital letters to confirm.");
+    redirect("/account");
+  }
+  const user = await db.user.findUniqueOrThrow({ where: { id: me.id }, select: { passwordHash: true } });
+  if (user.passwordHash && !(await verifyPassword(String(formData.get("password") ?? ""), user.passwordHash))) {
+    await flashErr("That password is not right.");
+    redirect("/account");
+  }
+  try {
+    await eraseAccount(me.id);
+  } catch (err) {
+    await flashErr(err instanceof Error ? err.message : "We could not delete your account.");
+    redirect("/account");
+  }
+  (await cookies()).delete(sessionCookieName());
+  redirect("/login?deleted=1");
 }

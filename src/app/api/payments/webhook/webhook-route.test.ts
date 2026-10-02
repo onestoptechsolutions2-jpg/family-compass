@@ -107,6 +107,7 @@ describe("payment webhook route", () => {
     expect(mocks.fulfilPayment).toHaveBeenCalledWith("pay_1", {
       note: "M-Pesa STK",
       providerRef: "QAB123",
+      receivedKes: null,
     });
     expect(mocks.paymentUpdate).not.toHaveBeenCalled();
   });

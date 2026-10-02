@@ -8,6 +8,7 @@ import { randomToken } from "@/lib/slug";
 import { hitLimit } from "@/lib/api/rate-limit";
 import type { DraftOptions, } from "@/lib/order-shared";
 import type { ProductOptions } from "@/lib/orders";
+import { clientIpFromHeaders } from "@/lib/user-agent";
 
 /** The product each door opens with; the customer can change material later. */
 const DOOR_PRODUCT = { living: "wooden-family-tree", remembered: "tombstone-family-tree" } as const;
@@ -27,7 +28,7 @@ export async function startFromLanding(formData: FormData) {
   const first = field(formData, "first", 120);
   if (!first) redirect("/");
 
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIpFromHeaders(await headers()) ?? "unknown";
   if (!hitLimit(`order-new:${ip}`, 10, 3600)) redirect("/?error=slow");
 
   const product =

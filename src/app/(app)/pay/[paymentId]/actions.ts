@@ -12,6 +12,7 @@ import { fulfilPayment } from "@/lib/payments/fulfil";
 import { stkPush, stkQuery, mpesaMsisdn, darajaConfigured, DARAJA_PROVIDER_ID } from "@/lib/payments/daraja";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyPlatformAdmins } from "@/lib/notify";
+import { codeUsedElsewhere, normaliseCode } from "@/lib/payments/verification";
 
 const KIND_DESC: Record<string, string> = {
   SINGLE: "Family Compass credit",
@@ -111,9 +112,13 @@ export async function pollStk(paymentId: string) {
 
 export async function submitPaymentCode(paymentId: string, formData: FormData) {
   const p = await ownPayment(paymentId);
-  const code = String(formData.get("mpesaCode") ?? "").trim().toUpperCase();
-  const phone = String(formData.get("payerPhone") ?? "").trim();
-  if (code.length < 6) throw new Error("Enter the M-Pesa confirmation code");
+  const code = normaliseCode(String(formData.get("mpesaCode") ?? ""));
+  const phone = String(formData.get("payerPhone") ?? "").trim().slice(0, 40);
+  if (!code) throw new Error("Enter the M-Pesa confirmation code: letters and numbers, as in the message M-Pesa sent you.");
+  // one real payment cannot pay for two orders
+  if (await codeUsedElsewhere(code, paymentId)) {
+    throw new Error("That confirmation code has already been used for another payment. Check it, or contact us if you think this is a mistake.");
+  }
   if (!OPEN.includes(p.status) && p.status !== PaymentStatus.AWAITING_STK) {
     throw new Error("This payment can no longer be updated");
   }

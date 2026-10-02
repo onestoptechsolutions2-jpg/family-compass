@@ -6,6 +6,8 @@ import { OrderStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
+import { recordRefund, refundableOn } from "@/lib/refunds";
+import { wholeKes } from "@/lib/payments/verification";
 import { writeAudit } from "@/lib/audit";
 import {
   JobError, acceptQuote, approveProof, createJobsForOrder, dispatchItem, markItemDelivered,
@@ -31,11 +33,12 @@ export async function requestQuotesAction(jobId: string, formData: FormData) {
   });
 }
 
-export async function acceptQuoteAction(quoteId: string) {
+export async function acceptQuoteAction(quoteId: string, formData: FormData) {
   const admin = await requirePlatformAdmin();
+  const allowLoss = formData.get("allowLoss") === "on";
   await guarded(async () => {
-    await acceptQuote(quoteId);
-    await writeAudit({ actorId: admin.id, action: "job.accept_quote", targetType: "quote", targetId: quoteId });
+    await acceptQuote(quoteId, { allowLoss });
+    await writeAudit({ actorId: admin.id, action: "job.accept_quote", targetType: "quote", targetId: quoteId, meta: { allowLoss } });
   });
 }
 
@@ -89,10 +92,27 @@ export async function openJobsAction(orderId: string) {
   });
 }
 
-export async function cancelOrder(orderId: string) {
+/**
+ * Cancel an order. If the customer has paid, the refund (what you are giving back) must be stated, even
+ * if it is nothing, and a refund short of everything needs the reason. The money itself goes back by
+ * M-Pesa from your own phone; this is the record, so cash never leaves without a trace.
+ */
+export async function cancelOrder(orderId: string, formData: FormData) {
   const admin = await requirePlatformAdmin();
+  const { paidKes, roomKes } = await refundableOn(orderId);
+  const note = String(formData.get("refundNote") ?? "").trim().slice(0, 300);
+  let refunded = 0;
+  if (paidKes > 0) {
+    const asked = wholeKes(formData.get("refundKes"));
+    if (asked === null) redirect(`/admin/orders?error=${encodeURIComponent("The customer has paid. Enter the amount you are refunding (0 if none).")}`);
+    if (asked! > roomKes) redirect(`/admin/orders?error=${encodeURIComponent(`Only KES ${roomKes.toLocaleString("en-KE")} can still be refunded on this order.`)}`);
+    if (asked! < roomKes && !note) redirect(`/admin/orders?error=${encodeURIComponent("You are refunding less than the customer paid. Say why, so it can be explained to them.")}`);
+    refunded = asked!;
+    if (refunded > 0) await recordRefund(orderId, refunded, note || "Order cancelled");
+  }
   await db.order.update({ where: { id: orderId }, data: { status: OrderStatus.CANCELLED } });
   await db.productionJob.updateMany({ where: { orderItem: { orderId }, status: { notIn: ["DELIVERED"] } }, data: { status: "CANCELLED" } });
-  await writeAudit({ actorId: admin.id, action: "order.cancel", targetType: "order", targetId: orderId });
+  await writeAudit({ actorId: admin.id, action: "order.cancel", targetType: "order", targetId: orderId, meta: { paidKes, refundedKes: refunded, note } });
   revalidatePath("/admin/orders");
+  revalidatePath("/admin/money");
 }

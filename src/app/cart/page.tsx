@@ -140,6 +140,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
               <span>Total</span><span>{kes(cartTotal(items))}</span>
             </div>
             <p className="text-xs" style={{ color: "var(--muted)" }}>Delivery is included. You pay once by M-Pesa; each item is made and sent as soon as your payment is confirmed.</p>
+            <p className="text-xs" style={{ color: "var(--muted)" }}>Each piece is made to order. By placing your order you agree to our <Link href="/policies/orders" className="underline">orders, delivery and refunds</Link> terms.</p>
             <button className="rounded-md bg-brand-600 px-5 py-3 font-medium text-white hover:bg-brand-700">Place order and pay</button>
           </form>
         </div>

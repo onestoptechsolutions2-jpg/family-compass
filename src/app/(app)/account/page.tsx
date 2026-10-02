@@ -7,6 +7,7 @@ import { sessionCookieName } from "@/lib/session";
 import { NOTIFY_GROUPS, parsePrefs } from "@/lib/push";
 import { myRequests } from "@/lib/queries/requests";
 import { PushSetup } from "@/components/PushSetup";
+import { canErase } from "@/lib/erase-account";
 import {
   setMyPassword,
   removeMyPassword,
@@ -14,6 +15,7 @@ import {
   revokeSession,
   revokeOtherSessions,
   setNotifyPrefs,
+  deleteMyAccount,
 } from "./actions";
 
 function ago(d: Date | null): string {
@@ -47,6 +49,7 @@ export default async function AccountPage() {
   const hasPassword = Boolean(user.passwordHash);
   const prefs = parsePrefs(user.notifyPrefs);
   const requests = await myRequests(me.id);
+  const erase = await canErase(me.id);
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
 
   const currentToken = (await cookies()).get(sessionCookieName())?.value ?? null;
@@ -279,6 +282,39 @@ export default async function AccountPage() {
           </ul>
         </section>
       )}
+
+      <section className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <h2 className="font-medium">Delete my account</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          Removes your family pages and everything in them, and your name, email, phone number and addresses. We keep only
+          the order and payment records the law and our books need, without anything that says who you are. This cannot be
+          undone. Export your family data first if you want a copy.{" "}
+          <strong>The QR codes on pieces you already own will stop working.</strong>
+        </p>
+        {erase.ok ? (
+          <form action={deleteMyAccount} className="mt-3 flex flex-col gap-2">
+            {erase.trees > 0 && <p className="text-sm">This will delete {erase.trees === 1 ? "your family tree" : `${erase.trees} family trees`}.</p>}
+            {erase.openOrders > 0 && <p className="text-sm">Your {erase.openOrders === 1 ? "unpaid order and basket" : "unpaid orders and baskets"} will be cancelled.</p>}
+            {hasPassword && (
+              <label className="text-sm">
+                <span style={{ color: "var(--muted)" }}>Your password</span>
+                <input name="password" type="password" required autoComplete="current-password" className={field} style={style} />
+              </label>
+            )}
+            <label className="text-sm">
+              <span style={{ color: "var(--muted)" }}>Type DELETE to confirm</span>
+              <input name="confirm" required autoComplete="off" className={field} style={style} />
+            </label>
+            <div>
+              <button className="rounded-lg border px-4 py-2 text-sm font-medium text-red-600" style={{ borderColor: "var(--border)" }}>
+                Delete my account for good
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="mt-3 text-sm">{erase.reason}</p>
+        )}
+      </section>
     </div>
   );
 }

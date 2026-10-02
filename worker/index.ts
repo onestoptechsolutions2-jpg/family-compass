@@ -11,6 +11,7 @@ import { handleSystemHealth } from "./jobs/system";
 import { handleGenerationGc } from "./jobs/generation";
 import { handleKeeperRenewalScan } from "./jobs/keeper-renewal";
 import { handleBackupScheduled } from "./jobs/backup";
+import { handleShopMaintenance } from "./jobs/maintenance";
 
 async function main() {
   const boss = new PgBoss({
@@ -37,6 +38,7 @@ async function main() {
   await boss.work(QUEUE.generationGc, handleGenerationGc);
   await boss.work(QUEUE.keeperRenewalScan, handleKeeperRenewalScan);
   await boss.work(QUEUE.backupScheduled, handleBackupScheduled);
+  await boss.work(QUEUE.shopMaintenance, handleShopMaintenance);
 
   // daily sweep for upcoming birthdays / death & wedding anniversaries
   await boss.schedule(QUEUE.anniversaryScan, "0 6 * * *", {}, { tz: "Africa/Nairobi" });
@@ -49,6 +51,9 @@ async function main() {
   await boss.schedule(QUEUE.keeperRenewalScan, "0 8 * * *", {}, { tz: "Africa/Nairobi" });
   // nightly full-database backup (see src/lib/backup.ts)
   await boss.schedule(QUEUE.backupScheduled, "0 2 * * *", {}, { tz: "Africa/Nairobi" });
+
+  // nightly: remove abandoned guest designs and spent tokens
+  await boss.schedule(QUEUE.shopMaintenance, "30 3 * * *", {}, { tz: "Africa/Nairobi" });
 
   console.log("[worker] ready — listening on", Object.values(QUEUE).join(", "));
 

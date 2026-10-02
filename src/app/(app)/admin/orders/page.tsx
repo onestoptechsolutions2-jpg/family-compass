@@ -124,6 +124,10 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                     const photo = j.files.find((f) => f.kind === "finished_photo");
                     const receipt = j.files.find((f) => f.kind === "dispatch_proof");
                     const asked = new Set(j.quotes.map((q) => q.partnerId));
+                    // what this item earned, after the other stages already agreed
+                    const itemRevenue = i.unitPriceKes * i.quantity;
+                    const itemOtherCost = i.jobs.filter((x) => x.id !== j.id && x.status !== JobStatus.CANCELLED).reduce((n, x) => n + (x.agreedCostKes ?? 0), 0);
+                    const itemMargin = (cost: number) => itemRevenue - itemOtherCost - cost;
                     const eligible = partners.filter((p) => p.skills.includes(j.skill) && !asked.has(p.id));
                     return (
                       <div key={j.id} className="mt-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
@@ -147,12 +151,17 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                                       <td>{q.status.toLowerCase()}</td>
                                       <td>{q.costKes != null ? kes(q.costKes) : "—"}</td>
                                       <td>{q.leadDays ?? "—"}</td>
-                                      <td className={q.costKes != null && o.totalKes - partnerCost - q.costKes < 0 ? "text-red-600" : ""}>
-                                        {q.costKes != null ? kes(o.totalKes - partnerCost - q.costKes) : "—"}
+                                      <td className={q.costKes != null && itemMargin(q.costKes) <= 0 ? "text-red-600" : ""}>
+                                        {q.costKes != null ? `${kes(itemMargin(q.costKes))} (${Math.round((itemMargin(q.costKes) / Math.max(1, itemRevenue)) * 100)}%)` : "—"}
                                       </td>
                                       <td>
                                         {q.status === QuoteStatus.SUBMITTED && (
-                                          <form action={acceptQuoteAction.bind(null, q.id)}><button className={btn}>Accept</button></form>
+                                          <form action={acceptQuoteAction.bind(null, q.id)} className="flex items-center gap-2">
+                                            {q.costKes != null && itemMargin(q.costKes) <= 0 && (
+                                              <label className="flex items-center gap-1 text-red-600"><input type="checkbox" name="allowLoss" /> accept at a loss</label>
+                                            )}
+                                            <button className={btn}>Accept</button>
+                                          </form>
                                         )}
                                         {q.note && <span className="ml-2" style={{ color: "var(--muted)" }}>{q.note}</span>}
                                       </td>
@@ -226,9 +235,19 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             })}
 
             {o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED && (
-              <form action={cancelOrder.bind(null, o.id)} className="mt-2">
-                <button className="text-xs underline" style={{ color: "var(--muted)" }}>Cancel order</button>
-              </form>
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer underline" style={{ color: "var(--muted)" }}>Cancel order</summary>
+                <form action={cancelOrder.bind(null, o.id)} className="mt-2 flex flex-wrap items-end gap-2">
+                  {paid > 0 && (
+                    <>
+                      <label>Refund (KES, 0 if none)<input name="refundKes" type="number" min={0} max={paid} required defaultValue={o.items.some((i) => i.jobs.some((j) => j.partnerId)) ? "" : paid} className={`${field} ml-1 w-28`} style={fieldStyle} /></label>
+                      <label>Why, if less than {kes(paid)}<input name="refundNote" className={`${field} ml-1 w-56`} style={fieldStyle} /></label>
+                    </>
+                  )}
+                  <button className={ghost} style={ghostStyle}>Cancel this order</button>
+                  {paid > 0 && <span style={{ color: "var(--muted)" }}>Send the refund by M-Pesa yourself; this records it.</span>}
+                </form>
+              </details>
             )}
           </div>
         );

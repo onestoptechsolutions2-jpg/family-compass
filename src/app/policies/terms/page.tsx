@@ -13,13 +13,14 @@ export default function TermsPage() {
       <H>The project</H>
       <P>
         Family Compass is a genealogy and family-history research project. You can build family
-        trees, invite relatives, publish read-only views, and buy print-ready charts, data
-        exports, cross-tree searches, or commissioned research.
+        trees, invite relatives, publish read-only views, order personalised physical pieces (plaques,
+        trees, prints, cards, calendars, shirts and more), and buy print-ready charts, data exports,
+        cross-tree searches, or commissioned research.
       </P>
 
       <H>Your account</H>
       <UL>
-        <li>Access is by invitation or an approved claim. You are responsible for your account and any sign-in link sent to you.</li>
+        <li>Anyone can create an account with an email and password, and relatives can also join through an invitation or an approved claim. You are responsible for your account, your password and any sign-in link sent to you.</li>
         <li>Provide accurate contact details. Don&apos;t impersonate anyone or claim a profile that isn&apos;t you.</li>
         <li>We may suspend accounts that abuse the service, other members, or other people&apos;s data.</li>
       </UL>
@@ -37,6 +38,7 @@ export default function TermsPage() {
         <li>Payments are made by M-Pesa and verified manually. Prices are in Kenyan Shillings.</li>
         <li>Digital goods (charts, exports, unlocked searches) are delivered on payment and are non-refundable once delivered, except where a delivered file is wrong on our side — contact us and we&apos;ll fix or refund it.</li>
         <li>Research Partner engagements are governed by the written quote and scope agreed for that project.</li>
+        <li>Physical pieces are made to order. Delivery, cancellation, refunds and what to do if something arrives wrong are set out in <a className="text-brand-600 hover:underline" href="/policies/orders">Orders, delivery and refunds</a>, which forms part of these terms.</li>
       </UL>
 
       <H>Availability &amp; liability</H>
@@ -50,9 +52,10 @@ export default function TermsPage() {
 
       <H>Ending use</H>
       <P>
-        You can delete your trees and account at any time. You can export your data first
-        (GEDCOM / .gramps). We keep minimal records needed for legal, accounting, and
-        anti-abuse purposes.
+        You can delete your account and the family data in it at any time from your account page.
+        You can export your data first (GEDCOM / .gramps). Deleting removes your family pages, so the QR
+        codes on pieces you already own will stop working. We keep only the minimal records needed for legal,
+        accounting and anti-abuse purposes: order and payment records, without your name, phone or address.
       </P>
 
       <H>Changes &amp; contact</H>

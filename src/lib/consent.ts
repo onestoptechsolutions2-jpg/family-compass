@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 
 import { db } from "@/lib/db";
 import { POLICY_VERSION, CONSENT_KIND } from "@/lib/policy";
+import { clientIpFromHeaders } from "@/lib/user-agent";
 
 export function consentIsStale(consentVersion: string | null | undefined): boolean {
   return consentVersion !== POLICY_VERSION;
@@ -21,7 +22,7 @@ export async function userConsentState(userId: string) {
 async function reqMeta() {
   const h = await headers();
   return {
-    ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    ip: clientIpFromHeaders(h),
     userAgent: h.get("user-agent") ?? null,
   };
 }

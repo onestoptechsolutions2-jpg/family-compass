@@ -41,9 +41,12 @@ export default function PrivacyPage() {
 
       <H>Retention</H>
       <P>
-        Genealogy is kept until the tree owner deletes it. Account data is kept while your
-        account is active and for a short period after, minus what we must keep for legal and
-        accounting reasons. Consent and payment records are kept for audit.
+        Genealogy is kept until the tree owner deletes it. When you delete your account we
+        remove your family data and replace your name, email, phone number and delivery address
+        with nothing that identifies you. We keep only the order and payment records we must keep
+        for legal and accounting reasons (what was bought, the amounts and dates), and consent
+        records for audit. Sign-in sessions and one-time links are removed on deletion, and spent
+        ones are cleared automatically. Designs started without an account are deleted after 30 days.
       </P>
 
       <H>Your rights</H>

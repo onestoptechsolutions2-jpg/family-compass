@@ -164,7 +164,11 @@ export async function submitQuote(
 }
 
 /** Choose a quote: that partner is assigned, the others are told no. */
-export async function acceptQuote(quoteId: string) {
+/**
+ * Accept a partner's quote. Refuses a price that leaves nothing from what the customer paid for
+ * the item (counting the other stages already agreed), unless the admin says they mean it.
+ */
+export async function acceptQuote(quoteId: string, opts: { allowLoss?: boolean } = {}) {
   const quote = await db.jobQuote.findUniqueOrThrow({
     where: { id: quoteId },
     include: { job: { include: { orderItem: true } } },
@@ -174,6 +178,18 @@ export async function acceptQuote(quoteId: string) {
   }
   const job = quote.job;
   if (job.status !== JobStatus.QUOTING) throw new JobError("This job already has a partner");
+
+  const revenue = job.orderItem.unitPriceKes * job.orderItem.quantity;
+  const others = await db.productionJob.findMany({
+    where: { orderItemId: job.orderItemId, id: { not: job.id }, status: { not: JobStatus.CANCELLED } },
+    select: { agreedCostKes: true },
+  });
+  const totalCost = quote.costKes + others.reduce((n, o) => n + (o.agreedCostKes ?? 0), 0);
+  if (totalCost >= revenue && !opts.allowLoss) {
+    throw new JobError(
+      `This quote takes the cost of this item to KES ${totalCost.toLocaleString("en-KE")}, and the customer paid KES ${revenue.toLocaleString("en-KE")} for it, so nothing is left. Ask for a lower quote, or tick "accept at a loss" if you mean it.`,
+    );
+  }
 
   const due = new Date();
   due.setDate(due.getDate() + quote.leadDays);

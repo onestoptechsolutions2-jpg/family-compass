@@ -23,6 +23,12 @@ export default function PoliciesIndex() {
           — the agreement for using the site.
         </li>
         <li>
+          <Link href="/policies/orders" className="font-medium text-brand-600 hover:underline">
+            Orders, delivery and refunds
+          </Link>{" "}
+          — made-to-order pieces: paying, cancelling, delivery and what to do if something is wrong.
+        </li>
+        <li>
           <Link href="/policies/privacy" className="font-medium text-brand-600 hover:underline">
             Privacy Policy
           </Link>{" "}
