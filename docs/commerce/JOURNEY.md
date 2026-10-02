@@ -8,7 +8,7 @@ One rule runs through every screen: **the customer always knows what it is, what
 |---|--------|------------------------|-----------------------------|----------------|
 | 1 | Landing `/` | "What is this, and is it for me?" | One promise; real products with a picture and a price; how it works in four steps; why trust it | Open a product |
 | 2 | Shop `/shop` | "What can I get, and for how much?" | Every product with a picture and "From KES x"; aisles; search; sort by price | Open a product |
-| 3 | Product `/shop/[slug]` | "What exactly would I get? What does it cost me?" | A picture of the piece; the choices (material, colour, size); how generations change the price; what I give us; what happens after | Personalise |
+| 3 | Product `/shop/[slug]` | "What exactly would I get? What does it cost me?" | A picture of the piece; the choices (material, colour, size); how generations change the price; what I give us; what happens after; a signed-in customer can start from their saved family | Personalise |
 | 4 | Build `/order/[token]` step 1 | "Can I just try it?" | The real piece, tappable; nothing to sign in to; the price as the family grows | Continue |
 | 5 | Options step 2 | "Which one, and what will it cost?" | Large choices with colour swatches; a live picture in the chosen colour; an itemised total | Continue |
 | 6 | Review step 3 | "Is this right?" | Everything they entered, every choice, the itemised price | Add to cart |
@@ -26,6 +26,7 @@ One rule runs through every screen: **the customer always knows what it is, what
 5. **One thing per screen.** One primary button, one question.
 6. **Mobile first.** Most customers are on a phone: tall tappable tree, large radio cards, a 16 px gutter, nothing sideways.
 7. **Say what happens next.** Every step ends with what comes after.
+8. **Keep family data reusable.** A later product can draw from the client's primary tree; optional related products are links only and never enter the cart automatically.
 
 ## How the price is made
 

@@ -2,12 +2,13 @@ import sharp from "sharp";
 
 import { db } from "@/lib/db";
 import { PRODUCT_IMAGES, productThumb } from "@/lib/product-images";
+import type { ProductPhoto } from "@/lib/product-photo-selection";
 
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 export const MAX_PHOTOS_PER_PRODUCT = 8;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-export type Shown = { src: string; alt: string };
+export type Shown = ProductPhoto;
 
 /** Make an uploaded picture safe and small: re-encoded (so nothing hidden rides along), turned upright, sized for the web. */
 export async function processPhoto(input: Buffer, mimeType: string): Promise<{ bytes: Buffer; thumb: Buffer; mimeType: string }> {
@@ -30,21 +31,34 @@ export const photoUrl = (id: string, thumb = false) => `/api/product-image/${id}
  * What to show for a product, best first: photos an admin uploaded, then the finished-product
  * photos we already hold, then a drawn example on a generic scene.
  */
-export async function photosFor(products: { id: string; slug: string; name: string; updatedAt: Date }[]): Promise<Map<string, Shown[]>> {
+export async function photosFor(
+  products: { id: string; slug: string; name: string; updatedAt: Date }[],
+  includeVariants = false,
+): Promise<Map<string, Shown[]>> {
   const rows = products.length
     ? await db.productImage.findMany({
-        where: { productId: { in: products.map((p) => p.id) } },
+        where: { productId: { in: products.map((p) => p.id) }, ...(includeVariants ? {} : { variantKey: null }) },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-        select: { id: true, productId: true, alt: true },
+        select: { id: true, productId: true, alt: true, variantKey: true, variantValue: true },
       })
     : [];
   const out = new Map<string, Shown[]>();
   for (const p of products) {
-    const uploaded = rows.filter((r) => r.productId === p.id).map((r) => ({ id: r.id, alt: r.alt || p.name }));
+    const uploaded = rows.filter((r) => r.productId === p.id).map((r) => ({
+      id: r.id,
+      alt: r.alt || p.name,
+      variantKey: r.variantKey,
+      variantValue: r.variantValue,
+    }));
+    const hasGeneralPhoto = uploaded.some((r) => !r.variantKey || !r.variantValue) || (PRODUCT_IMAGES[p.slug]?.length ?? 0) > 0;
     out.set(p.id, [
-      ...uploaded.map((r) => ({ src: photoUrl(r.id), alt: r.alt })),
+      ...uploaded.map((r) => ({
+        src: photoUrl(r.id),
+        alt: r.alt,
+        ...(r.variantKey && r.variantValue ? { variantKey: r.variantKey, variantValue: r.variantValue } : {}),
+      })),
       ...(PRODUCT_IMAGES[p.slug] ?? []),
-      ...(uploaded.length === 0 && !PRODUCT_IMAGES[p.slug] ? [{ src: `/api/sample/${p.slug}?v=${p.updatedAt.getTime()}`, alt: `Example of the ${p.name}` }] : []),
+      ...(!hasGeneralPhoto ? [{ src: `/api/sample/${p.slug}?v=${p.updatedAt.getTime()}`, alt: `Example of the ${p.name}` }] : []),
     ]);
   }
   return out;

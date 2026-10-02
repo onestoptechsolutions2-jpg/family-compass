@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({ db: {} }));
 
 import { cardPhoto, processPhoto } from "./product-photos";
+import { photosForVariants } from "./product-photo-selection";
 
 const png = (w: number, h: number) => sharp({ create: { width: w, height: h, channels: 3, background: "#884422" } }).png().toBuffer();
 
@@ -44,5 +45,21 @@ describe("the small picture for a card", () => {
   });
   it("leaves a drawn example as it is", () => {
     expect(cardPhoto([{ src: "/api/sample/desk-family-tree?v=1", alt: "x" }], "desk-family-tree").src).toBe("/api/sample/desk-family-tree?v=1");
+  });
+});
+
+describe("variant product photos", () => {
+  const photos = [
+    { src: "oak", alt: "Oak finish", variantKey: "finishKey", variantValue: "oak" },
+    { src: "black", alt: "Black finish", variantKey: "finishKey", variantValue: "black" },
+    { src: "general", alt: "All finishes" },
+  ];
+
+  it("shows matching variant photos before product-wide photos", () => {
+    expect(photosForVariants(photos, { finishKey: "black" }).map((photo) => photo.src)).toEqual(["black", "general"]);
+  });
+
+  it("keeps general product photos when there is no matching variant photo", () => {
+    expect(photosForVariants(photos, { finishKey: "white" }).map((photo) => photo.src)).toEqual(["general"]);
   });
 });

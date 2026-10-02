@@ -8,7 +8,12 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { ShopHeader } from "@/components/ShopHeader";
 import { ContinueDraft } from "@/components/ContinueDraft";
 import { aisleLabel } from "@/lib/aisles";
-import { priceRange, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { ProductGallery } from "@/components/ProductGallery";
+import { isLayout } from "@/lib/layouts";
+import { priceRange, type ProductOptions } from "@/lib/product-pricing";
+import { cardPhoto } from "@/lib/product-photos";
+import { getSessionUser } from "@/lib/rbac";
+import { savedOrderSources } from "@/lib/order-sources";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +29,19 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!p || !p.active) notFound();
 
   const po = (p.options ?? null) as ProductOptions | null;
-  const range = priceRange(p.basePriceKes, po, p.layout);
-  const photos = (await photosFor([p])).get(p.id)!;
-  const drawn = photos.every((x) => x.src.startsWith("/api/sample/"));
+  const photos = (await photosFor([p], true)).get(p.id)!;
+  const layout = isLayout(p.layout) ? p.layout : "tree";
+  const user = await getSessionUser();
+  const saved = user ? await savedOrderSources(user.id) : null;
+  const canChooseFamilyMember = p.pathway === "REMEMBERED" || layout === "wedding";
+  const savedPeople = (saved?.people ?? []).filter((person) => canChooseFamilyMember || person.id === saved?.customerPersonId);
+  const relatedProducts = await db.product.findMany({
+    where: { active: true, pathway: p.pathway, id: { not: p.id } },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    take: 3,
+    select: { id: true, slug: true, name: true, summary: true, basePriceKes: true, options: true, layout: true, updatedAt: true },
+  });
+  const relatedPhotos = await photosFor(relatedProducts);
   const living = p.pathway === "LIVING";
   const back = living ? "/living" : "/remembered";
   const answers = [
@@ -52,49 +67,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         ← {aisleLabel(p.aisle) || "Shop"}
       </Link>
       <p className="mt-4 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>{p.group}</p>
-      <h1 className="mt-1 font-serif text-4xl text-[var(--fg)]">{p.name}</h1>
-      <p className="mt-2 text-lg font-medium">{range.to > range.from ? "From " : ""}{kes(range.from)} <span className="text-sm font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></p>
-
-      <Link
-        href={`/order/new?product=${p.slug}`}
-        className="mt-5 inline-block rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700"
-      >
-        Personalise and add to cart
-      </Link>
+      <ProductGallery
+        slug={p.slug}
+        name={p.name}
+        description={p.summary}
+        basePriceKes={p.basePriceKes}
+        options={po ?? {}}
+        layout={layout}
+        photos={photos}
+        savedPeople={savedPeople}
+        defaultSavedPersonId={saved?.customerPersonId}
+      />
       <ContinueDraft slug={p.slug} />
-
-      <div className="mt-6 flex flex-col gap-3">
-        {photos.map((im) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={im.src} src={im.src} alt={im.alt} width={1200} height={900} className="w-full rounded-2xl border" style={{ borderColor: "var(--border)" }} loading="lazy" />
-        ))}
-        <p className="text-xs" style={{ color: "var(--muted)" }}>{drawn ? "An illustration, drawn with a sample family." : "Sample of the finished product."} Yours carries your family.</p>
-      </div>
-
-      {po && VARIANT_GROUPS.some((g) => (po[g.list]?.length ?? 0) > 1) && (
-        <section className="mt-8 rounded-2xl border p-5" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-          <h2 className="font-semibold">Choose how yours is made</h2>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            {VARIANT_GROUPS.map((g) => {
-              const list = po[g.list] ?? [];
-              if (list.length < 2) return null;
-              return (
-                <div key={g.key}>
-                  <p className="text-sm font-medium">{g.title}</p>
-                  <ul className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                    {list.map((c) => <li key={c.key}>{c.label}{c.addKes ? ` (+${kes(c.addKes)})` : ""}</li>)}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-          {po.generations && (
-            <p className="mt-4 text-sm" style={{ color: "var(--muted)" }}>
-              The price includes {po.generations.included} generations of family. Each extra generation adds {kes(po.generations.perExtraKes)}. You see the total as you build.
-            </p>
-          )}
-        </section>
-      )}
 
       <div className="mt-8 flex flex-col gap-4">
         {answers.map((x) => (
@@ -104,6 +88,29 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </section>
         ))}
       </div>
+      {relatedProducts.length > 0 && (
+        <section className="mt-12 border-t pt-8" style={{ borderColor: "var(--border)" }} aria-label="Other products for this family data">
+          <h2 className="font-serif text-2xl">More ways to use this family story</h2>
+          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>Choose another product and reuse your saved family details.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {relatedProducts.map((related) => {
+              const relatedOptions = (related.options ?? null) as ProductOptions | null;
+              const relatedPrice = priceRange(related.basePriceKes, relatedOptions, related.layout);
+              const image = cardPhoto(relatedPhotos.get(related.id) ?? [], related.slug);
+              return (
+                <Link key={related.id} href={`/shop/${related.slug}`} className="group overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={image.src} alt={image.alt} width={480} height={360} className="aspect-[4/3] w-full object-cover" loading="lazy" />
+                  <span className="block p-3">
+                    <span className="block font-medium group-hover:text-[var(--link)]">{related.name}</span>
+                    <span className="mt-1 block text-sm" style={{ color: "var(--muted)" }}>From {kes(relatedPrice.from)} · delivery included</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
       <SiteFooter />
     </main>
   );

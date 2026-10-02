@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { LAYOUT_LABEL } from "@/lib/layouts";
 import { photoUrl, MAX_PHOTOS_PER_PRODUCT } from "@/lib/product-photos";
-import { deletePhoto, makeMainPhoto, updateProduct, uploadPhoto } from "./actions";
+import { deletePhoto, makeMainPhoto, updateProduct, uploadPhoto, createProductDraft } from "./actions";
 
 export const metadata = { title: "Products" };
 export const dynamic = "force-dynamic";
@@ -10,11 +11,18 @@ export const dynamic = "force-dynamic";
 const field = "rounded-lg border px-3 py-1.5 text-sm";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--bg)" } as const;
 
+function photoVariantLabel(options: ProductOptions | null, key: string | null, value: string | null) {
+  if (!key || !value) return "All variants";
+  const group = VARIANT_GROUPS.find((item) => item.key === key);
+  const choice = group && options?.[group.list]?.find((item) => item.key === value);
+  return `${group?.title ?? key}: ${choice?.label ?? value}`;
+}
+
 export default async function AdminProductsPage() {
   await requirePlatformAdmin();
   const products = await db.product.findMany({
     orderBy: [{ pathway: "asc" }, { sortOrder: "asc" }],
-    include: { images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, alt: true } } },
+    include: { images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, alt: true, variantKey: true, variantValue: true } } },
   });
 
   return (
@@ -24,6 +32,55 @@ export default async function AdminProductsPage() {
         Launch prices are placeholders. Set them from supplier quotes before you sell. Hidden products
         disappear from the shop but keep their existing orders.
       </p>
+      <details className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <summary className="cursor-pointer font-medium">Create product draft</summary>
+        <form action={createProductDraft} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="text-xs">Product name
+            <input name="name" required minLength={3} maxLength={100} className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder="New baby family tree print" />
+          </label>
+          <label className="text-xs">URL slug (optional)
+            <input name="slug" maxLength={48} className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder="Generated from name" />
+          </label>
+          <label className="text-xs">Customer group
+            <input name="group" required maxLength={60} className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder="Celebrate" />
+          </label>
+          <label className="text-xs">Pathway
+            <select name="pathway" required className={`${field} mt-1 block w-full`} style={fieldStyle}>
+              <option value="LIVING">Living family</option>
+              <option value="REMEMBERED">Remember someone</option>
+            </select>
+          </label>
+          <label className="text-xs">Layout
+            <select name="layout" required className={`${field} mt-1 block w-full`} style={fieldStyle}>
+              {Object.entries(LAYOUT_LABEL).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </label>
+          <label className="text-xs">Shop aisle
+            <select name="aisle" required className={`${field} mt-1 block w-full`} style={fieldStyle}>
+              <option value="wall_art">Wall art</option>
+              <option value="memorial_stone">Memorial and stone</option>
+              <option value="books_print">Books and print</option>
+              <option value="events_merch">Events and merchandise</option>
+            </select>
+          </label>
+          <label className="text-xs">Maker skills (comma-separated)
+            <input name="skills" className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder="printing, framing" />
+          </label>
+          <label className="text-xs">Delivery route
+            <select name="shipVia" className={`${field} mt-1 block w-full`} style={fieldStyle}>
+              <option value="direct">Maker ships to customer</option>
+              <option value="via_us">Route through us for checking</option>
+            </select>
+          </label>
+          <label className="text-xs sm:col-span-2 lg:col-span-3">Description
+            <textarea name="summary" required maxLength={300} rows={2} className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder="What the customer receives and how the family data is used" />
+          </label>
+          <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-3">
+            <button className="rounded-lg bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700">Create off-sale draft</button>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>No price is guessed; set a supplier quote before enabling sales.</span>
+          </div>
+        </form>
+      </details>
       {products.map((p) => (
         <div key={p.id} className="flex flex-col gap-2">
         <form
@@ -54,16 +111,20 @@ export default async function AdminProductsPage() {
             <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {VARIANT_GROUPS.map((g) => {
                 const list = ((p.options ?? {}) as ProductOptions)[g.list] ?? [];
-                if (!list.length) return null;
                 return (
                   <div key={g.key}>
-                    <p className="text-xs font-medium">{g.title} (adds, KES)</p>
-                    {list.map((c) => (
-                      <label key={c.key} className="mt-1 flex items-center justify-between gap-2">
-                        <span style={{ color: "var(--muted)" }}>{c.label}</span>
-                        <input name={`add:${g.list}:${c.key}`} type="number" min={0} defaultValue={c.addKes} className={`${field} w-24`} style={fieldStyle} />
-                      </label>
-                    ))}
+                    <label className="block text-xs font-medium">
+                      {g.title} choices (key|label|price in KES, one per line)
+                      <textarea
+                        name={`choices:${g.list}`}
+                        rows={Math.min(Math.max(list.length, 3), 7)}
+                        defaultValue={list.map((choice) => `${choice.key}|${choice.label}|${choice.addKes}`).join("\n")}
+                        placeholder={g.key === "finishKey" ? "oak|Light oak|0\nwalnut|Dark walnut|800" : `standard|Standard|0`}
+                        className={`${field} mt-1 block w-full font-mono text-xs`}
+                        style={fieldStyle}
+                        aria-label={`${g.title} variant choices`}
+                      />
+                    </label>
                   </div>
                 );
               })}
@@ -92,7 +153,7 @@ export default async function AdminProductsPage() {
               <div key={im.id} className="w-36">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoUrl(im.id, true)} alt={im.alt || p.name} width={144} height={108} className="aspect-[4/3] w-full rounded-lg border object-cover" style={{ borderColor: "var(--border)" }} loading="lazy" />
-                <p className="mt-1 truncate text-xs" style={{ color: "var(--muted)" }}>{i === 0 ? "Main photo" : im.alt || "Photo"}</p>
+                <p className="mt-1 truncate text-xs" style={{ color: "var(--muted)" }}>{i === 0 ? "Main · " : ""}{photoVariantLabel((p.options ?? null) as ProductOptions | null, im.variantKey, im.variantValue)} · {im.alt || "Photo"}</p>
                 <div className="mt-1 flex gap-3 text-xs">
                   {i > 0 && <form action={makeMainPhoto.bind(null, im.id)}><button className="underline">Make main</button></form>}
                   <form action={deletePhoto.bind(null, im.id)}><button className="underline" style={{ color: "var(--danger)" }}>Remove</button></form>
@@ -109,6 +170,19 @@ export default async function AdminProductsPage() {
               <label className="min-w-48 flex-1">
                 <span className="block text-xs" style={{ color: "var(--muted)" }}>Describe it (for people who cannot see it)</span>
                 <input name="alt" maxLength={200} className={`${field} mt-1 block w-full`} style={fieldStyle} placeholder={`e.g. ${p.name} on a wall`} />
+              </label>
+              <label>
+                <span className="block text-xs" style={{ color: "var(--muted)" }}>Show for</span>
+                <select name="variant" className={`${field} mt-1 block max-w-64`} style={fieldStyle} defaultValue="">
+                  <option value="">All variants</option>
+                  {VARIANT_GROUPS.flatMap((group) =>
+                    (((p.options ?? {}) as ProductOptions)[group.list] ?? []).map((choice) => (
+                      <option key={`${group.key}=${choice.key}`} value={`${group.key}=${choice.key}`}>
+                        {group.title}: {choice.label}
+                      </option>
+                    )),
+                  )}
+                </select>
               </label>
               <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Upload</button>
             </form>

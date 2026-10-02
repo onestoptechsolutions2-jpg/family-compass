@@ -118,6 +118,7 @@ export default async function LoginPage({
             </p>
           </div>
         )}
+      </div>
       </section>
 
         <div
@@ -145,7 +146,6 @@ export default async function LoginPage({
             ask for a new sign-in link; they can send you one from the Claims page in one tap.
           </p>
         </div>
-      </div>
     </main>
   );
 }

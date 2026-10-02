@@ -358,6 +358,60 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
         ],
       },
     },
+    {
+      slug: "new-baby-family-tree",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "New baby family tree print",
+      summary: "Welcome a new arrival with their name at the heart of a family tree poster; relatives scan the QR code to join the growing family page.",
+      basePriceKes: 0,
+      sortOrder: 50,
+      layout: "tree",
+      active: false,
+      options: {
+        materials: [{ key: "poster", label: "Printed poster", addKes: 0 }],
+        sizes: [
+          { key: "a2", label: "A2 (42 x 59 cm)", addKes: 0 },
+          { key: "a1", label: "A1 (59 x 84 cm)", addKes: 0 },
+        ],
+      },
+    },
+    {
+      slug: "anniversary-family-tree",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Anniversary family tree keepsake",
+      summary: "Bring two families together around the couple, their wedding date and the generations they have grown.",
+      basePriceKes: 0,
+      sortOrder: 70,
+      layout: "wedding",
+      active: false,
+      options: {
+        materials: [{ key: "wood", label: "Solid wood engraving", addKes: 0 }],
+        sizes: [
+          { key: "desk", label: "Desk (20 x 30 cm)", addKes: 0 },
+          { key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 },
+        ],
+      },
+    },
+    {
+      slug: "reunion-welcome-backdrop",
+      pathway: "LIVING" as const,
+      group: "Celebrate",
+      name: "Family reunion welcome backdrop",
+      summary: "A family-tree welcome banner for the reunion entrance, with the event title and a QR code guests can scan to find their relatives.",
+      basePriceKes: 0,
+      sortOrder: 40,
+      layout: "banner",
+      active: false,
+      options: {
+        materials: [{ key: "vinyl", label: "Printed vinyl", addKes: 0 }],
+        sizes: [
+          { key: "standard", label: "Standard (200 x 100 cm)", addKes: 0 },
+          { key: "wide", label: "Wide (300 x 150 cm)", addKes: 0 },
+        ],
+      },
+    },
   ];
   // What each product needs to be made, and how it reaches the customer.
   const route: Record<string, { skills: string[]; shipVia: string; aisle: string }> = {
@@ -378,6 +432,9 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
     "memorial-tree-framed": { skills: ["printing", "framing"], shipVia: "direct", aisle: "wall_art" },
     "memorial-wood-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
     "desk-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
+    "new-baby-family-tree": { skills: ["printing"], shipVia: "direct", aisle: "wall_art" },
+    "anniversary-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "events_merch" },
+    "reunion-welcome-backdrop": { skills: ["printing"], shipVia: "direct", aisle: "events_merch" },
   };
   for (const p of products) {
     const r = route[p.slug]!;

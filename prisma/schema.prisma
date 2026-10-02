@@ -2436,6 +2436,9 @@ model ProductImage {
   alt          String   @default("")
   /// lowest first; the first is the main photo
   sortOrder    Int      @default(0)
+  /// optional single variant choice this picture represents; null means all variants
+  variantKey   String?
+  variantValue String?
   mimeType     String
   bytes        Bytes
   /// a small copy for cards and lists

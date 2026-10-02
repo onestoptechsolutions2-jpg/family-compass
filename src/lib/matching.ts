@@ -72,6 +72,11 @@ export async function findMatchQuestions(userId: string, items: ItemLike[]): Pro
       seen.add(key);
       const { first, surname } = splitName(typed);
       const short = normaliseName(`${first.split(/\s+/)[0] ?? ""} ${surname}`);
+      const alreadyLinked = o.matches?.[key];
+      if (
+        alreadyLinked &&
+        index.some((person) => person.id === alreadyLinked && (person.full === key || (short.length > 2 && person.short === short)))
+      ) continue;
       const candidates = index
         .filter((p) => p.full === key || (short.length > 2 && p.short === short))
         .slice(0, 4)

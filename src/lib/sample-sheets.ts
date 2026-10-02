@@ -1,7 +1,7 @@
 import { isLayout, type Layout, type Pathway } from "@/lib/layouts";
 import type { DraftOptions } from "@/lib/order-shared";
 import { renderPrintSheet } from "@/lib/print-sheet";
-import type { ProductOptions } from "@/lib/orders";
+import type { ProductOptions } from "@/lib/product-pricing";
 
 /** One believable family, so a card without a photo still shows what the customer will receive. */
 const FAMILY: DraftOptions = {
@@ -44,13 +44,19 @@ export async function sampleSvg(
   p: { slug: string; layout: string; pathway: Pathway; options: unknown },
   origin: string,
   version = "",
+  requested: Partial<Pick<DraftOptions, "materialKey" | "finishKey" | "sizeKey">> = {},
 ): Promise<string> {
-  const key = `${p.slug}:${version}`;
+  const po = (p.options ?? null) as ProductOptions | null;
+  const choices = {
+    materialKey: po?.materials?.some((choice) => choice.key === requested.materialKey) ? requested.materialKey : po?.materials?.[0]?.key,
+    finishKey: po?.finishes?.some((choice) => choice.key === requested.finishKey) ? requested.finishKey : po?.finishes?.[0]?.key,
+    sizeKey: po?.sizes?.some((choice) => choice.key === requested.sizeKey) ? requested.sizeKey : po?.sizes?.[0]?.key,
+  };
+  const key = `${p.slug}:${version}:${origin}:${choices.materialKey ?? ""}:${choices.finishKey ?? ""}:${choices.sizeKey ?? ""}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const layout: Layout = isLayout(p.layout) ? p.layout : "tree";
-  const po = (p.options ?? null) as ProductOptions | null;
-  const options: DraftOptions = { ...SAMPLE[layout](p.pathway), materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, finishKey: po?.finishes?.[0]?.key };
+  const options: DraftOptions = { ...SAMPLE[layout](p.pathway), ...choices };
   const sheet = await renderPrintSheet(
     { options, productName: p.slug, qrUrl: `${origin}/q/example`, pathway: p.pathway, layout },
     options.sizeKey,

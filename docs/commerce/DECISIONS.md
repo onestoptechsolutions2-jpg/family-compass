@@ -6,7 +6,7 @@ Decided with the owner. Change only with the owner. Newest at the bottom.
 
 - A supermarket: many products, all entry points. Every order is built from
   the family data the customer gives us, or reuses what they already gave.
-- The customer chooses. The system never recommends or steers.
+- The customer chooses. Optional related products may be shown as ways to reuse family data, but are never auto-added or framed as mandatory recommendations.
 - Pay first, then made. Full payment before production starts; nothing is made
   or sent to a partner until the payment is verified.
 - After payment a partner is assigned by speciality (engraving, printing,
@@ -16,7 +16,7 @@ Decided with the owner. Change only with the owner. Newest at the bottom.
 
 | Topic | Decision |
 | --- | --- |
-| Recommendations | None. The customer picks what they want. |
+| Recommendations | Optional complementary products may be shown after the selected product; customers choose each item themselves. |
 | Payment | Full price up front (PAY_UP_FRONT_SHARE = 1 in src/lib/orders.ts). |
 | Returning customers | They type as normal; we compare typed names against their own tree and ask "Is this the same Ann Kamau already in your family?" to avoid duplicates. Not built yet. |
 | Partner assignment | By speciality. Admin chooses from the eligible list and asks them to quote; partner quotes per order; admin accepts one. Built. |
@@ -138,6 +138,12 @@ want that effortless feel, with the commercial step added at the end.
 - Journey and principles: `docs/commerce/JOURNEY.md`.
 
 ## Product photos and email (decided)
-- **Photos:** an admin uploads photos per product in Admin, Products (JPEG, PNG or WebP, up to 8 MB, up to 8 per product). They are re-encoded to WebP, resized and stored in the database, so they survive redeploys. The first is the main photo; any can be made main or removed. Shown in this order: uploaded photos, then the finished-product photos we already hold, then a generic picture (the drawn piece set in a simple scene: framed, plaque, paper print, T-shirt, banner). A product that is off sale shows its photos to admins only.
+- **Photos:** an admin uploads up to 8 photos per product in Admin, Products (JPEG, PNG or WebP, up to 8 MB each). They are re-encoded to WebP, resized and stored in the database. Photos may be general or tagged to a product variant. The product page shows matching variant photos, other product photos and a generated mockup of the selected material, finish and size. Off-sale photos are admin-only.
 - **Email:** every message is a branded formatted email with a plain-text part. Sent: welcome with a confirm-your-email link, receipt for an order (lists items and total, button to pay), order updates, payment receipt, password sign-in link. The people running the shop are emailed when a payment needs checking or a partner quote or application arrives. A confirm link only confirms; it can never sign anyone in. Email is now "needed for customers" in the launch check, with a test button that reports the real error.
 - Email stays optional for the app to run, and a failure to send never breaks an order.
+
+## Reuse the client's family data (decided 2026-10-02)
+- A completed checkout persists the client's family in their primary tree. Later product pages may start a new design from the client or a selected person in that same tree.
+- Reused names stay linked to their existing people; ambiguous duplicate names still require a customer decision. A product never copies another client's tree.
+- Product pages may show up to three active products from the same pathway as optional cross-sells. They are never added to the cart automatically.
+- Every new product starts off-sale with no price until supplier pricing and its production route are reviewed.
