@@ -4,81 +4,84 @@
   --font-sans: "Segoe UI Variable", "Aptos", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
-  /* Cyan actions and links, balanced by a restrained lime identity accent. */
-  --color-brand-50: #14262c;
-  --color-brand-100: #19343b;
-  --color-brand-200: #23515b;
-  --color-brand-500: #3cbacb;
-  --color-brand-600: #087d8e;
-  --color-brand-700: #096879;
-  --color-brand-800: #0a5260;
+  /* System blue actions with quiet graphite and silver surfaces. */
+  --color-brand-50: #edf5ff;
+  --color-brand-100: #d9eaff;
+  --color-brand-200: #b9d8fa;
+  --color-brand-500: #2d83dc;
+  --color-brand-600: #0068d7;
+  --color-brand-700: #0059b8;
+  --color-brand-800: #174a83;
 
-  --color-accent-100: #edf7d8;
-  --color-accent-300: #d3ed9c;
-  --color-accent-500: #b9e76a;
-  --color-accent-600: #91c943;
-  --color-accent-700: #6b9b2f;
+  --color-accent-100: #e9eef4;
+  --color-accent-300: #c3cfdb;
+  --color-accent-500: #718399;
+  --color-accent-600: #586b82;
+  --color-accent-700: #45586e;
 
-  --color-ink: #e7edf2;
-  --color-parchment: #101318;
+  --color-ink: #202733;
+  --color-parchment: #f2f4f7;
 
-  --color-surface: #171b21;
-  --color-surface-2: #1d242c;
-  --color-hairline: #262d35;
-  --color-muted-fg: #a1aab4;
-  --color-success: #80cfa0;
-  --color-warning: #edbd70;
-  --color-danger: #f08383;
+  --color-surface: #ffffff;
+  --color-surface-2: #f2f5f8;
+  --color-hairline: #e4e9ef;
+  --color-muted-fg: #626e7c;
+  --color-success: #247a4b;
+  --color-warning: #925e08;
+  --color-danger: #b43e4c;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --bg: var(--color-parchment);
   --fg: var(--color-ink);
-  --muted: #a1aab4;
+  --muted: #626e7c;
 
-  --card: #171b21;
-  --surface: #151a20;
-  --surface-2: #1d242c;
-  --elevated: #232a33;
-  --border: #343d47;
-  --hairline: #262d35;
+  --card: rgb(255 255 255 / 0.9);
+  --surface: rgb(255 255 255 / 0.72);
+  --surface-2: #f2f5f8;
+  --elevated: rgb(255 255 255 / 0.94);
+  --border: #dce3eb;
+  --hairline: #e6ebf0;
+  --glass: rgb(255 255 255 / 0.62);
+  --glass-edge: rgb(255 255 255 / 0.88);
 
-  --primary: #42c7dc;
-  --primary-fg: #07191c;
-  --link: #85deea;
-  --accent: var(--color-accent-500);
-  --accent-soft: #222c1b;
-  --ring: color-mix(in srgb, var(--primary) 55%, transparent);
+  --primary: #0068d7;
+  --primary-fg: #ffffff;
+  --link: #005eb8;
+  --accent: #586b82;
+  --accent-soft: #e9eef4;
+  --ring: color-mix(in srgb, var(--primary) 42%, transparent);
 
-  --success: #80cfa0;
-  --warning: #edbd70;
-  --danger: #f08383;
-  --tree-male: #087d8e;
-  --tree-female: #607d31;
-  --tree-other: #596675;
-  --tree-male-soft: #194550;
-  --tree-female-soft: #3e5226;
-  --tree-other-soft: #35414e;
+  --success: #247a4b;
+  --warning: #925e08;
+  --danger: #b43e4c;
+  --tree-male: #4779a9;
+  --tree-female: #a5576b;
+  --tree-other: #687583;
+  --tree-male-soft: #dce9f5;
+  --tree-female-soft: #f3e3e8;
+  --tree-other-soft: #e7ebef;
 
-  --hero-from: #16404a;
-  --hero-via: #176b76;
-  --hero-to: #2d3b23;
+  --hero-from: #e8eff6;
+  --hero-via: #c9d9e8;
+  --hero-to: #f0f3f7;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.25), 0 1px 3px rgb(0 0 0 / 0.2);
-  --shadow-md: 0 4px 14px rgb(0 0 0 / 0.32), 0 2px 4px rgb(0 0 0 / 0.2);
-  --shadow-lg: 0 16px 42px rgb(0 0 0 / 0.48);
+  --shadow-sm: 0 1px 2px rgb(31 45 61 / 0.06), 0 2px 6px rgb(31 45 61 / 0.04);
+  --shadow-md: 0 5px 18px rgb(31 45 61 / 0.09), 0 1px 3px rgb(31 45 61 / 0.05);
+  --shadow-lg: 0 18px 48px rgb(31 45 61 / 0.16), 0 2px 8px rgb(31 45 61 / 0.06);
 }
 
 html,
 body {
-  background: var(--bg);
+  background: linear-gradient(135deg, #f7f9fb 0%, #edf1f5 100%);
   color: var(--fg);
 }
 
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 ::selection {
@@ -107,6 +110,20 @@ a {
   background-color: var(--surface-2);
 }
 
+.glass-toolbar,
+.glass-menu,
+.glass-panel {
+  border-color: var(--glass-edge);
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.86), var(--shadow-md);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+.glass-panel {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), var(--shadow-lg);
+}
+
 :where(code, pre) {
   color: var(--fg);
 }
@@ -120,7 +137,7 @@ a {
 
 :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
   color: var(--fg);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 :where(input:not([type="checkbox"]):not([type="radio"]), textarea)::placeholder {
@@ -144,17 +161,20 @@ tbody tr + tr {
 dialog {
   margin: auto;
   border: 1px solid var(--border);
-  background: var(--elevated);
+  background: var(--glass);
   color: var(--fg);
   border-radius: 8px;
   padding: 0;
   max-width: min(92vw, 34rem);
   width: 100%;
-  box-shadow: var(--shadow-lg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), var(--shadow-lg);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
 }
 dialog::backdrop {
-  background: rgb(15 17 22 / 0.45);
-  backdrop-filter: blur(3px);
+  background: rgb(39 52 68 / 0.2);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 dialog[open] {
   animation: dialog-in 0.16s ease-out;

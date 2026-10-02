@@ -11,11 +11,10 @@ export async function ShopHeader({ q, sent, confirmed }: { q?: string; sent?: bo
   return (
     <>
       <header
-        className="mb-8 grid grid-cols-1 items-center gap-3 border-b pb-4 sm:grid-cols-[auto_auto_minmax(12rem,1fr)_auto]"
-        style={{ borderColor: "var(--border)" }}
+        className="glass-toolbar mb-8 grid grid-cols-1 items-center gap-3 rounded-xl border p-3 sm:grid-cols-[auto_auto_minmax(12rem,1fr)_auto]"
       >
         <Link href="/" className="flex items-center gap-2.5 font-semibold">
-          <span className="grid size-8 place-items-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
+          <span className="grid size-8 place-items-center rounded-lg border text-xs font-bold" style={{ borderColor: "var(--glass-edge)", color: "var(--accent)" }}>FC</span>
           <span>Family Compass</span>
         </Link>
         <Link href="/shop" className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--link)] hover:bg-[var(--surface-2)]">Shop</Link>

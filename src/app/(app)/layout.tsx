@@ -32,8 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <InstallPrompt />
       <OfflineSupport />
       <header
-        className="sticky top-0 z-10 border-b backdrop-blur"
-        style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--surface) 88%, transparent)" }}
+        className="glass-toolbar sticky top-0 z-10 border-b"
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href="/app" className="flex shrink-0 items-center gap-2.5 font-semibold">
@@ -82,8 +81,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 ☰
               </summary>
               <div
-                className="absolute right-0 z-20 mt-2 w-56 rounded-xl border p-2 text-sm shadow-lg"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                className="glass-menu absolute right-0 z-20 mt-2 w-56 rounded-xl border p-2 text-sm"
+                style={{ borderColor: "var(--glass-edge)" }}
               >
                 <Link href="/app?trees=1" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Your trees</Link>
                 <Link href="/guide" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Guide</Link>

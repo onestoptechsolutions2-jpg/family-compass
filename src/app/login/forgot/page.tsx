@@ -9,7 +9,7 @@ export default async function ForgotPage({ searchParams }: { searchParams: Promi
   const { sent } = await searchParams;
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-      <section className="rounded-xl border p-6 shadow-lg sm:p-8" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <section className="glass-panel rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--glass-edge)" }}>
       <Link href="/" className="mb-7 inline-flex items-center gap-2.5 font-semibold">
         <span className="grid size-8 place-items-center rounded-md border text-xs font-bold" style={{ borderColor: "var(--border)", color: "var(--accent)" }}>FC</span>
         <span>Family Compass</span>

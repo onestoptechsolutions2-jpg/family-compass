@@ -9,12 +9,12 @@
 type Variant = "hero" | "badge" | "strip";
 
 const PEANUT = {
-  cream: "#10171b",
-  sand: "#17252a",
-  butter: "#25434a",
-  roast: "#176878",
-  shell: "#354d2a",
-  cocoa: "#b9e76a",
+  cream: "#f7f9fc",
+  sand: "#e5ebf2",
+  butter: "#cbd8e5",
+  roast: "#aabbd0",
+  shell: "#8497ae",
+  cocoa: "#53677e",
 };
 
 export function PeanutArt({
