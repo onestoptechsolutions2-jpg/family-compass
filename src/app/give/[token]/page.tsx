@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { fundByToken, fundTotals, fundContributions } from "@/lib/chama";
-import { chamaEnabled } from "@/lib/chama/plugin";
-import { getPaymentSettings } from "@/lib/payments";
+import { memorialFundEnabled } from "@/lib/chama/plugin";
+import { describeDestination } from "@/lib/fund-destination";
 import { ViewBeacon } from "@/components/ViewBeacon";
 import { submitContribution } from "./actions";
 
-export const metadata: Metadata = { title: "Family welfare fund", robots: { index: false } };
+export const metadata: Metadata = { title: "Funeral fund", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 const KES = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
@@ -28,26 +28,22 @@ export default async function GivePage({
   params: Promise<{ token: string }>;
   searchParams: Promise<{ given?: string; err?: string }>;
 }) {
-  if (!chamaEnabled()) notFound();
+  if (!memorialFundEnabled()) notFound();
   const { token } = await params;
   const { given, err } = await searchParams;
 
   const fund = await fundByToken(token);
   if (!fund) notFound();
 
-  const [totals, contributions, pay] = await Promise.all([
+  const [totals, contributions] = await Promise.all([
     fundTotals(fund.id),
     fundContributions(fund.id, { publicOnly: true }),
-    getPaymentSettings(),
   ]);
 
   const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
   const fs = { borderColor: "var(--border)", background: "var(--surface-2)" };
-  const payLine = pay.paybillNumber
-    ? `Paybill ${pay.paybillNumber}${pay.accountRef ? `, account ${pay.accountRef}` : ""}`
-    : pay.tillNumber
-      ? `Till ${pay.tillNumber}`
-      : null;
+  // Always the family's own M-Pesa, never the shop's: Family Compass does not hold this money.
+  const payLine = describeDestination(fund);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 py-8">
@@ -63,7 +59,7 @@ export default async function GivePage({
 
       <div className="mt-8">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
-          Family welfare fund
+          Funeral fund
         </p>
         <h1 className="mt-1 font-serif text-2xl">{fund.label}</h1>
         {fund.memorial?.headline && (
@@ -90,7 +86,11 @@ export default async function GivePage({
         )}
       </div>
 
-      {fund.status !== "OPEN" ? (
+      {fund.status === "OPEN" && !payLine ? (
+        <p className="mt-6 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+          The family has not yet said where to send contributions. Please check back soon.
+        </p>
+      ) : fund.status !== "OPEN" ? (
         <p className="mt-6 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
           This fund is now closed. Thank you to everyone who gave.
         </p>
@@ -106,8 +106,8 @@ export default async function GivePage({
         <form action={submitContribution.bind(null, token)} className="mt-6 flex flex-col gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
           {payLine && (
             <p className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--hairline)", background: "var(--surface-2)" }}>
-              Send your M-Pesa to <strong>{payLine}</strong>
-              {pay.businessName ? ` (${pay.businessName})` : ""}, then fill this in so the family can match it.
+              Send your M-Pesa to <strong>{payLine}</strong>, then fill this in so the family can match it.
+              <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>The money goes straight to the family. Check the name M-Pesa shows before you confirm.</span>
             </p>
           )}
           <div className="grid gap-3 sm:grid-cols-2">

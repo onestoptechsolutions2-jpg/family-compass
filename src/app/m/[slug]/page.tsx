@@ -8,7 +8,7 @@ import { mapsHref } from "@/lib/geo";
 import { RecentMemorials } from "@/components/RecentMemorials";
 import { publicOrigin } from "@/lib/origin";
 import { templateTheme } from "@/lib/memorial-templates";
-import { chamaEnabled } from "@/lib/chama/plugin";
+import { memorialFundEnabled } from "@/lib/chama/plugin";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { Dialog } from "@/components/Dialog";
 import { SaveMemorial } from "@/components/SaveMemorial";
@@ -541,9 +541,9 @@ export default async function MemorialPage({
           </section>
         )}
 
-        {chamaEnabled() && m.welfareFund && (
-          <section className="p-4 text-sm" style={cardStyle}>
-            <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Family welfare fund</h2>
+        {memorialFundEnabled() && m.welfareFund && (
+          <section id="contribute" className="p-4 text-sm" style={cardStyle}>
+            <h2 className="font-medium" style={{ fontFamily: theme.headingFont }}>Contribute to the funeral</h2>
             <p className="mt-1">
               <strong>KES {m.welfareFund.raisedKes.toLocaleString("en-KE")}</strong>
               {m.welfareFund.targetKes ? ` raised of KES ${m.welfareFund.targetKes.toLocaleString("en-KE")}` : " raised so far"}
@@ -558,8 +558,11 @@ export default async function MemorialPage({
                 className="mt-2 inline-block rounded-full px-4 py-1.5 text-sm font-medium text-white"
                 style={{ background: theme.accent }}
               >
-                Contribute to the fund →
+                Contribute →
               </Link>
+            )}
+            {m.welfareFund.open && m.welfareFund.payTo && (
+              <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>Or send M-Pesa directly to {m.welfareFund.payTo}. The money goes straight to the family.</p>
             )}
           </section>
         )}

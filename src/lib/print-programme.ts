@@ -1,4 +1,5 @@
 import { lines, pair } from "@/lib/order-shared";
+import { describeDestination, parseDestination } from "@/lib/fund-destination";
 import { PRINT_BRAND, compass, esc, fitSize, qrPath, wrapText, type PrintInput, type PrintSheet } from "@/lib/print-kit";
 
 /**
@@ -207,12 +208,21 @@ export function renderProgramme(input: PrintInput, sizeKey: string | undefined):
 
   // ---- the back page ----
   const back: string[] = [border()];
-  back.push(centre(26 * k, 3.4 * k, "SCAN TO SEE THEIR MEMORIAL PAGE", `letter-spacing="${0.5 * k}" fill="${ink.gold}"`));
-  back.push(centre(31.5 * k, 3.0 * k, "Share a memory, see photos and the service details", `fill="${ink.sub}"`));
+  // with a funeral fund, the QR is also how mourners contribute; the money goes to the family
+  const dest = parseDestination({ payKind: o.fundKind, payNumber: o.fundNumber, payAccount: o.fundAccount, payName: o.fundName });
+  const payTo = dest.ok && dest.value ? describeDestination(dest.value) : null;
+  back.push(centre(26 * k, 3.4 * k, payTo ? "SCAN TO CONTRIBUTE AND SEE THEIR MEMORIAL" : "SCAN TO SEE THEIR MEMORIAL PAGE", `letter-spacing="${0.5 * k}" fill="${ink.gold}"`));
+  back.push(centre(31.5 * k, 3.0 * k, payTo ? "Give to the funeral, share a memory, see the service details" : "Share a memory, see photos and the service details", `fill="${ink.sub}"`));
   const qs = 46 * k;
   back.push(`<rect x="${W / 2 - qs / 2 - 3 * k}" y="${37 * k}" width="${qs + 6 * k}" height="${qs + 6 * k}" rx="${2 * k}" fill="#fff" stroke="${ink.gold}" stroke-width="${0.3 * k}"/>`);
   back.push(qrPath(input.qrUrl, W / 2 - qs / 2, 40 * k, qs, "#111"));
   let by = 37 * k + qs + 16 * k;
+  if (payTo) {
+    back.push(centre(by, 3.8 * k, "Contributions", `font-weight="700" fill="${ink.accent}"`));
+    by += 6 * k;
+    back.push(centre(by, fitSize(payTo, inner, 3.4 * k), payTo, `font-weight="600"`));
+    by += 8 * k;
+  }
   const contacts = lines(o.contacts);
   if (contacts.length) {
     back.push(centre(by, 3.8 * k, "Contributions and enquiries", `font-weight="700" fill="${ink.accent}"`));

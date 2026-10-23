@@ -39,6 +39,15 @@ export function chamaEnabled(): boolean {
   return env.CHAMA_ENABLED && env.GENEALOGY_EXTRAS;
 }
 
+/**
+ * The funeral fund on a memorial (the harambee page at /give/<token>). It belongs to the
+ * shop-first product, not the genealogy extras: every funeral programme can carry one.
+ * Off only with CHAMA_ENABLED=false.
+ */
+export function memorialFundEnabled(): boolean {
+  return env.CHAMA_ENABLED;
+}
+
 export const CHAMA_PLUGIN = {
   id: "chama",
   name: "Chama — family welfare & savings",

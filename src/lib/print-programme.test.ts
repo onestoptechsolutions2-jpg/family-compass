@@ -51,3 +51,19 @@ describe("funeral programme", () => {
     expect(renderProgramme({ ...base, options: person }, "a4").pageMm).toEqual([210, 297]);
   });
 });
+
+describe("a programme that collects contributions", () => {
+  it("says so on the back, with the family's own number", () => {
+    const r = renderProgramme(
+      { ...base, options: { ...person, fundKind: "PHONE", fundNumber: "0712 345 678", fundName: "Jane Okusimba" } },
+      "a5",
+    );
+    const back = r.pages!.at(-1)!;
+    expect(back).toContain("SCAN TO CONTRIBUTE");
+    expect(back).toContain("M-Pesa 0712 345 678 (Jane Okusimba)");
+  });
+  it("prints nothing about money when the number is not valid", () => {
+    const r = renderProgramme({ ...base, options: { ...person, fundKind: "PHONE", fundNumber: "123", fundName: "Jane" } }, "a5");
+    expect(r.pages!.at(-1)!).not.toContain("CONTRIBUTE");
+  });
+});

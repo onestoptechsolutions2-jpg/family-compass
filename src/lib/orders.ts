@@ -1,4 +1,5 @@
 import { FamilyType, OrderStatus, PaymentKind, PaymentStatus } from "@prisma/client";
+import { parseDestination } from "@/lib/fund-destination";
 
 import { db } from "@/lib/db";
 import { slugify, randomToken, paymentReference } from "@/lib/slug";
@@ -372,7 +373,7 @@ export async function checkoutCart(
     : await personalWorkspaceId(userId, displayName);
 
   // Everything below commits together or not at all.
-  return db.$transaction(
+  const placed = await db.$transaction(
     async (tx) => {
       // A double click or second tab must not build the family twice: whoever
       // flips DRAFT first wins, the other returns the payment that one opened.
@@ -446,6 +447,37 @@ export async function checkoutCart(
     },
     { timeout: 60_000 },
   );
+  if (placed) await openFundsForOrder(order.id, workspaceId, userId);
+  return placed;
+}
+
+/**
+ * A programme that asked to collect contributions opens the funeral fund on its memorial, paid
+ * straight to the family's own M-Pesa. Done after the order is placed: a fund that fails to open
+ * never costs the family their order, and the family can still open it from the memorial.
+ */
+async function openFundsForOrder(orderId: string, workspaceId: string, userId: string): Promise<void> {
+  // loaded here, not at the top: the chama module reads the environment when it loads
+  const { ensureMemorialFund } = await import("@/lib/chama");
+  const items = await db.orderItem.findMany({ where: { orderId }, select: { layoutSnapshot: true, product: { select: { layout: true } } } });
+  for (const it of items) {
+    const o = (it.layoutSnapshot ?? {}) as DraftOptions & { memorialId?: string | null; name?: string };
+    if (it.product.layout !== "programme" || !o.memorialId || !o.fundKind) continue;
+    const dest = parseDestination({ payKind: o.fundKind, payNumber: o.fundNumber, payAccount: o.fundAccount, payName: o.fundName });
+    if (!dest.ok || !dest.value) continue;
+    const memorial = await db.memorial.findUnique({ where: { id: o.memorialId }, select: { treeId: true } });
+    if (!memorial) continue;
+    try {
+      await ensureMemorialFund(memorial.treeId, o.memorialId, {
+        workspaceId,
+        label: `Funeral fund — ${o.name || [o.first, o.surname].filter(Boolean).join(" ")}`,
+        createdById: userId,
+        destination: dest.value,
+      });
+    } catch (e) {
+      console.error("[orders] could not open the funeral fund", e);
+    }
+  }
 }
 
 /**

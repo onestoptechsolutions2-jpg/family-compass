@@ -1840,6 +1840,13 @@ model ChamaFund {
   targetKes   Int?
   memorialId  String?         @unique
   publicToken String          @unique
+  /// where contributors send money: the family's own M-Pesa, never the platform's.
+  /// payKind is PHONE (send money), PAYBILL (with payAccount) or TILL (buy goods)
+  payKind     String?
+  payNumber   String?
+  payAccount  String?
+  /// the name M-Pesa shows the contributor, so they can check before sending
+  payName     String?
   status      ChamaFundStatus @default(OPEN)
   opensAt     DateTime        @default(now())
   closesAt    DateTime?

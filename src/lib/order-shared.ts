@@ -40,6 +40,11 @@ export type DraftOptions = {
   thanks?: string;
   /** programme: contribution and committee contacts, one per line, e.g. "M-Pesa Paybill 123456, account Kamau" */
   contacts?: string;
+  /** programme: where funeral contributions go, the family's own M-Pesa (see fund-destination) */
+  fundKind?: string;
+  fundNumber?: string;
+  fundAccount?: string;
+  fundName?: string;
   /** a photo uploaded for the piece (the programme cover): a DraftPhoto id */
   photoId?: string;
   /** answers to "is this the same person already in your family?": normalised name -> person id, or "new" */

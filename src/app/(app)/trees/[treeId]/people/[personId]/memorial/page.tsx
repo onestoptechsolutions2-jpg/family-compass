@@ -9,7 +9,8 @@ import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/
 import { getPaymentSettings } from "@/lib/payments";
 import { formatDate } from "@/lib/date";
 import { viewSummary } from "@/lib/queries/view-analytics";
-import { chamaEnabled } from "@/lib/chama/plugin";
+import { memorialFundEnabled } from "@/lib/chama/plugin";
+import { describeDestination, localPhone, PAY_KINDS } from "@/lib/fund-destination";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
@@ -45,6 +46,7 @@ import {
   setMemorialStatus,
   setMemorialTemplate,
   openMemorialFund,
+  setFundDestination,
   confirmFundContribution,
   voidFundContribution,
   setMemorialFundOpen,
@@ -65,10 +67,13 @@ const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 
 export default async function MemorialEditorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ treeId: string; personId: string }>;
+  searchParams: Promise<{ fundError?: string }>;
 }) {
   const { treeId, personId } = await params;
+  const { fundError } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   if (!canEdit(ctx.role)) notFound();
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
@@ -1073,19 +1078,24 @@ export default async function MemorialEditorPage({
       </section>
 
       {/* ---- Welfare fund (chama plugin) ---- */}
-      {chamaEnabled() && (
+      {memorialFundEnabled() && (
       <section
+        id="fund"
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <h2 className="font-medium">Welfare fund</h2>
+        <h2 className="font-medium">Funeral fund (harambee)</h2>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          A family <em>chama</em> kitty for funeral costs. Share one link; supporters record what
-          they send by M-Pesa and the treasurer confirms each against the statement.
+          Collect contributions toward the funeral. People send money straight to your own M-Pesa number,
+          paybill or till; Family Compass never holds it. Each contributor records what they sent, and you
+          confirm it against your M-Pesa statement. The memorial page and the QR on the programme show a
+          Contribute button and the total raised.
         </p>
+        {fundError && <p role="alert" className="mt-2 rounded-lg border p-2 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>{fundError}</p>}
 
         {!memorial.chamaFund ? (
           <form action={openMemorialFund.bind(null, treeId, memorial.id)} className="mt-3 flex flex-wrap items-end gap-2">
+            <FundDestinationFields />
             <label className="text-sm">
               <span style={{ color: "var(--muted)" }}>Target (optional)</span>
               <input
@@ -1097,7 +1107,7 @@ export default async function MemorialEditorPage({
               />
             </label>
             <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-              Open a welfare fund
+              Open the funeral fund
             </button>
           </form>
         ) : (
@@ -1109,8 +1119,23 @@ export default async function MemorialEditorPage({
             const pending = live.filter((c) => c.status === "PLEDGED");
             const raised = confirmed.reduce((s, c) => s + c.amountKes, 0);
             const pledged = pending.reduce((s, c) => s + c.amountKes, 0);
+            const payTo = describeDestination(fund);
             return (
               <div className="mt-3 flex flex-col gap-3 text-sm">
+                <div className="rounded-lg border p-3" style={{ borderColor: payTo ? "var(--border)" : "var(--danger)" }}>
+                  {payTo ? (
+                    <p>People send money to <strong>{payTo}</strong>.</p>
+                  ) : (
+                    <p className="text-red-600">Add where people send money. Until you do, the page cannot take contributions.</p>
+                  )}
+                  <details className="mt-1" open={!payTo}>
+                    <summary className="cursor-pointer text-xs" style={{ color: "var(--muted)" }}>{payTo ? "Change it" : "Add it"}</summary>
+                    <form action={setFundDestination.bind(null, treeId, memorial.id, fund.id)} className="mt-2 flex flex-wrap items-end gap-2">
+                      <FundDestinationFields value={fund} />
+                      <button className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)" }}>Save</button>
+                    </form>
+                  </details>
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-lg font-semibold">{KES(raised)}</span>
                   <span style={{ color: "var(--muted)" }}>
@@ -1203,5 +1228,34 @@ export default async function MemorialEditorPage({
         <button className="text-xs text-red-600 hover:underline">Delete this memorial</button>
       </form>
     </div>
+  );
+}
+
+/** Where contributors send money: the family's own phone, paybill or till. */
+function FundDestinationFields({ value }: { value?: { payKind: string | null; payNumber: string | null; payAccount: string | null; payName: string | null } }) {
+  const input = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
+  const st = { borderColor: "var(--border)", background: "var(--surface-2)" };
+  const number = value?.payKind === "PHONE" && value.payNumber ? localPhone(value.payNumber) : (value?.payNumber ?? "");
+  return (
+    <>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>People send money to</span>
+        <select name="payKind" defaultValue={value?.payKind ?? "PHONE"} className={input} style={st}>
+          {PAY_KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Number</span>
+        <input name="payNumber" required defaultValue={number} inputMode="numeric" placeholder="0712 345 678" className={input} style={st} />
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Account (paybill only)</span>
+        <input name="payAccount" defaultValue={value?.payAccount ?? ""} placeholder="e.g. MUSUNGU" className={input} style={st} />
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Name M-Pesa shows</span>
+        <input name="payName" required defaultValue={value?.payName ?? ""} placeholder="e.g. Jane Okusimba" className={input} style={st} />
+      </label>
+    </>
   );
 }

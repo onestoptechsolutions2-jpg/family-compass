@@ -20,6 +20,7 @@ import { notifyTreeManagers } from "@/lib/notify";
 import { upsertPersonEvent } from "@/lib/person-write";
 import { releaseClaimOnDeath } from "@/lib/claims";
 import { MERGE_TARGET } from "@/lib/memorial-sections";
+import { parseDestination } from "@/lib/fund-destination";
 import { isTemplateId } from "@/lib/memorial-templates";
 import {
   ensureMemorialFund,
@@ -761,13 +762,34 @@ export async function openMemorialFund(treeId: string, memorialId: string, formD
   });
   const target = Number(String(formData.get("targetKes") ?? "").replace(/[^\d]/g, "")) || null;
   const who = full.headline || displayName(full.person.names);
+  // the money goes to the family's own M-Pesa; a fund is never opened without it
+  const dest = destinationFromForm(formData);
+  if (!dest.ok || !dest.value) fundError(m.personId, treeId, dest.ok ? "Add where people send money: your own M-Pesa number, paybill or till." : dest.error);
   await ensureMemorialFund(treeId, memorialId, {
     workspaceId: full.tree.workspaceId,
     label: `Welfare fund — ${who}`,
     targetKes: target,
     createdById: ctx.user.id,
+    destination: dest.ok ? dest.value : null,
   });
   revalidate(treeId, m.personId);
+}
+
+/** Change where contributors send money. */
+export async function setFundDestination(treeId: string, memorialId: string, fundId: string, formData: FormData) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const dest = destinationFromForm(formData);
+  if (!dest.ok || !dest.value) fundError(m.personId, treeId, dest.ok ? "Add where people send money." : dest.error);
+  await db.chamaFund.updateMany({ where: { id: fundId, memorialId }, data: dest.ok && dest.value ? dest.value : {} });
+  revalidate(treeId, m.personId);
+}
+
+const destinationFromForm = (fd: FormData) =>
+  parseDestination({ payKind: fd.get("payKind") as string | null, payNumber: fd.get("payNumber") as string | null, payAccount: fd.get("payAccount") as string | null, payName: fd.get("payName") as string | null });
+
+function fundError(personId: string, treeId: string, message: string): never {
+  redirect(`/trees/${treeId}/people/${personId}/memorial?fundError=${encodeURIComponent(message)}#fund`);
 }
 
 export async function confirmFundContribution(

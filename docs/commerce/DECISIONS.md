@@ -173,3 +173,21 @@ want that effortless feel, with the commercial step added at the end.
   Nothing is deleted.
 - **Open:** draft photos for designs never ordered are kept (no clean-up job yet); the programme
   prints in reading order, and the printer imposes it for folding.
+
+## The funeral fund (harambee) comes back, paid to the family (decided 2026-10-23)
+- **The funeral is where Family Compass and Chama meet.** The programme's QR opens the memorial,
+  and the memorial takes contributions toward the funeral. Plan, in order: (1) this manual fund on
+  Family Compass; (2) Chama's self-recording M-Pesa rails (IntaSend); (3) a short-lived "funeral
+  fund" group in Chama that a programme order opens through Chama's API; (4) committee-only totals
+  per family branch; (5) after the burial, the committee is invited to become a family welfare
+  chama, members pre-filled from the tree; (6) a chama's approved bereavement claim offers a
+  programme with the group as referrer.
+- **Family Compass never holds contribution money.** Every fund names the family's own M-Pesa
+  (phone, paybill and account, or till) and the name M-Pesa shows. The contribute page shows only
+  that; the shop's till is never offered for contributions. A fund with no destination takes nothing.
+  Contributors record what they sent; the family confirms it against their statement.
+- The memorial fund is part of the shop-first product: it no longer depends on GENEALOGY_EXTRAS
+  (only CHAMA_ENABLED=false turns it off). The rest of chama (the tree's Chama tab, groups by
+  generation) stays an extra.
+- The programme wizard asks, optionally, where contributions go; placing the order opens the fund
+  and the back page reads "Scan to contribute", with the family's number printed under the QR.

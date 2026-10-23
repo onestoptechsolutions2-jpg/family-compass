@@ -3,6 +3,7 @@ import type { ChamaPurpose } from "@prisma/client";
 import { db } from "@/lib/db";
 import { randomToken } from "@/lib/slug";
 import { emitTreeEvent } from "@/lib/webhooks";
+import type { FundDestination } from "@/lib/fund-destination";
 
 /**
  * Family "chama" — a welfare / savings group attached to a tree. This is the
@@ -123,13 +124,17 @@ export async function chamaMembers(chamaId: string) {
 export async function ensureMemorialFund(
   treeId: string,
   memorialId: string,
-  opts: { workspaceId: string; label: string; targetKes?: number | null; createdById?: string | null },
+  opts: { workspaceId: string; label: string; targetKes?: number | null; createdById?: string | null; destination?: FundDestination | null },
 ): Promise<{ token: string; fundId: string }> {
   const found = await db.chamaFund.findUnique({
     where: { memorialId },
-    select: { id: true, publicToken: true },
+    select: { id: true, publicToken: true, payNumber: true },
   });
-  if (found) return { token: found.publicToken, fundId: found.id };
+  if (found) {
+    // a fund opened before the family said where money goes takes the destination now
+    if (opts.destination && !found.payNumber) await db.chamaFund.update({ where: { id: found.id }, data: opts.destination });
+    return { token: found.publicToken, fundId: found.id };
+  }
 
   const chama = await ensureTreeChama(treeId, {
     workspaceId: opts.workspaceId,
@@ -144,6 +149,7 @@ export async function ensureMemorialFund(
       memorialId,
       publicToken,
       createdById: opts.createdById ?? null,
+      ...(opts.destination ?? {}),
     },
     select: { id: true },
   });
@@ -166,6 +172,10 @@ export async function fundByToken(token: string) {
       targetKes: true,
       status: true,
       chamaId: true,
+      payKind: true,
+      payNumber: true,
+      payAccount: true,
+      payName: true,
       chama: { select: { treeId: true, name: true, currency: true } },
       memorial: { select: { slug: true, headline: true } },
     },
@@ -211,10 +221,11 @@ export async function recordPledge(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const fund = await db.chamaFund.findUnique({
     where: { publicToken: token },
-    select: { id: true, chamaId: true, status: true, chama: { select: { treeId: true } } },
+    select: { id: true, chamaId: true, status: true, payNumber: true, chama: { select: { treeId: true } } },
   });
   if (!fund) return { ok: false, error: "not_found" };
-  if (fund.status !== "OPEN") return { ok: false, error: "closed" };
+  // with nowhere to send money there is nothing to record yet
+  if (fund.status !== "OPEN" || !fund.payNumber) return { ok: false, error: "closed" };
 
   const name = input.name.trim().slice(0, 120);
   const amountKes = Math.round(input.amountKes);

@@ -6,6 +6,7 @@ import { OrderStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { DraftOptions } from "@/lib/orders";
 import { saveDraftPhoto } from "@/lib/draft-photo";
+import { parseDestination } from "@/lib/fund-destination";
 import { VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 
 const TEXT_KEYS = [
@@ -34,6 +35,10 @@ const TEXT_KEYS = [
   "tribute",
   "thanks",
   "contacts",
+  "fundKind",
+  "fundNumber",
+  "fundAccount",
+  "fundName",
   "materialKey",
   "sizeKey",
   "finishKey",
@@ -65,6 +70,15 @@ export async function saveStep(token: string, step: number, formData: FormData) 
     const v = formData.get(key);
     if (typeof v === "string" && !offered(key, v)) continue;
     if (typeof v === "string") next[key] = v.trim().slice(0, key === "epitaph" ? 300 : LONG_KEYS.has(key) ? 8000 : key === "birthdays" || key === "attendees" ? 4000 : 600);
+  }
+  // Where funeral contributions go must be a real M-Pesa destination, or nothing.
+  if (formData.has("fundKind")) {
+    const dest = parseDestination({ payKind: next.fundKind, payNumber: next.fundNumber, payAccount: next.fundAccount, payName: next.fundName });
+    if (next.fundKind && !dest.ok) {
+      await db.orderItem.update({ where: { id: item.id }, data: { options: next as DraftOptions } });
+      redirect(`/order/${token}?step=${step}&error=${encodeURIComponent(dest.error)}`);
+    }
+    if (!next.fundKind) for (const k of ["fundNumber", "fundAccount", "fundName"]) delete next[k];
   }
   // A photo is only ever set by uploading one, never from typed text.
   const photo = formData.get("photo");

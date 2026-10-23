@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { describeDestination } from "@/lib/fund-destination";
 
 import { db } from "@/lib/db";
 import { displayName, NAME_SELECT, presumedLiving } from "@/lib/person";
@@ -176,6 +177,10 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
           publicToken: true,
           targetKes: true,
           status: true,
+          payKind: true,
+          payNumber: true,
+          payAccount: true,
+          payName: true,
           contributions: {
             orderBy: { createdAt: "desc" },
             take: 100,
@@ -274,6 +279,10 @@ export async function getPublicMemorial(slug: string) {
           label: true,
           targetKes: true,
           status: true,
+          payKind: true,
+          payNumber: true,
+          payAccount: true,
+          payName: true,
           contributions: {
             where: { status: "CONFIRMED" },
             select: { amountKes: true },
@@ -336,7 +345,9 @@ export async function getPublicMemorial(slug: string) {
           token: m.chamaFund.publicToken,
           label: m.chamaFund.label,
           targetKes: m.chamaFund.targetKes,
-          open: m.chamaFund.status === "OPEN",
+          // a fund with nowhere to send money cannot take contributions yet
+          open: m.chamaFund.status === "OPEN" && Boolean(m.chamaFund.payNumber),
+          payTo: describeDestination(m.chamaFund),
           raisedKes: m.chamaFund.contributions.reduce((s, c) => s + c.amountKes, 0),
         }
       : null;

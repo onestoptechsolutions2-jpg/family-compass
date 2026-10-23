@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { chamaEnabled } from "@/lib/chama/plugin";
+import { memorialFundEnabled } from "@/lib/chama/plugin";
 
 export type BereaveStep = {
   key: string;
@@ -84,13 +84,13 @@ export async function bereavementSteps(
       href: `${mBase}#pass`,
       cta: "Get the pass",
     },
-    ...(chamaEnabled()
+    ...(memorialFundEnabled()
       ? [
           {
             key: "fund",
             done: !!memorial?.chamaFund,
-            label: "Open a welfare fund for the funeral",
-            href: `/trees/${treeId}/chama`,
+            label: "Open a funeral fund (harambee) on the memorial",
+            href: `${mBase}#fund`,
             cta: "Open fund",
           },
         ]

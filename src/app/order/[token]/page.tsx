@@ -132,6 +132,17 @@ export default async function OrderWizard({
         </div>
       );
     }
+    if (f.choices) {
+      return (
+        <label key={f.key}>
+          {label(f.label)}
+          {f.hint && <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>{f.hint}</span>}
+          <select name={f.key} defaultValue={(o[f.key] as string | undefined) ?? f.choices[0]?.[0]} className={field} style={fieldStyle}>
+            {f.choices.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+        </label>
+      );
+    }
     const value = o[f.key] as string | undefined;
     return (
       <label key={f.key}>
@@ -147,7 +158,7 @@ export default async function OrderWizard({
   };
 
   // What was entered, in the customer's own words, for the review.
-  const filled = [...step1.fields, ...step2.fields].filter((f) => !f.relation && !f.photo && (o[f.key] as string | undefined)?.trim());
+  const filled = [...step1.fields, ...step2.fields].filter((f) => !f.relation && !f.photo && !f.choices && (o[f.key] as string | undefined)?.trim());
   const headline = o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || "Name missing";
 
   return (

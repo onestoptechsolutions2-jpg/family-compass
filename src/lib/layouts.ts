@@ -1,4 +1,5 @@
 import type { DraftOptions } from "@/lib/order-shared";
+import { PAY_KINDS } from "@/lib/fund-destination";
 
 /**
  * A product's layout decides what its piece looks like and which questions the
@@ -19,6 +20,8 @@ export type Field = {
   relation?: boolean;
   /** a photo upload (the programme cover), saved as photoId */
   photo?: boolean;
+  /** a choice from a fixed list: [value, label] */
+  choices?: [string, string][];
 };
 export type Step = { title: string; intro?: string; fields: Field[] };
 
@@ -90,6 +93,10 @@ export function stepsFor(layout: Layout, pathway: Pathway): [Step, Step] {
             { key: "tribute", label: "Short tributes (optional)", hint: "one per line", rows: 4 },
             { key: "contacts", label: "Contributions and contacts (optional)", hint: "printed on the back", rows: 3, placeholder: "M-Pesa Paybill 123456, account KAMAU\nChair: Peter Kamau 0712 345 678" },
             { key: "thanks", label: "Thank-you note (optional)", rows: 3 },
+            { key: "fundKind", label: "Collect contributions (optional)", hint: "money goes straight to your own M-Pesa; we never hold it", choices: [["", "Not now"], ...PAY_KINDS] },
+            { key: "fundNumber", label: "Number for contributions", placeholder: "0712 345 678, or the paybill or till number" },
+            { key: "fundAccount", label: "Paybill account (paybill only)", placeholder: "e.g. MUSUNGU" },
+            { key: "fundName", label: "Name M-Pesa shows for it", placeholder: "e.g. Jane Okusimba" },
             { key: "relation", label: "You are their", relation: true },
           ],
         },
