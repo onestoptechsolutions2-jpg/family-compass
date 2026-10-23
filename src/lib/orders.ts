@@ -337,6 +337,7 @@ export async function checkoutCart(
   userId: string,
   orderId: string,
   delivery: Delivery,
+  referrerId: string | null = null,
 ): Promise<{ orderId: string; paymentId: string } | null> {
   const order = await db.order.findUnique({
     where: { id: orderId },
@@ -438,6 +439,7 @@ export async function checkoutCart(
           contactName: delivery.contactName.trim().slice(0, 120),
           contactPhone: delivery.contactPhone.trim().slice(0, 40),
           deliveryText: delivery.deliveryText.trim().slice(0, 500),
+          referrerId,
         },
       });
       return { orderId: order.id, paymentId: payment.id };

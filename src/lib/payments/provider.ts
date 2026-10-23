@@ -24,6 +24,8 @@ export type PaymentSettings = {
   verificationMode: "MANUAL" | "AUTO_CODE" | "WEBHOOK";
   /** where partners send finished pieces that we check before they reach the customer */
   receivingAddress: string | null;
+  /** what a referrer earns on a paid order, in percent */
+  referralPercent: number;
   bankTransfer: {
     bank: string;
     branch: string | null;
@@ -56,6 +58,7 @@ const DEFAULTS: PaymentSettings = {
     "Send the exact amount to our M-Pesa Till, then paste the M-Pesa confirmation code below. Payments are verified within a few hours.",
   verificationMode: "MANUAL",
   receivingAddress: null,
+  referralPercent: 10,
   bankTransfer: null,
 };
 
@@ -85,6 +88,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     researchBaseKes: row.researchBaseKes,
     researchPerGenerationKes: row.researchPerGenerationKes,
     researchPerNodeKes: row.researchPerNodeKes,
+    referralPercent: row.referralPercent ?? DEFAULTS.referralPercent,
     tillNumber: row.tillNumber,
     storeNumber: row.storeNumber,
     paybillNumber: row.paybillNumber,

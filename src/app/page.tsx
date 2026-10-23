@@ -6,6 +6,7 @@ import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { cardPhoto, photosFor } from "@/lib/product-photos";
 import { priceRange, type ProductOptions } from "@/lib/product-pricing";
+import { getPaymentSettings } from "@/lib/payments";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -55,6 +56,7 @@ export default async function LandingPage() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
   // an uploaded photo, else our own, else a generic picture of the piece
+  const { referralPercent } = await getPaymentSettings();
   const programme = products.find((p) => p.layout === "programme");
   const shown = await photosFor(products);
   const withArt = products.map((p) => ({ p, photo: cardPhoto(shown.get(p.id)!, p.slug) }));
@@ -215,9 +217,10 @@ export default async function LandingPage() {
       <section className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)" }}>
         <div>
           <p className="font-medium">Funeral home, church or workshop?</p>
-          <p style={{ color: "var(--muted)" }}>Order for the families you serve, or apply to make our pieces.</p>
+          <p style={{ color: "var(--muted)" }}>Send us families and earn {referralPercent}% on every order they pay for, or apply to make our pieces.</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Link href="/refer" className="rounded-md border px-4 py-2 font-medium" style={{ borderColor: "var(--border)" }}>Earn by referring</Link>
           <Link href="/partner/apply" className="rounded-md border px-4 py-2 font-medium" style={{ borderColor: "var(--border)" }}>Become a partner</Link>
           <a
             href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Hello, I have a question about Family Compass.")}`}
@@ -234,7 +237,8 @@ export default async function LandingPage() {
             <Link href="/about" className="hover:underline">About</Link> ·{" "}
             <Link href="/policies" className="hover:underline">Policies</Link> ·{" "}
             <Link href="/discover" className="hover:underline">Find a family</Link> ·{" "}
-            <Link href="/partner/apply" className="hover:underline">Become a partner</Link>
+            <Link href="/partner/apply" className="hover:underline">Become a partner</Link> ·{" "}
+            <Link href="/refer" className="hover:underline">Earn by referring</Link>
           </>
         }
       />

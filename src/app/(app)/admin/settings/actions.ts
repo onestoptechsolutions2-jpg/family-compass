@@ -34,6 +34,7 @@ const schema = z.object({
   bankAccountName: z.string().trim().max(120).optional(),
   instructions: z.string().trim().max(2000).optional(),
   receivingAddress: z.string().trim().max(400).optional(),
+  referralPercent: z.coerce.number().int().min(0).max(50).default(10),
   verificationMode: z.enum(VerificationMode).default(VerificationMode.MANUAL),
 });
 
@@ -62,6 +63,7 @@ export async function updatePaymentSettings(formData: FormData) {
     accountRef: d.accountRef || null,
     instructions: d.instructions || null,
     verificationMode: d.verificationMode,
+    referralPercent: d.referralPercent,
     config: {
       ...(d.bankName && d.bankAccountNo
         ? {

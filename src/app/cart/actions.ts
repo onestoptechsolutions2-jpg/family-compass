@@ -1,11 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/rbac";
 import { cartTotal, getCart, lineTotal, removeItem, setQuantity } from "@/lib/cart";
 import { checkoutCart } from "@/lib/orders";
+import { REF_COOKIE, referrerForCheckout } from "@/lib/referrals";
 import { userConsentState } from "@/lib/consent";
 import { notifyUser } from "@/lib/notify";
 import { findMatchQuestions, parseAnswers } from "@/lib/matching";
@@ -62,7 +64,9 @@ export async function checkoutAction(formData: FormData) {
     await db.orderItem.update({ where: { id: item.id }, data: { options: { ...((item.options ?? {}) as object), matches: chosen } } });
   }
 
-  const result = await checkoutCart(user.id, cart.id, delivery);
+  const linkCode = (await cookies()).get(REF_COOKIE)?.value ?? null;
+  const referrerId = await referrerForCheckout(user.id, text(formData, "referralCode", 40) || null, linkCode);
+  const result = await checkoutCart(user.id, cart.id, delivery, referrerId);
   if (!result) redirect("/cart?error=" + encodeURIComponent("We could not place your order. Please try again."));
 
   // A new customer has not accepted the policy yet, and the app sends them to

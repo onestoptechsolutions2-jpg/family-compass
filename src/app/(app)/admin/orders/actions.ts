@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { OrderStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { cancelCommission } from "@/lib/referrals";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { recordRefund, refundableOn } from "@/lib/refunds";
 import { wholeKes } from "@/lib/payments/verification";
@@ -111,6 +112,7 @@ export async function cancelOrder(orderId: string, formData: FormData) {
     if (refunded > 0) await recordRefund(orderId, refunded, note || "Order cancelled");
   }
   await db.order.update({ where: { id: orderId }, data: { status: OrderStatus.CANCELLED } });
+  await cancelCommission(orderId);
   await db.productionJob.updateMany({ where: { orderItem: { orderId }, status: { notIn: ["DELIVERED"] } }, data: { status: "CANCELLED" } });
   await writeAudit({ actorId: admin.id, action: "order.cancel", targetType: "order", targetId: orderId, meta: { paidKes, refundedKes: refunded, note } });
   revalidatePath("/admin/orders");
