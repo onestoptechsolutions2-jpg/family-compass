@@ -12,6 +12,7 @@ import { InstallReporter } from "@/components/InstallReporter";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineSupport } from "@/components/OfflineSupport";
 import { SiteFooter } from "@/components/SiteFooter";
+import { extrasEnabled } from "@/lib/features";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (consent.stale) redirect("/consent");
   const unread = await unreadNotificationCount(user.id);
   const flash = await readFlash();
+  const extras = extrasEnabled();
 
   const doSignOut = async () => {
     "use server";
@@ -56,11 +58,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
             {/* desktop */}
             <nav className="hidden items-center gap-4 text-sm md:flex">
+              <Link href="/shop" className="hover:underline">Shop</Link>
+              <Link href="/orders" className="hover:underline">My orders</Link>
               <Link href="/guide" className="hover:underline">Guide</Link>
-              <Link href="/communities" className="hover:underline">Communities</Link>
-              <Link href="/discover" className="hover:underline">Discover</Link>
-              <Link href="/research" className="hover:underline">Research</Link>
-              <Link href="/developers" className="hover:underline">Developers</Link>
+              {extras && (
+                <>
+                  <Link href="/communities" className="hover:underline">Communities</Link>
+                  <Link href="/discover" className="hover:underline">Discover</Link>
+                  <Link href="/research" className="hover:underline">Research</Link>
+                  <Link href="/developers" className="hover:underline">Developers</Link>
+                </>
+              )}
               {user.isPlatformAdmin && <Link href="/admin" className="hover:underline">Admin</Link>}
               <Link href="/account" className="hover:underline" style={{ color: "var(--muted)" }}>
                 {user.email}
@@ -85,11 +93,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 style={{ borderColor: "var(--glass-edge)" }}
               >
                 <Link href="/app?trees=1" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Your trees</Link>
+                <Link href="/shop" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Shop</Link>
+                <Link href="/orders" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">My orders</Link>
                 <Link href="/guide" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Guide</Link>
-                <Link href="/communities" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Communities</Link>
-                <Link href="/discover" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Discover</Link>
-                <Link href="/research" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Research</Link>
-                <Link href="/developers" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Developers</Link>
+                {extras && (
+                  <>
+                    <Link href="/communities" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Communities</Link>
+                    <Link href="/discover" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Discover</Link>
+                    <Link href="/research" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Research</Link>
+                    <Link href="/developers" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Developers</Link>
+                  </>
+                )}
                 {user.isPlatformAdmin && (
                   <Link href="/admin" className="block rounded-md px-2 py-2 hover:bg-[var(--surface-2)]">Admin</Link>
                 )}

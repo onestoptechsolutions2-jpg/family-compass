@@ -5,6 +5,7 @@ import { getTreeStatistics, getReportDrilldown, familyEnergyReport } from "@/lib
 import { treeViewSummary } from "@/lib/queries/view-analytics";
 import { genderColor } from "@/lib/person";
 import { EnergyBar, EnergyRow } from "@/components/EnergyBar";
+import { extrasEnabled } from "@/lib/features";
 
 export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
@@ -86,9 +87,9 @@ export default async function ReportsPage({
         </p>
       </div>
 
-      <EnergyBar value={s.energy.score} parts={s.energy.parts} />
+      {extrasEnabled() && <EnergyBar value={s.energy.score} parts={s.energy.parts} />}
 
-      {familyEnergy.length > 0 && (
+      {extrasEnabled() && familyEnergy.length > 0 && (
         <Card>
           <div className="flex items-baseline justify-between">
             <h3 className="font-medium">Energy by family</h3>

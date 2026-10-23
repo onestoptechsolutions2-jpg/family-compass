@@ -35,7 +35,8 @@ import { env } from "@/lib/env";
  *   prisma: Chama, ChamaMember, ChamaFund, ChamaContribution, ChamaLink
  */
 export function chamaEnabled(): boolean {
-  return env.CHAMA_ENABLED;
+  // chama is one of the genealogy extras: it shows only when those are on too
+  return env.CHAMA_ENABLED && env.GENEALOGY_EXTRAS;
 }
 
 export const CHAMA_PLUGIN = {

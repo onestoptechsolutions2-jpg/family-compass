@@ -30,6 +30,7 @@ import { UploadForm } from "@/components/media/UploadForm";
 import { AddParentButton, AddPartnerButton, AddChildButton } from "@/components/QuickAdd";
 import { Dialog } from "@/components/Dialog";
 import { DeepSearchDialog } from "@/components/DeepSearchDialog";
+import { extrasEnabled } from "@/lib/features";
 import { SearchSelect } from "@/components/SearchSelect";
 import { Tabs } from "@/components/Tabs";
 import { ActionMenu, actionItemClass } from "@/components/ActionMenu";
@@ -533,14 +534,16 @@ export default async function PersonDetailPage({
                 </form>
               </Dialog>
 
-              <DeepSearchDialog
-                label="Deep search across families"
-                buttonClass={actionItemClass}
-                prefill={{
-                  name: primaryName(person.names)?.surname ?? primaryName(person.names)?.first ?? undefined,
-                  clan: person.clan?.name ?? undefined,
-                }}
-              />
+              {extrasEnabled() && (
+                <DeepSearchDialog
+                  label="Deep search across families"
+                  buttonClass={actionItemClass}
+                  prefill={{
+                    name: primaryName(person.names)?.surname ?? primaryName(person.names)?.first ?? undefined,
+                    clan: person.clan?.name ?? undefined,
+                  }}
+                />
+              )}
 
               {manages && (
                 <Link href={`/trees/${treeId}/merges?dup=${personId}`} className={actionItemClass}>
@@ -1243,6 +1246,7 @@ export default async function PersonDetailPage({
                         </form>
                       </Dialog>
 
+                      {extrasEnabled() && (
                       <Dialog label="Invite a friend" title="Invite a friend to their own tree" wide>
                         <form action={inviteFriendAction.bind(null, treeId, personId)} className="flex flex-col gap-3">
                           <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -1297,6 +1301,7 @@ export default async function PersonDetailPage({
                           </button>
                         </form>
                       </Dialog>
+                      )}
                     </div>
                   )}
                 </div>

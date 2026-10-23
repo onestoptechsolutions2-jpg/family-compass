@@ -7,6 +7,7 @@ import { publicOrigin } from "@/lib/origin";
 import { cardPhoto, photosFor } from "@/lib/product-photos";
 import { priceRange, type ProductOptions } from "@/lib/product-pricing";
 import { getPaymentSettings } from "@/lib/payments";
+import { extrasEnabled } from "@/lib/features";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -236,7 +237,7 @@ export default async function LandingPage() {
           <>
             <Link href="/about" className="hover:underline">About</Link> ·{" "}
             <Link href="/policies" className="hover:underline">Policies</Link> ·{" "}
-            <Link href="/discover" className="hover:underline">Find a family</Link> ·{" "}
+            {extrasEnabled() && <><Link href="/discover" className="hover:underline">Find a family</Link> ·{" "}</>}
             <Link href="/partner/apply" className="hover:underline">Become a partner</Link> ·{" "}
             <Link href="/refer" className="hover:underline">Earn by referring</Link>
           </>

@@ -10,6 +10,7 @@ import { affinalRelationship } from "@/lib/affinity";
 import { howConnected } from "@/lib/queries/connection";
 import { PersonSelect } from "@/components/PersonSelect";
 import { DeepSearchDialog } from "@/components/DeepSearchDialog";
+import { extrasEnabled } from "@/lib/features";
 
 export const metadata = { title: "Relationship check" };
 
@@ -187,7 +188,7 @@ export default async function RelationshipPage({
                   ? `Checked this tree and ${otherTreesCount} connected ${otherTreesCount === 1 ? "family" : "families"} reachable through confirmed marriage links. For a wider check, run a deep search.`
                   : "Only records in this tree were checked — no marriage links connect it to another family tree yet. For a check across other families and clans, run a deep search."}
               </p>
-              <div className="mt-2">
+              {extrasEnabled() && <div className="mt-2">
                 <DeepSearchDialog
                   label="Deep search across families"
                   buttonClass="rounded-lg border px-3 py-1.5 text-xs font-medium"
@@ -196,7 +197,7 @@ export default async function RelationshipPage({
                     clan: pb.clan?.name ?? undefined,
                   }}
                 />
-              </div>
+              </div>}
             </div>
           )}
           <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>

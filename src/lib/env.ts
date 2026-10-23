@@ -87,6 +87,14 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v !== "false" && v !== "0"),
+  // Genealogy extras beyond the shop and the family record: research, the developer API,
+  // the family directory, chama, deep search, friend invites and the family-energy score.
+  // Off by default so the site leads with the shop; set GENEALOGY_EXTRAS=true to show them.
+  // The code and data stay either way; this only decides what is offered.
+  GENEALOGY_EXTRAS: z
+    .string()
+    .optional()
+    .transform((v) => v === "true" || v === "1"),
   // The chama plugin — welfare funds on memorials + linking to an external
   // Chama-platform group. On by default; set CHAMA_ENABLED=false to remove
   // every chama surface (tab, memorial section, /give page).
