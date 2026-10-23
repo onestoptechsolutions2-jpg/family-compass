@@ -14,6 +14,10 @@ const SWATCH: Record<string, string> = {
   navy: SHIRT_COLOURS.navy!.shirt, maroon: SHIRT_COLOURS.maroon!.shirt,
 };
 
+/** "+KES 500", "+KES 30 a copy", or "included". */
+const choiceCost = (c: { addKes: number; perCopyKes?: number }) =>
+  [c.addKes ? `+${kes(c.addKes)}` : "", c.perCopyKes ? `+${kes(c.perCopyKes)} a copy` : ""].filter(Boolean).join(", ") || "included";
+
 type Props = {
   basePriceKes: number;
   po: ProductOptions;
@@ -25,6 +29,8 @@ type Props = {
   options: DraftOptions;
   /** the preview drawn on the server for the choices already made, so the page is complete before it loads */
   initialSvg: string;
+  /** the cover photo, if the customer added one */
+  photoHref?: string;
 };
 
 /**
@@ -32,7 +38,7 @@ type Props = {
  * the piece in the chosen colour, update as each choice is made, so nothing about
  * the cost is a surprise at the cart.
  */
-export function VariantPicker({ basePriceKes, po, layout, pathway, productName, origin, options, initialSvg }: Props) {
+export function VariantPicker({ basePriceKes, po, layout, pathway, productName, origin, options, initialSvg, photoHref }: Props) {
   const groups = VARIANT_GROUPS.map((g) => ({ ...g, items: po[g.list] ?? [] })).filter((g) => g.items.length);
   const [sel, setSel] = useState<Record<string, string>>(() =>
     Object.fromEntries(groups.map((g) => [g.key, g.items.some((c) => c.key === options[g.key]) ? (options[g.key] as string) : g.items[0]!.key])),
@@ -49,7 +55,7 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
     }
     let live = true;
     renderPrintSheet(
-      { options: chosen, productName, qrUrl: `${origin}/q/yourcode`, pathway, layout },
+      { options: chosen, productName, qrUrl: `${origin}/q/yourcode`, pathway, layout, photoHref },
       chosen.sizeKey,
     ).then((r) => live && setSvg(r.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"')));
     return () => {
@@ -77,7 +83,7 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
                     <span aria-hidden className="h-5 w-5 shrink-0 rounded-full border" style={{ background: SWATCH[c.key], borderColor: "var(--border)" }} />
                   )}
                   <span className="min-w-0 flex-1">{c.label}</span>
-                  <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>{c.addKes ? `+${kes(c.addKes)}` : "included"}</span>
+                  <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>{choiceCost(c)}</span>
                 </label>
               );
             })}

@@ -3,6 +3,7 @@ import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet, type PrintSheet } from "@/lib/print-sheet";
 import type { DraftOptions } from "@/lib/order-shared";
 import { isLayout } from "@/lib/layouts";
+import { draftPhotoDataUrl } from "@/lib/draft-photo";
 
 /**
  * The print sheet for one approved order item, from the layout frozen at
@@ -22,6 +23,7 @@ export async function renderItemSheet(itemId: string): Promise<{ sheet: PrintShe
       qrUrl: `${await publicOrigin()}/q/${item.qrCode.code}`,
       pathway: item.product.pathway,
       layout: isLayout(item.product.layout) ? item.product.layout : "tree",
+      photoHref: await draftPhotoDataUrl(options.photoId),
     },
     options.sizeKey,
   );

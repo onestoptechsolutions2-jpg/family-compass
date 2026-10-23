@@ -5,6 +5,7 @@ import { OrderStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import type { DraftOptions } from "@/lib/orders";
+import { saveDraftPhoto } from "@/lib/draft-photo";
 import { VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 
 const TEXT_KEYS = [
@@ -25,6 +26,14 @@ const TEXT_KEYS = [
   "year",
   "birthdays",
   "attendees",
+  "serviceWhen",
+  "venue",
+  "service",
+  "bio",
+  "hymns",
+  "tribute",
+  "thanks",
+  "contacts",
   "materialKey",
   "sizeKey",
   "finishKey",
@@ -32,6 +41,9 @@ const TEXT_KEYS = [
   "copiesKey",
   "relation",
 ] as const;
+
+/** The life story and the order of service can be long. */
+const LONG_KEYS = new Set<string>(["bio", "service", "tribute", "thanks"]);
 
 /** Save whichever fields this step posted, then go to the next step. */
 export async function saveStep(token: string, step: number, formData: FormData) {
@@ -52,7 +64,19 @@ export async function saveStep(token: string, step: number, formData: FormData) 
   for (const key of TEXT_KEYS) {
     const v = formData.get(key);
     if (typeof v === "string" && !offered(key, v)) continue;
-    if (typeof v === "string") next[key] = v.trim().slice(0, key === "epitaph" ? 300 : key === "birthdays" || key === "attendees" ? 4000 : 600);
+    if (typeof v === "string") next[key] = v.trim().slice(0, key === "epitaph" ? 300 : LONG_KEYS.has(key) ? 8000 : key === "birthdays" || key === "attendees" ? 4000 : 600);
+  }
+  // A photo is only ever set by uploading one, never from typed text.
+  const photo = formData.get("photo");
+  if (photo instanceof File && photo.size > 0) {
+    try {
+      next.photoId = await saveDraftPhoto(photo);
+    } catch (e) {
+      await db.orderItem.update({ where: { id: item.id }, data: { options: next as DraftOptions } });
+      redirect(`/order/${token}?step=${step}&error=${encodeURIComponent((e as Error).message)}`);
+    }
+  } else if (formData.get("removePhoto") === "on") {
+    delete next.photoId;
   }
   await db.orderItem.update({ where: { id: item.id }, data: { options: next as DraftOptions } });
 

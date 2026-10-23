@@ -10,6 +10,7 @@ import type { DraftOptions } from "@/lib/order-shared";
 import { isLayout } from "@/lib/layouts";
 import { generationsOf, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import { previewBackground } from "@/lib/print-kit";
+import { draftPhotoUrl } from "@/lib/draft-photo";
 import { findMatchQuestions } from "@/lib/matching";
 import { ShopHeader } from "@/components/ShopHeader";
 import { checkoutAction, removeItemAction, setQuantityAction } from "./actions";
@@ -55,7 +56,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
     items.map(async (i) => {
       const o = (i.options ?? {}) as DraftOptions;
       const sheet = await renderPrintSheet(
-        { options: o, productName: i.product.name, qrUrl: `${origin}/q/yourcode`, pathway: i.product.pathway, layout: isLayout(i.product.layout) ? i.product.layout : "tree" },
+        { options: o, productName: i.product.name, qrUrl: `${origin}/q/yourcode`, pathway: i.product.pathway, layout: isLayout(i.product.layout) ? i.product.layout : "tree", photoHref: o.photoId ? draftPhotoUrl(o.photoId) : undefined },
         o.sizeKey,
       );
       return sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');

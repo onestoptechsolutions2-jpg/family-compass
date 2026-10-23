@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 
 import { getPartnerContext } from "@/lib/partner-auth";
 import { jobForPartner } from "@/lib/jobs";
 import { renderItemSheet } from "@/lib/print-order";
+import { sheetResponse } from "@/lib/print-file";
 
-/** The print sheet for a job the partner may see. Real millimetres; ?format=png for a picture. */
+/** The print sheet for a job the partner may see. Real millimetres; ?format=png for a picture, ?format=pdf to print. */
 export async function GET(req: Request, { params }: { params: Promise<{ jobId: string }> }) {
   const { partner } = await getPartnerContext();
   if (!partner || partner.status !== "ACTIVE") return new NextResponse("Not found", { status: 404 });
@@ -17,9 +17,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ jobId: s
   if (!r) return new NextResponse("Not ready", { status: 409 });
 
   const headers = { "Cache-Control": "private, no-store" };
-  if (new URL(req.url).searchParams.get("format") === "png") {
-    const png = await sharp(Buffer.from(r.sheet.svg)).resize({ width: 2400 }).png().toBuffer();
-    return new NextResponse(new Uint8Array(png), { headers: { ...headers, "Content-Type": "image/png" } });
-  }
-  return new NextResponse(r.sheet.svg, { headers: { ...headers, "Content-Type": "image/svg+xml" } });
+  return sheetResponse(r.sheet, new URL(req.url).searchParams.get("format"), headers, `job-${jobId}`);
 }

@@ -92,6 +92,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                     <div className="mt-1 flex gap-3 text-xs">
                       <a href={`/admin/orders/print/${i.id}`} target="_blank" className="underline">Print sheet (SVG)</a>
                       <a href={`/admin/orders/print/${i.id}?format=png`} target="_blank" className="underline">PNG</a>
+                      <a href={`/admin/orders/print/${i.id}?format=pdf`} target="_blank" className="underline">PDF</a>
                       <span style={{ color: "var(--muted)" }}>ships {i.product.shipVia === "direct" ? "direct to the customer" : "to us first"}</span>
                     </div>
                   )}

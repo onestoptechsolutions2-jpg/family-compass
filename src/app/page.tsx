@@ -55,6 +55,7 @@ export default async function LandingPage() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
   // an uploaded photo, else our own, else a generic picture of the piece
+  const programme = products.find((p) => p.layout === "programme");
   const shown = await photosFor(products);
   const withArt = products.map((p) => ({ p, photo: cardPhoto(shown.get(p.id)!, p.slug) }));
 
@@ -97,6 +98,24 @@ export default async function LandingPage() {
           <a href="#how" className="rounded-md border px-5 py-2.5 font-medium" style={{ borderColor: "var(--border)" }}>How it works</a>
         </div>
       </section>
+
+      {/* The piece most families need first, and fastest: the funeral programme. */}
+      {programme && (
+        <section className="mt-6 flex flex-col gap-3 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>Planning a funeral?</p>
+            <h2 className="mt-1 font-serif text-2xl text-[var(--fg)]">The funeral programme, designed and printed in 48 hours</h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+              Type their details, add a photo, and see the booklet as you go. Choose the pages and copies; we print and deliver countrywide.
+              {" "}From {kes(priceRange(programme.basePriceKes, programme.options as ProductOptions | null, programme.layout).from)}, delivery included.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 text-sm">
+            <Link href={`/shop/${programme.slug}`} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700">Start the programme</Link>
+            <a href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Hello, I need a funeral programme.")}`} className="rounded-md border px-5 py-2.5 font-medium" style={{ borderColor: "var(--border)" }}>Ask on WhatsApp</a>
+          </div>
+        </section>
+      )}
 
       <div id="shop" className="scroll-mt-4" />
       {withArt.length === 0 && (

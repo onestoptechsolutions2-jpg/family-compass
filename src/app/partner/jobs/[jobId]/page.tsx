@@ -62,7 +62,8 @@ export default async function PartnerJob({
           Print sheet at real size:{" "}
           <a href={`/partner/jobs/${job.id}/print`} target="_blank" className="underline">SVG (vector)</a>
           {" · "}
-          <a href={`/partner/jobs/${job.id}/print?format=png`} target="_blank" className="underline">PNG</a>
+          <a href={`/partner/jobs/${job.id}/print?format=png`} target="_blank" className="underline">PNG</a>{" · "}
+          <a href={`/partner/jobs/${job.id}/print?format=pdf`} target="_blank" className="underline">PDF (300 dpi, every page)</a>
         </p>
         <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
           The QR code is part of the sheet. Do not resize or redraw it: the piece is checked by scanning it.

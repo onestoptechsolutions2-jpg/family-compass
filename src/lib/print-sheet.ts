@@ -1,4 +1,5 @@
 import { lines, pair, type DraftOptions } from "@/lib/order-shared";
+import { renderProgramme } from "@/lib/print-programme";
 import { renderBadges, renderCalendar, renderCard, renderShirt } from "@/lib/print-layouts";
 import { SLOT_LABEL } from "@/lib/tree-edit";
 import { PRINT_BRAND, SIZES_MM, SKINS, compass, esc, initials, qrPath, skinFor, skinForMaterial, type PrintInput, type PrintSheet, type Skin } from "@/lib/print-kit";
@@ -29,6 +30,7 @@ export async function renderPrintSheet(
   if (input.layout === "calendar") return renderCalendar(input, sizeKey, paperSkin);
   if (input.layout === "badges") return renderBadges(input, sizeKey, paperSkin);
   if (input.layout === "shirt") return renderShirt(input, sizeKey);
+  if (input.layout === "programme") return renderProgramme(input, sizeKey);
   void skin0;
   // Pass 1 finds the smallest font any name needs; pass 2 prints every name at
   // that one size, so the sheet reads as a single consistent piece.

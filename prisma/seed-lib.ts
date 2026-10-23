@@ -109,6 +109,49 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
         sizes: [{ key: "wall", label: "Wall (60 x 40 cm)", addKes: 0 }],
       },
     },
+    // The funeral programme: the piece every funeral needs, on a deadline. Placeholder prices:
+    // the admin reviews them in Admin > Products and puts it on sale.
+    {
+      slug: "funeral-programme",
+      pathway: "REMEMBERED" as const,
+      group: "Remember",
+      name: "Funeral programme",
+      summary: "The service booklet: their photo, life story, order of service and family, designed for you and printed. Delivered countrywide in 48 hours, with a QR code to their memorial page.",
+      basePriceKes: 1500,
+      sortOrder: 1,
+      layout: "programme",
+      active: false,
+      options: {
+        materials: [
+          { key: "gloss", label: "Gloss art paper", addKes: 0 },
+          { key: "matte", label: "Matte paper", addKes: 0, perCopyKes: 2 },
+        ],
+        finishes: [
+          { key: "colour", label: "Full colour", addKes: 0, perCopyKes: 10 },
+          { key: "mono", label: "Black and white", addKes: 0 },
+        ],
+        sizes: [
+          { key: "a5", label: "A5 (folded A4)", addKes: 0 },
+          { key: "a4", label: "A4 (folded A3)", addKes: 0, perCopyKes: 15 },
+        ],
+        pages: [
+          { key: "4", label: "4 pages", addKes: 0, perCopyKes: 15 },
+          { key: "8", label: "8 pages", addKes: 0, perCopyKes: 30 },
+          { key: "12", label: "12 pages", addKes: 0, perCopyKes: 45 },
+          { key: "16", label: "16 pages", addKes: 0, perCopyKes: 60 },
+          { key: "20", label: "20 pages", addKes: 0, perCopyKes: 75 },
+          { key: "24", label: "24 pages", addKes: 0, perCopyKes: 90 },
+        ],
+        copies: [
+          { key: "50", label: "50 copies", addKes: 0 },
+          { key: "100", label: "100 copies", addKes: 0 },
+          { key: "200", label: "200 copies", addKes: 0 },
+          { key: "300", label: "300 copies", addKes: 0 },
+          { key: "500", label: "500 copies", addKes: 0 },
+          { key: "1000", label: "1000 copies", addKes: 0 },
+        ],
+      },
+    },
     // ---- Books and print, events and merchandise ------------------------------------
     // Off until real supplier prices are set (Admin > Products): a guessed price on a
     // product nobody has quoted for is how a shop loses money.
@@ -419,6 +462,7 @@ export async function seedProducts(db: PrismaClient): Promise<void> {
     "tombstone-family-tree": { skills: ["stone_engraving"], shipVia: "via_us", aisle: "memorial_stone" },
     "family-tree-poster": { skills: ["printing"], shipVia: "direct", aisle: "wall_art" },
     "wooden-family-tree": { skills: ["wood_engraving"], shipVia: "via_us", aisle: "wall_art" },
+    "funeral-programme": { skills: ["printing"], shipVia: "direct", aisle: "books_print" },
     "memorial-prayer-cards": { skills: ["printing"], shipVia: "direct", aisle: "books_print" },
     "family-birthday-calendar": { skills: ["printing"], shipVia: "direct", aisle: "books_print" },
     "framed-family-tree-print": { skills: ["printing", "framing"], shipVia: "direct", aisle: "wall_art" },

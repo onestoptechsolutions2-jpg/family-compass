@@ -2680,3 +2680,15 @@ model JobFile {
 
   @@index([jobId, kind])
 }
+
+/// A photo a customer adds while designing a piece (the programme cover), before any family
+/// record exists. Kept apart from the order item so an edited copy of a cart item shares it.
+model DraftPhoto {
+  id        String   @id @default(cuid())
+  /// re-encoded JPEG, sized for print
+  bytes     Bytes
+  mimeType  String   @default("image/jpeg")
+  width     Int
+  height    Int
+  createdAt DateTime @default(now())
+}

@@ -31,6 +31,16 @@ const SAMPLE: Record<Layout, (pathway: Pathway) => DraftOptions> = {
     attendees: "Peter Kamau, Host\nMary Wanjiku, Aunt\nJames Kamau, Cousin\nAnn Kamau, Niece",
   }),
   shirt: () => ({ surname: "Kamau", title: "Family Reunion", year: "2026", place: "Kakamega" }),
+  programme: () => ({
+    first: "Hesbon Okusimba", surname: "Musungu", birth: "12 March 1948", death: "2 October 2026",
+    epitaph: "I have fought the good fight, I have finished the race. 2 Timothy 4:7",
+    serviceWhen: "Saturday 14 November 2026, 10am", venue: "His home, Ematsuli, Vihiga",
+    service: "9:00 Arrival of the body\n9:30 Opening prayer\n9:45 Hymn: Amazing Grace\n10:00 Bible reading\n10:15 Reading of the eulogy\n10:45 Tributes from the family\n11:30 Sermon\n12:30 Burial",
+    bio: "Hesbon was born in Ematsuli, the first son of Joseph Musungu and Selpha Ndakala. He trained as a teacher and taught for thirty-five years.\n\nHe was a loving husband, father and grandfather, and a pillar of his church.",
+    parents: "Joseph Musungu\nSelpha Ndakala", children: "Willy Okusimba\nBilly Okusimba\nJane Okusimba",
+    hymns: "Amazing Grace\nIt Is Well With My Soul", contacts: "Chair: Willy Okusimba 0712 345 678",
+    thanks: "The family thanks everyone who stood with us in prayer, presence and support.",
+  }),
 };
 
 const cache = new Map<string, string>();

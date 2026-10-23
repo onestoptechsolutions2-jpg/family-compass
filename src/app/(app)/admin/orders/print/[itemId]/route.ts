@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/rbac";
 import { renderItemSheet } from "@/lib/print-order";
+import { sheetResponse } from "@/lib/print-file";
 
 /**
  * Print sheet for one order item, for the supplier. Admin only.
- *   ?format=svg (default, vector, real millimetres) | png (default 2400px wide)
+ *   ?format=svg (default, vector, real millimetres) | png (2400px wide) | pdf (300 dpi, one page per page)
  * Any layout warnings come back in the X-Print-Warnings header.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ itemId: string }> }) {
@@ -20,9 +20,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ itemId: 
   const headers: Record<string, string> = { "Cache-Control": "private, no-store" };
   if (r.sheet.warnings.length) headers["X-Print-Warnings"] = encodeURIComponent(r.sheet.warnings.join(" | "));
 
-  if (new URL(req.url).searchParams.get("format") === "png") {
-    const png = await sharp(Buffer.from(r.sheet.svg)).resize({ width: 2400 }).png().toBuffer();
-    return new NextResponse(new Uint8Array(png), { headers: { ...headers, "Content-Type": "image/png" } });
-  }
-  return new NextResponse(r.sheet.svg, { headers: { ...headers, "Content-Type": "image/svg+xml" } });
+  return sheetResponse(r.sheet, new URL(req.url).searchParams.get("format"), headers, `item-${itemId}`);
 }

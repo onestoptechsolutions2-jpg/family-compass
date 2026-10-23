@@ -269,13 +269,35 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     });
     sharedViewId = view.id;
   } else {
+    // A programme's photo becomes the memorial's cover, kept in the family's own media.
+    const photo = o.photoId ? await tx.draftPhoto.findUnique({ where: { id: o.photoId } }) : null;
+    const cover = photo
+      ? await tx.mediaObject.create({
+          data: {
+            treeId,
+            fileName: `${slugify(name) || "photo"}.jpg`,
+            mimeType: photo.mimeType,
+            byteSize: photo.bytes.length,
+            bytes: photo.bytes,
+            width: photo.width,
+            height: photo.height,
+            title: name,
+            uploadedById: userId,
+          },
+          select: { id: true },
+        })
+      : null;
+    const serviceText = [o.serviceWhen, o.venue].map((s) => s?.trim()).filter(Boolean).join(", ");
     const memorial = await tx.memorial.create({
       data: {
         personId: subject.id,
         treeId,
         slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
         headline: `In loving memory of ${name}`,
-        eulogy: o.epitaph?.trim() || null,
+        eulogy: o.bio?.trim() || o.epitaph?.trim() || null,
+        serviceText: [serviceText, o.service?.trim()].filter(Boolean).join("\n\n") || null,
+        restingPlace: layout === "programme" ? o.place?.trim() || null : undefined,
+        coverMediaId: cover?.id ?? null,
         bornText: o.birth?.trim() || null,
         diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
         published: true,

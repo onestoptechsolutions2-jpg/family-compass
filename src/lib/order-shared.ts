@@ -25,6 +25,23 @@ export type DraftOptions = {
   birthdays?: string;
   /** badges: one per line, "Name, relation to the host" */
   attendees?: string;
+  /** programme: when and where the service is, e.g. "Saturday 14 November 2026, 10am" */
+  serviceWhen?: string;
+  venue?: string;
+  /** programme: the order of service, one per line, "10:00 Arrival of the body" */
+  service?: string;
+  /** programme: their life story (paragraphs) */
+  bio?: string;
+  /** programme: hymns, one per line */
+  hymns?: string;
+  /** programme: short tributes, one per line */
+  tribute?: string;
+  /** programme: the family's thank-you note on the back */
+  thanks?: string;
+  /** programme: contribution and committee contacts, one per line, e.g. "M-Pesa Paybill 123456, account Kamau" */
+  contacts?: string;
+  /** a photo uploaded for the piece (the programme cover): a DraftPhoto id */
+  photoId?: string;
   /** answers to "is this the same person already in your family?": normalised name -> person id, or "new" */
   matches?: Record<string, string>;
   materialKey?: string;
