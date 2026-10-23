@@ -10,6 +10,7 @@ import { addItemToCart } from "../src/lib/cart";
 import { checkoutCart } from "../src/lib/orders";
 import { fulfilPayment } from "../src/lib/payments/fulfil";
 import { priceBreakdown, type ProductOptions } from "../src/lib/product-pricing";
+import type { DraftOptions } from "../src/lib/order-shared";
 import { cancelCommission, recordCommission, referrerForCheckout, uniqueCode } from "../src/lib/referrals";
 import { renderItemSheet } from "../src/lib/print-order";
 import { sheetPdf } from "../src/lib/print-file";
@@ -38,7 +39,7 @@ async function main() {
   const family = await db.user.create({ data: { email: `family-${RUN}@example.com`, name: "Jane Okusimba" } });
   const jpg = await sharp({ create: { width: 800, height: 1000, channels: 3, background: "#7a5a48" } }).jpeg().toBuffer();
   const photo = await db.draftPhoto.create({ data: { bytes: new Uint8Array(jpg), width: 800, height: 1000 } });
-  const options = {
+  const options: DraftOptions = {
     first: "Hesbon", surname: "Musungu", birth: "1948", death: "2026", photoId: photo.id,
     serviceWhen: "Saturday 14 November 2026, 10am", venue: "Ematsuli", place: "Ematsuli",
     service: "9:00 Arrival of the body\n10:00 Eulogy", bio: "A teacher for thirty-five years.",
