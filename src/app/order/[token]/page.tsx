@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 /** A tree is built by tapping it; everything else is a short form. */
 const FLOW_FORM = ["about", "details", "material", "review"] as const;
 const FLOW_BUILD = ["build", "material", "review"] as const;
-const STEP_LABEL = { build: "Build your tree", about: "About it", details: "The details", material: "Material and size", review: "Review" } as const;
+const STEP_LABEL = { build: "Build your tree", about: "About it", details: "The details", material: "Your choices", review: "Review" } as const;
 const field = "mt-1 w-full rounded-lg border px-4 py-2.5 text-sm";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
 const btn = "rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700";
@@ -215,6 +215,7 @@ export default async function OrderWizard({
             origin={await publicOrigin()}
             options={previewOptions}
             initialSvg={previewSvg}
+            initialWarnings={sheet.warnings}
             photoHref={photoHref}
           />
           <div className="flex gap-3">

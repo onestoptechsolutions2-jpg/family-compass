@@ -147,3 +147,29 @@ want that effortless feel, with the commercial step added at the end.
 - Reused names stay linked to their existing people; ambiguous duplicate names still require a customer decision. A product never copies another client's tree.
 - Product pages may show up to three active products from the same pathway as optional cross-sells. They are never added to the cart automatically.
 - Every new product starts off-sale with no price until supplier pricing and its production route are reviewed.
+
+## Money from day one: the funeral programme, referrals, shop first (decided 2026-10-23)
+- **The funeral programme is the lead product.** Families need one within days of a death, so it is
+  the first product on the landing page ("Planning a funeral?"). The customer types the details,
+  uploads the cover photo and sees the booklet as they go; the app lays it out and makes the print
+  file (a 300 dpi PDF, one page per page). Delivered countrywide in 48 hours. The order also builds
+  the memorial page the QR on the back opens: the photo is its cover, the life story its eulogy.
+- **Variants stay dynamic.** Pages and Copies joined Material, Colour and finish, and Size. Any
+  choice can carry a price per copy, multiplied by the copies chosen, so the price follows what
+  printing costs: `price = base + each choice's price + copies x each choice's price per copy`.
+  An admin edits every choice and its prices per product in Admin, Products. Copies use the number
+  as the key (`200|200 copies|0`); a fourth column is the price per copy (`8|8 pages|0|30`).
+- **The programme is seeded off sale with placeholder prices** (base 1,500; colour +10 a copy;
+  4 to 24 pages at +15 a copy per 4 pages; A4 +15 a copy). Set the real prices from the printer's
+  quote and tick On sale.
+- **Referrals: anyone can sign up at /refer** (funeral homes, churches, individuals) with a name and
+  an M-Pesa number. They share /r/<code> (remembered 30 days) or their code, typed at checkout (a
+  typed code wins). They earn **10%** of what the family paid (Admin, Settings; or a rate per
+  referrer), recorded when the payment is approved, cancelled if the order is cancelled before it
+  is paid out. Nobody earns on their own order. The admin sends the money by M-Pesa and records
+  the code in Admin, Referrals. Referrers see amounts only, never who ordered.
+- **Shop first.** Research, the developer API, the family directory, communities, chama, deep
+  search, friend invites and the family-energy score are hidden unless `GENEALOGY_EXTRAS=true`.
+  Nothing is deleted.
+- **Open:** draft photos for designs never ordered are kept (no clean-up job yet); the programme
+  prints in reading order, and the printer imposes it for folding.

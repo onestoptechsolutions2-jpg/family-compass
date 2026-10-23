@@ -97,11 +97,14 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
                     <p style={{ color: "var(--muted)" }}>{[...variants, gens !== null ? `${gens} ${gens === 1 ? "generation" : "generations"}` : null].filter(Boolean).join(" · ")}</p>
                     <p className="mt-2 font-medium">{kes(lineTotal(i))}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
-                      <form action={setQuantityAction.bind(null, i.id)} className="flex items-center gap-2">
-                        <label className="text-xs" style={{ color: "var(--muted)" }}>Qty</label>
-                        <input name="quantity" type="number" min={1} max={20} defaultValue={i.quantity} className="w-16 rounded-lg border px-2 py-1" style={fieldStyle} />
-                        <button className="text-xs underline">Update</button>
-                      </form>
+                      {/* a piece sold by the copy (a programme) has its copies chosen already */}
+                      {!po?.copies?.length && (
+                        <form action={setQuantityAction.bind(null, i.id)} className="flex items-center gap-2">
+                          <label className="text-xs" style={{ color: "var(--muted)" }}>Qty</label>
+                          <input name="quantity" type="number" min={1} max={20} defaultValue={i.quantity} className="w-16 rounded-lg border px-2 py-1" style={fieldStyle} />
+                          <button className="text-xs underline">Update</button>
+                        </form>
+                      )}
                       <Link href={`/cart/edit/${i.id}`} className="text-xs underline">Edit</Link>
                       <form action={removeItemAction.bind(null, i.id)}><button className="text-xs underline" style={{ color: "var(--muted)" }}>Remove</button></form>
                     </div>
