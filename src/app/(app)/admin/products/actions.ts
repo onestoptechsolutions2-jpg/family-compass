@@ -17,19 +17,21 @@ const wholeKes = (v: FormDataEntryValue | null, what: string) => {
   return n;
 };
 
-function choicesFromForm(value: FormDataEntryValue | null, groupTitle: string) {
+/** One choice per line: key|label|price, or key|label|price|price per copy. Copies use the number as the key. */
+function choicesFromForm(value: FormDataEntryValue | null, groupTitle: string, isCopies = false) {
   const rows = String(value ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (rows.length > 30) throw new Error(`${groupTitle}: keep to 30 choices or fewer`);
   const seen = new Set<string>();
   return rows.map((line) => {
     const parts = line.split("|").map((part) => part.trim());
-    const [key = "", label = "", price = ""] = parts;
-    if (parts.length !== 3 || !/^[a-z0-9_-]{1,40}$/.test(key) || !label || label.length > 100 || price === "") {
-      throw new Error(`${groupTitle}: use key|label|price on each line`);
+    const [key = "", label = "", price = "", perCopy = ""] = parts;
+    if (parts.length < 3 || parts.length > (isCopies ? 3 : 4) || !/^[a-z0-9_-]{1,40}$/.test(key) || !label || label.length > 100 || price === "") {
+      throw new Error(`${groupTitle}: use ${isCopies ? "number|label|price" : "key|label|price or key|label|price|price per copy"} on each line`);
     }
+    if (isCopies && !/^[1-9][0-9]{0,5}$/.test(key)) throw new Error(`${groupTitle}: the key is the number of copies, e.g. 100|100 copies|0`);
     if (seen.has(key)) throw new Error(`${groupTitle}: choice keys must be unique`);
     seen.add(key);
-    return { key, label, addKes: wholeKes(price, label) };
+    return { key, label, addKes: wholeKes(price, label), ...(perCopy !== "" ? { perCopyKes: wholeKes(perCopy, `${label} per copy`) } : {}) };
   });
 }
 
@@ -68,7 +70,7 @@ export async function createProductDraft(formData: FormData) {
       sortOrder: (last?.sortOrder ?? 0) + 10,
       basePriceKes: 0,
       active: false,
-      options: { materials: [], finishes: [], sizes: [] },
+      options: { materials: [], finishes: [], sizes: [], pages: [], copies: [] },
     },
     select: { id: true, slug: true },
   });
@@ -90,7 +92,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   const options = structuredClone((row.options ?? {}) as ProductOptions) as ProductOptions;
   for (const g of VARIANT_GROUPS) {
     const choices = formData.get(`choices:${g.list}`);
-    if (choices !== null) options[g.list] = choicesFromForm(choices, g.title);
+    if (choices !== null) options[g.list] = choicesFromForm(choices, g.title, g.list === "copies");
   }
   if (options.generations) {
     const inc = formData.get("gen:included");

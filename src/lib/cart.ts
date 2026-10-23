@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { unitPrice, type ProductOptions } from "@/lib/orders";
 import type { DraftOptions } from "@/lib/order-shared";
 import { randomToken } from "@/lib/slug";
+import { firstChoices } from "@/lib/product-pricing";
 
 /**
  * The cart is the customer's one open order: status DRAFT, owned by their user,
@@ -101,7 +102,7 @@ export async function addItemToCart(userId: string, productSlug: string, options
       productId: product.id,
       quantity: Math.min(Math.max(Math.floor(quantity) || 1, 1), 20),
       unitPriceKes: product.basePriceKes,
-      options: { materialKey: po?.materials?.[0]?.key, sizeKey: po?.sizes?.[0]?.key, finishKey: po?.finishes?.[0]?.key, ...options } as object,
+      options: { ...firstChoices(po), ...options } as object,
     },
   });
 }

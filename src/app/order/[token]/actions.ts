@@ -28,6 +28,8 @@ const TEXT_KEYS = [
   "materialKey",
   "sizeKey",
   "finishKey",
+  "pagesKey",
+  "copiesKey",
   "relation",
 ] as const;
 

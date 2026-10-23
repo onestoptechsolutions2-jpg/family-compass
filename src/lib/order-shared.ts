@@ -31,6 +31,9 @@ export type DraftOptions = {
   sizeKey?: string;
   /** colour and finish: granite shade, wood tone, paper, frame or shirt colour */
   finishKey?: string;
+  /** pages in a booklet, and how many copies are printed */
+  pagesKey?: string;
+  copiesKey?: string;
   relation?: "child" | "spouse" | "sibling" | "other";
 };
 

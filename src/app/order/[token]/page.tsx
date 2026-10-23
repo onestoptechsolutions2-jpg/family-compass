@@ -9,7 +9,7 @@ import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import { isLayout, isReady, requiredKey, stepsFor, type Field, type Layout } from "@/lib/layouts";
 import { amountDueNow, lines, type DraftOptions } from "@/lib/orders";
-import { priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { firstChoices, priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import { previewBackground } from "@/lib/print-kit";
 import { saveStep } from "./actions";
 import { TreeBuilder } from "@/components/TreeBuilder";
@@ -78,10 +78,8 @@ export default async function OrderWizard({
 
   // The customer sees exactly what will be made, updated as they build it.
   const previewOptions: DraftOptions = {
+    ...firstChoices(po),
     ...o,
-    materialKey: o.materialKey ?? po?.materials?.[0]?.key,
-    sizeKey: o.sizeKey ?? po?.sizes?.[0]?.key,
-    finishKey: o.finishKey ?? po?.finishes?.[0]?.key,
   };
   const priced = priceBreakdown(item.product.basePriceKes, po, layout, previewOptions);
   const price = priced.total;

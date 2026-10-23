@@ -6,6 +6,7 @@ import { requireActivePartner } from "@/lib/partner-auth";
 import { JOB_STATUS_LABEL, jobForPartner, skillLabel } from "@/lib/jobs";
 import { kes } from "@/lib/money";
 import { getPaymentSettings } from "@/lib/payments";
+import { chosenLabels, type ProductOptions } from "@/lib/product-pricing";
 import { proofAction, quoteAction, shipAction, startAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +32,8 @@ export default async function PartnerJob({
 
   const item = job.orderItem;
   const mine = job.partnerId === partner.id;
-  const opts = (item.layoutSnapshot ?? item.options ?? {}) as { materialKey?: string; sizeKey?: string; name?: string; epitaph?: string };
-  const material = (item.product.options as { materials?: { key: string; label: string }[] } | null)?.materials?.find((m) => m.key === opts.materialKey)?.label ?? opts.materialKey;
-  const size = (item.product.options as { sizes?: { key: string; label: string }[] } | null)?.sizes?.find((m) => m.key === opts.sizeKey)?.label ?? opts.sizeKey;
+  const opts = (item.layoutSnapshot ?? item.options ?? {}) as Record<string, unknown>;
+  const variants = chosenLabels(item.product.options as ProductOptions | null, opts);
   const myQuote = job.quotes[0];
   const shipsToCustomer = item.product.shipVia === "direct";
   const files = job.files;
@@ -54,8 +54,8 @@ export default async function PartnerJob({
       <section className={card} style={cardStyle}>
         <h2 className="font-medium">What to make</h2>
         <ul className="mt-2 list-disc pl-5" style={{ color: "var(--muted)" }}>
-          <li>Material: {material ?? "as shown on the sheet"}</li>
-          <li>Size: {size ?? "as shown on the sheet"}</li>
+          {variants.length === 0 && <li>Material and size: as shown on the sheet</li>}
+          {variants.map((v) => <li key={v.title}>{v.title}: {v.label}</li>)}
           <li>Quantity: {item.quantity}</li>
         </ul>
         <p className="mt-3">
