@@ -1,4 +1,5 @@
 import { FamilyType, OrderStatus, PaymentKind, PaymentStatus } from "@prisma/client";
+import { parseDestination } from "@/lib/fund-destination";
 
 import { db } from "@/lib/db";
 import { slugify, randomToken, paymentReference } from "@/lib/slug";
@@ -269,13 +270,35 @@ async function buildItem(tx: Tx, ctx: Ctx, item: ItemRow): Promise<number> {
     });
     sharedViewId = view.id;
   } else {
+    // A programme's photo becomes the memorial's cover, kept in the family's own media.
+    const photo = o.photoId ? await tx.draftPhoto.findUnique({ where: { id: o.photoId } }) : null;
+    const cover = photo
+      ? await tx.mediaObject.create({
+          data: {
+            treeId,
+            fileName: `${slugify(name) || "photo"}.jpg`,
+            mimeType: photo.mimeType,
+            byteSize: photo.bytes.length,
+            bytes: photo.bytes,
+            width: photo.width,
+            height: photo.height,
+            title: name,
+            uploadedById: userId,
+          },
+          select: { id: true },
+        })
+      : null;
+    const serviceText = [o.serviceWhen, o.venue].map((s) => s?.trim()).filter(Boolean).join(", ");
     const memorial = await tx.memorial.create({
       data: {
         personId: subject.id,
         treeId,
         slug: `${slugify(name) || "memorial"}-${randomToken(6)}`,
         headline: `In loving memory of ${name}`,
-        eulogy: o.epitaph?.trim() || null,
+        eulogy: o.bio?.trim() || o.epitaph?.trim() || null,
+        serviceText: [serviceText, o.service?.trim()].filter(Boolean).join("\n\n") || null,
+        restingPlace: layout === "programme" ? o.place?.trim() || null : undefined,
+        coverMediaId: cover?.id ?? null,
         bornText: o.birth?.trim() || null,
         diedText: [o.death?.trim(), o.place?.trim()].filter(Boolean).join(" · ") || null,
         published: true,
@@ -315,6 +338,7 @@ export async function checkoutCart(
   userId: string,
   orderId: string,
   delivery: Delivery,
+  referrerId: string | null = null,
 ): Promise<{ orderId: string; paymentId: string } | null> {
   const order = await db.order.findUnique({
     where: { id: orderId },
@@ -349,7 +373,7 @@ export async function checkoutCart(
     : await personalWorkspaceId(userId, displayName);
 
   // Everything below commits together or not at all.
-  return db.$transaction(
+  const placed = await db.$transaction(
     async (tx) => {
       // A double click or second tab must not build the family twice: whoever
       // flips DRAFT first wins, the other returns the payment that one opened.
@@ -416,12 +440,48 @@ export async function checkoutCart(
           contactName: delivery.contactName.trim().slice(0, 120),
           contactPhone: delivery.contactPhone.trim().slice(0, 40),
           deliveryText: delivery.deliveryText.trim().slice(0, 500),
+          referrerId,
         },
       });
       return { orderId: order.id, paymentId: payment.id };
     },
     { timeout: 60_000 },
   );
+  if (placed) await openFundsForOrder(order.id, workspaceId, userId, { name: delivery.contactName, phone: delivery.contactPhone });
+  return placed;
+}
+
+/**
+ * A programme that asked to collect contributions opens the funeral fund on its memorial, paid
+ * straight to the family's own M-Pesa. Done after the order is placed: a fund that fails to open
+ * never costs the family their order, and the family can still open it from the memorial.
+ */
+async function openFundsForOrder(orderId: string, workspaceId: string, userId: string, chair: { name: string; phone: string }): Promise<void> {
+  // loaded here, not at the top: these modules read the environment when they load
+  const { ensureMemorialFund } = await import("@/lib/chama");
+  const { linkFundToChama } = await import("@/lib/chama-partner-funds");
+  const items = await db.orderItem.findMany({ where: { orderId }, select: { layoutSnapshot: true, product: { select: { layout: true } } } });
+  for (const it of items) {
+    const o = (it.layoutSnapshot ?? {}) as DraftOptions & { memorialId?: string | null; name?: string };
+    if (it.product.layout !== "programme" || !o.memorialId || !o.fundKind) continue;
+    const dest = parseDestination({ payKind: o.fundKind, payNumber: o.fundNumber, payAccount: o.fundAccount, payName: o.fundName });
+    if (!dest.ok || !dest.value) continue;
+    const memorial = await db.memorial.findUnique({ where: { id: o.memorialId }, select: { treeId: true } });
+    if (!memorial) continue;
+    try {
+      const { fundId } = await ensureMemorialFund(memorial.treeId, o.memorialId, {
+        workspaceId,
+        label: `Funeral fund — ${o.name || [o.first, o.surname].filter(Boolean).join(" ")}`,
+        createdById: userId,
+        destination: dest.value,
+      });
+      // with Chama switched on, gifts come by M-Pesa prompt and record themselves; the customer chairs
+      // the committee. If Chama cannot take it, the fund stays on the family's own M-Pesa.
+      await linkFundToChama(fundId, chair, { spouse: o.spouse, children: o.children });
+    } catch (e) {
+      console.error("[orders] could not open the funeral fund", e);
+    }
+  }
 }
 
 /**

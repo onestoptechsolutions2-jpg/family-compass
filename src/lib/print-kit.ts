@@ -124,9 +124,20 @@ export type PrintInput = {
    * ("+ Father", "+ Child") is tappable, marked with data-slot. Never used for printing.
    */
   interactive?: boolean;
+  /** the photo to print (a programme cover): a URL in the browser, a data: URL when rendering on the server */
+  photoHref?: string;
 };
 
-export type PrintSheet = { svg: string; widthMm: number; heightMm: number; warnings: string[]; skin: Skin };
+export type PrintSheet = {
+  svg: string;
+  widthMm: number;
+  heightMm: number;
+  warnings: string[];
+  skin: Skin;
+  /** a booklet: each page on its own, in reading order, for the printer's PDF */
+  pages?: string[];
+  pageMm?: [number, number];
+};
 
 /** Break text into lines of at most `max` characters, at word boundaries. */
 export function wrapText(text: string, max: number): string[] {

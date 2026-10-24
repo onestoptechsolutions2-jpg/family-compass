@@ -169,6 +169,12 @@ export default async function AdminSettingsPage() {
           <textarea name="receivingAddress" defaultValue={s.receivingAddress ?? ""} rows={2} className={field} style={style} />
         </label>
         <label className="text-sm">
+          <span style={{ color: "var(--muted)" }}>
+            Referral commission: what a referrer earns on each paid order, in percent (0 to 50). A referrer can have their own rate in Admin, Referrals.
+          </span>
+          <input name="referralPercent" type="number" min={0} max={50} defaultValue={s.referralPercent} className={field} style={style} />
+        </label>
+        <label className="text-sm">
           <span style={{ color: "var(--muted)" }}>Checkout instructions</span>
           <textarea
             name="instructions"

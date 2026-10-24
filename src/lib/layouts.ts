@@ -1,11 +1,12 @@
 import type { DraftOptions } from "@/lib/order-shared";
+import { PAY_KINDS } from "@/lib/fund-destination";
 
 /**
  * A product's layout decides what its piece looks like and which questions the
  * customer is asked. Everything else (cart, payment, partners) is the same for
  * every layout, so a new product is a layout plus a row in the catalogue.
  */
-export type Layout = "tree" | "wedding" | "banner" | "card" | "calendar" | "badges" | "shirt";
+export type Layout = "tree" | "wedding" | "banner" | "card" | "calendar" | "badges" | "shirt" | "programme";
 export type Pathway = "LIVING" | "REMEMBERED";
 
 export type Field = {
@@ -17,6 +18,10 @@ export type Field = {
   rows?: number;
   /** the "You are their" choice, which links the customer into the family */
   relation?: boolean;
+  /** a photo upload (the programme cover), saved as photoId */
+  photo?: boolean;
+  /** a choice from a fixed list: [value, label] */
+  choices?: [string, string][];
 };
 export type Step = { title: string; intro?: string; fields: Field[] };
 
@@ -28,6 +33,7 @@ export const LAYOUT_LABEL: Record<Layout, string> = {
   calendar: "Birthday calendar",
   badges: "Name badges",
   shirt: "T-shirt",
+  programme: "Funeral programme",
 };
 
 export const isLayout = (v: string): v is Layout => v in LAYOUT_LABEL;
@@ -56,6 +62,45 @@ export function stepsFor(layout: Layout, pathway: Pathway): [Step, Step] {
   const skip = "One name per line. Skip anything you do not know; you can add more later.";
 
   switch (layout) {
+    case "programme":
+      return [
+        {
+          title: "Who are we remembering?",
+          intro: "This makes the cover. You can change anything before you order.",
+          fields: [
+            { key: "first", label: "First name(s)" },
+            { key: "surname", label: "Surname" },
+            { key: "birth", label: "Born (date or year)", placeholder: "e.g. 12 March 1948" },
+            { key: "death", label: "Died (date or year)", placeholder: "e.g. 2 October 2026" },
+            { key: "photoId", label: "Their photo for the cover", hint: "JPEG, PNG or WebP, a clear face", photo: true },
+            { key: "epitaph", label: "A verse or short line (optional)", placeholder: "e.g. I have fought the good fight. 2 Timothy 4:7" },
+            { key: "serviceWhen", label: "Date and time of the service", placeholder: "e.g. Saturday 14 November 2026, 10am" },
+            { key: "venue", label: "Venue", placeholder: "e.g. Their home, Ematsuli, Vihiga" },
+            { key: "place", label: "Place of burial (optional)" },
+          ],
+        },
+        {
+          title: "Inside the programme",
+          intro: "Skip anything you do not have yet. The preview shows how it fits on the pages; you choose how many pages next.",
+          fields: [
+            { key: "service", label: "Order of service", hint: "one item per line, time first", rows: 8, placeholder: "9:00 Arrival of the body\n9:30 Opening prayer\n10:00 Hymn\n10:15 Reading of the eulogy" },
+            { key: "bio", label: "Their life story (eulogy)", hint: "a blank line starts a new paragraph", rows: 10 },
+            { key: "parents", label: "Parents (father first, then mother)", rows: 2 },
+            { key: "spouse", label: "Spouse", rows: 2 },
+            { key: "children", label: "Children", rows: 4 },
+            { key: "siblings", label: "Brothers and sisters", rows: 4 },
+            { key: "hymns", label: "Hymns (optional)", hint: "one per line", rows: 4 },
+            { key: "tribute", label: "Short tributes (optional)", hint: "one per line", rows: 4 },
+            { key: "contacts", label: "Contributions and contacts (optional)", hint: "printed on the back", rows: 3, placeholder: "M-Pesa Paybill 123456, account KAMAU\nChair: Peter Kamau 0712 345 678" },
+            { key: "thanks", label: "Thank-you note (optional)", rows: 3 },
+            { key: "fundKind", label: "Collect contributions (optional)", hint: "money goes straight to your own M-Pesa; we never hold it", choices: [["", "Not now"], ...PAY_KINDS] },
+            { key: "fundNumber", label: "Number for contributions", placeholder: "0712 345 678, or the paybill or till number" },
+            { key: "fundAccount", label: "Paybill account (paybill only)", placeholder: "e.g. MUSUNGU" },
+            { key: "fundName", label: "Name M-Pesa shows for it", placeholder: "e.g. Jane Okusimba" },
+            { key: "relation", label: "You are their", relation: true },
+          ],
+        },
+      ];
     case "wedding":
       return [
         {

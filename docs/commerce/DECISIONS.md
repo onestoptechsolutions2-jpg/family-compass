@@ -147,3 +147,69 @@ want that effortless feel, with the commercial step added at the end.
 - Reused names stay linked to their existing people; ambiguous duplicate names still require a customer decision. A product never copies another client's tree.
 - Product pages may show up to three active products from the same pathway as optional cross-sells. They are never added to the cart automatically.
 - Every new product starts off-sale with no price until supplier pricing and its production route are reviewed.
+
+## Money from day one: the funeral programme, referrals, shop first (decided 2026-10-23)
+- **The funeral programme is the lead product.** Families need one within days of a death, so it is
+  the first product on the landing page ("Planning a funeral?"). The customer types the details,
+  uploads the cover photo and sees the booklet as they go; the app lays it out and makes the print
+  file (a 300 dpi PDF, one page per page). Delivered countrywide in 48 hours. The order also builds
+  the memorial page the QR on the back opens: the photo is its cover, the life story its eulogy.
+- **Variants stay dynamic.** Pages and Copies joined Material, Colour and finish, and Size. Any
+  choice can carry a price per copy, multiplied by the copies chosen, so the price follows what
+  printing costs: `price = base + each choice's price + copies x each choice's price per copy`.
+  An admin edits every choice and its prices per product in Admin, Products. Copies use the number
+  as the key (`200|200 copies|0`); a fourth column is the price per copy (`8|8 pages|0|30`).
+- **The programme is seeded off sale with placeholder prices** (base 1,500; colour +10 a copy;
+  4 to 24 pages at +15 a copy per 4 pages; A4 +15 a copy). Set the real prices from the printer's
+  quote and tick On sale.
+- **Referrals: anyone can sign up at /refer** (funeral homes, churches, individuals) with a name and
+  an M-Pesa number. They share /r/<code> (remembered 30 days) or their code, typed at checkout (a
+  typed code wins). They earn **10%** of what the family paid (Admin, Settings; or a rate per
+  referrer), recorded when the payment is approved, cancelled if the order is cancelled before it
+  is paid out. Nobody earns on their own order. The admin sends the money by M-Pesa and records
+  the code in Admin, Referrals. Referrers see amounts only, never who ordered.
+- **Shop first.** Research, the developer API, the family directory, communities, chama, deep
+  search, friend invites and the family-energy score are hidden unless `GENEALOGY_EXTRAS=true`.
+  Nothing is deleted.
+- **Open:** draft photos for designs never ordered are kept (no clean-up job yet); the programme
+  prints in reading order, and the printer imposes it for folding.
+
+## The funeral fund (harambee) comes back, paid to the family (decided 2026-10-23)
+- **The funeral is where Family Compass and Chama meet.** The programme's QR opens the memorial,
+  and the memorial takes contributions toward the funeral. Plan, in order: (1) this manual fund on
+  Family Compass; (2) Chama's self-recording M-Pesa rails (IntaSend); (3) a short-lived "funeral
+  fund" group in Chama that a programme order opens through Chama's API; (4) committee-only totals
+  per family branch; (5) after the burial, the committee is invited to become a family welfare
+  chama, members pre-filled from the tree; (6) a chama's approved bereavement claim offers a
+  programme with the group as referrer.
+- **Family Compass never holds contribution money.** Every fund names the family's own M-Pesa
+  (phone, paybill and account, or till) and the name M-Pesa shows. The contribute page shows only
+  that; the shop's till is never offered for contributions. A fund with no destination takes nothing.
+  Contributors record what they sent; the family confirms it against their statement.
+- The memorial fund is part of the shop-first product: it no longer depends on GENEALOGY_EXTRAS
+  (only CHAMA_ENABLED=false turns it off). The rest of chama (the tree's Chama tab, groups by
+  generation) stays an extra.
+- The programme wizard asks, optionally, where contributions go; placing the order opens the fund
+  and the back page reads "Scan to contribute", with the family's number printed under the QR.
+
+## Funeral funds on Chama (built 2026-10-24, off until Chama's wallets are signed off)
+- Contract: Chama's docs/api.md, "Partner API — funeral funds", merged in Chama 67c3a71.
+- With CHAMA_PARTNER_URL and CHAMA_PARTNER_TOKEN set, a programme order that collects contributions
+  creates the fund on Chama, keyed to the memorial (a retry never makes a second fund). The customer
+  chairs the committee; the family's own account is the only payout; branches are the spouse's side
+  and each child's household. If Chama cannot take it (unset, wallets off = 503, down), the fund
+  stays on the family's own M-Pesa, confirmed by hand. A family can switch an existing fund over
+  from the memorial ("Collect by M-Pesa prompt instead").
+- Mourners give on Chama's own page (/f/<token>); our /give and the memorial's Contribute go there.
+  Hand-recorded pledges are refused on a Chama-run fund.
+- Chama's events (/api/partners/chama/webhook) are trusted only with a valid X-Chama-Signature-256
+  over "<timestamp>.<raw body>", with the fund's own secret, at most 5 minutes old; a repeated eventId
+  is ignored. Totals are also read from Chama (at most once a minute) when the committee opens the page.
+  If the first create's answer (with the fund's secret) was lost, a new secret is requested
+  (POST /funds/{id}/webhook-secret, on Chama main since 5c589fb).
+- Totals by family branch are shown on the memorial's admin page only, never publicly.
+- After the burial the committee can start a family welfare chama on Chama, inviting relatives by
+  phone (pre-filled from relatives in the tree with a phone on their account).
+- Bereavement referrals (/api/partners/chama/bereavement): a chama group becomes an organisation
+  referrer (no Family Compass account; code CHAMA<groupId>; payout = the group's nominated account)
+  and earns the usual referral share on the programme the family orders. No personal details arrive.

@@ -10,6 +10,9 @@ import type { DraftOptions } from "@/lib/order-shared";
 import { isLayout } from "@/lib/layouts";
 import { generationsOf, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import { previewBackground } from "@/lib/print-kit";
+import { draftPhotoUrl } from "@/lib/draft-photo";
+import { REF_COOKIE, referrerByCode } from "@/lib/referrals";
+import { cookies } from "next/headers";
 import { findMatchQuestions } from "@/lib/matching";
 import { ShopHeader } from "@/components/ShopHeader";
 import { checkoutAction, removeItemAction, setQuantityAction } from "./actions";
@@ -37,6 +40,9 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
 
   const cart = await getCart(user.id);
   const origin = await publicOrigin();
+  // who sent this customer, from the link they opened (never their own code)
+  const linked = await referrerByCode((await cookies()).get(REF_COOKIE)?.value);
+  const referredBy = linked && linked.status === "ACTIVE" && linked.userId !== user.id ? linked : null;
   const items = cart?.items ?? [];
   // Names that look like people already in this customer's family: ask, do not guess.
   const questions = await findMatchQuestions(user.id, items);
@@ -55,7 +61,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
     items.map(async (i) => {
       const o = (i.options ?? {}) as DraftOptions;
       const sheet = await renderPrintSheet(
-        { options: o, productName: i.product.name, qrUrl: `${origin}/q/yourcode`, pathway: i.product.pathway, layout: isLayout(i.product.layout) ? i.product.layout : "tree" },
+        { options: o, productName: i.product.name, qrUrl: `${origin}/q/yourcode`, pathway: i.product.pathway, layout: isLayout(i.product.layout) ? i.product.layout : "tree", photoHref: o.photoId ? draftPhotoUrl(o.photoId) : undefined },
         o.sizeKey,
       );
       return sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
@@ -91,11 +97,14 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
                     <p style={{ color: "var(--muted)" }}>{[...variants, gens !== null ? `${gens} ${gens === 1 ? "generation" : "generations"}` : null].filter(Boolean).join(" · ")}</p>
                     <p className="mt-2 font-medium">{kes(lineTotal(i))}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
-                      <form action={setQuantityAction.bind(null, i.id)} className="flex items-center gap-2">
-                        <label className="text-xs" style={{ color: "var(--muted)" }}>Qty</label>
-                        <input name="quantity" type="number" min={1} max={20} defaultValue={i.quantity} className="w-16 rounded-lg border px-2 py-1" style={fieldStyle} />
-                        <button className="text-xs underline">Update</button>
-                      </form>
+                      {/* a piece sold by the copy (a programme) has its copies chosen already */}
+                      {!po?.copies?.length && (
+                        <form action={setQuantityAction.bind(null, i.id)} className="flex items-center gap-2">
+                          <label className="text-xs" style={{ color: "var(--muted)" }}>Qty</label>
+                          <input name="quantity" type="number" min={1} max={20} defaultValue={i.quantity} className="w-16 rounded-lg border px-2 py-1" style={fieldStyle} />
+                          <button className="text-xs underline">Update</button>
+                        </form>
+                      )}
                       <Link href={`/cart/edit/${i.id}`} className="text-xs underline">Edit</Link>
                       <form action={removeItemAction.bind(null, i.id)}><button className="text-xs underline" style={{ color: "var(--muted)" }}>Remove</button></form>
                     </div>
@@ -135,6 +144,12 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
             <label>Phone (WhatsApp if possible)<input name="contactPhone" required defaultValue={prefill.phone} className={field} style={fieldStyle} /></label>
             <label>Delivery address, or the grave and cemetery
               <textarea name="deliveryText" required rows={3} defaultValue={prefill.address} className={field} style={fieldStyle} />
+            </label>
+            <label>Referral code (optional)
+              <input name="referralCode" defaultValue={referredBy?.code ?? ""} maxLength={20} autoCapitalize="characters" className={`${field} font-mono uppercase`} style={fieldStyle} placeholder="e.g. UPENDO123" />
+              <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>
+                {referredBy ? `You were sent by ${referredBy.name}.` : "If a funeral home, church or friend sent you, type their code."}
+              </span>
             </label>
             <div className="mt-2 flex justify-between border-t pt-3 text-base font-semibold" style={{ borderColor: "var(--border)" }}>
               <span>Total</span><span>{kes(cartTotal(items))}</span>

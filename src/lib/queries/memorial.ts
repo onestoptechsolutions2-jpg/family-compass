@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { describeDestination } from "@/lib/fund-destination";
 
 import { db } from "@/lib/db";
 import { displayName, NAME_SELECT, presumedLiving } from "@/lib/person";
@@ -176,6 +177,19 @@ export async function getMemorialForEditor(treeId: string, personId: string) {
           publicToken: true,
           targetKes: true,
           status: true,
+          payKind: true,
+          payNumber: true,
+          payAccount: true,
+          payName: true,
+          partnerFundId: true,
+          partnerGiveUrl: true,
+          partnerStatus: true,
+          partnerTotalKes: true,
+          partnerGiftCount: true,
+          partnerByBranch: true,
+          partnerSyncedAt: true,
+          convertedGroupId: true,
+          branches: true,
           contributions: {
             orderBy: { createdAt: "desc" },
             take: 100,
@@ -274,6 +288,14 @@ export async function getPublicMemorial(slug: string) {
           label: true,
           targetKes: true,
           status: true,
+          payKind: true,
+          payNumber: true,
+          payAccount: true,
+          payName: true,
+          partnerFundId: true,
+          partnerGiveUrl: true,
+          partnerStatus: true,
+          partnerTotalKes: true,
           contributions: {
             where: { status: "CONFIRMED" },
             select: { amountKes: true },
@@ -336,8 +358,21 @@ export async function getPublicMemorial(slug: string) {
           token: m.chamaFund.publicToken,
           label: m.chamaFund.label,
           targetKes: m.chamaFund.targetKes,
-          open: m.chamaFund.status === "OPEN",
-          raisedKes: m.chamaFund.contributions.reduce((s, c) => s + c.amountKes, 0),
+          // run on Chama: mourners give by M-Pesa prompt on Chama's page and gifts record themselves
+          ...(m.chamaFund.partnerFundId && m.chamaFund.partnerGiveUrl
+            ? {
+                open: m.chamaFund.status === "OPEN" && m.chamaFund.partnerStatus === "open",
+                giveHref: m.chamaFund.partnerGiveUrl,
+                payTo: null,
+                raisedKes: m.chamaFund.partnerTotalKes ?? 0,
+              }
+            : {
+                // a fund with nowhere to send money cannot take contributions yet
+                open: m.chamaFund.status === "OPEN" && Boolean(m.chamaFund.payNumber),
+                giveHref: `/give/${m.chamaFund.publicToken}`,
+                payTo: describeDestination(m.chamaFund),
+                raisedKes: m.chamaFund.contributions.reduce((s, c) => s + c.amountKes, 0),
+              }),
         }
       : null;
 

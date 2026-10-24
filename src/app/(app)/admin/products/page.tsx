@@ -5,6 +5,14 @@ import { LAYOUT_LABEL } from "@/lib/layouts";
 import { photoUrl, MAX_PHOTOS_PER_PRODUCT } from "@/lib/product-photos";
 import { deletePhoto, makeMainPhoto, updateProduct, uploadPhoto, createProductDraft } from "./actions";
 
+const PLACEHOLDER: Record<string, string> = {
+  materials: "gloss|Gloss art paper|0\nmatte|Matte paper|0|5",
+  finishes: "oak|Light oak|0\nwalnut|Dark walnut|800",
+  sizes: "standard|Standard|0",
+  pages: "4|4 pages|0|15\n8|8 pages|0|30",
+  copies: "100|100 copies|0\n200|200 copies|0",
+};
+
 export const metadata = { title: "Products" };
 export const dynamic = "force-dynamic";
 
@@ -107,19 +115,23 @@ export default async function AdminProductsPage() {
           <button className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Save</button>
           </div>
           <details>
-            <summary className="cursor-pointer text-xs" style={{ color: "var(--muted)" }}>Prices of materials, colours, sizes and generations</summary>
+            <summary className="cursor-pointer text-xs" style={{ color: "var(--muted)" }}>Prices of materials, colours, sizes, pages, copies and generations</summary>
+            <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+              One choice per line as key|label|price. Add a fourth column for a price per copy (it is multiplied by the copies chosen),
+              e.g. 8|8 pages|0|30. Copies use the number as the key, e.g. 200|200 copies|0. Leave a box empty to not offer that choice.
+            </p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {VARIANT_GROUPS.map((g) => {
                 const list = ((p.options ?? {}) as ProductOptions)[g.list] ?? [];
                 return (
                   <div key={g.key}>
                     <label className="block text-xs font-medium">
-                      {g.title} choices (key|label|price in KES, one per line)
+                      {g.title} choices
                       <textarea
                         name={`choices:${g.list}`}
                         rows={Math.min(Math.max(list.length, 3), 7)}
-                        defaultValue={list.map((choice) => `${choice.key}|${choice.label}|${choice.addKes}`).join("\n")}
-                        placeholder={g.key === "finishKey" ? "oak|Light oak|0\nwalnut|Dark walnut|800" : `standard|Standard|0`}
+                        defaultValue={list.map((choice) => [choice.key, choice.label, choice.addKes, ...(choice.perCopyKes !== undefined ? [choice.perCopyKes] : [])].join("|")).join("\n")}
+                        placeholder={PLACEHOLDER[g.list]}
                         className={`${field} mt-1 block w-full font-mono text-xs`}
                         style={fieldStyle}
                         aria-label={`${g.title} variant choices`}

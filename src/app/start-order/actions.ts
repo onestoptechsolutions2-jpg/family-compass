@@ -8,6 +8,7 @@ import { randomToken } from "@/lib/slug";
 import { hitLimit } from "@/lib/api/rate-limit";
 import type { DraftOptions, } from "@/lib/order-shared";
 import type { ProductOptions } from "@/lib/orders";
+import { firstChoices } from "@/lib/product-pricing";
 import { clientIpFromHeaders } from "@/lib/user-agent";
 
 /** The product each door opens with; the customer can change material later. */
@@ -44,9 +45,7 @@ export async function startFromLanding(formData: FormData) {
     death: mode === "remembered" ? field(formData, "death", 60) : "",
     parents: field(formData, "parents", 600),
     children: field(formData, "children", 600),
-    materialKey: po?.materials?.[0]?.key,
-    sizeKey: po?.sizes?.[0]?.key,
-    finishKey: po?.finishes?.[0]?.key,
+    ...firstChoices(po),
   };
 
   const token = randomToken(24);

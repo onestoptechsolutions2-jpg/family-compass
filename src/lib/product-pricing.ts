@@ -7,12 +7,22 @@ import { lines, type DraftOptions } from "@/lib/order-shared";
  *
  * Delivery is always included. Every figure is in whole shillings.
  */
-export type Choice = { key: string; label: string; addKes: number };
+export type Choice = {
+  key: string;
+  label: string;
+  addKes: number;
+  /** charged once per printed copy (pages, colour, paper on a programme); times the copies chosen */
+  perCopyKes?: number;
+};
 export type ProductOptions = {
   materials?: Choice[];
   /** colour and finish: granite shade, wood tone, paper, frame, shirt colour */
   finishes?: Choice[];
   sizes?: Choice[];
+  /** pages in a booklet such as a funeral programme */
+  pages?: Choice[];
+  /** how many are printed; the key is the number, e.g. "100" */
+  copies?: Choice[];
   /** the piece includes this many generations; each one beyond costs `perExtraKes` more */
   generations?: { included: number; perExtraKes: number };
 };
@@ -22,7 +32,32 @@ export const VARIANT_GROUPS = [
   { list: "materials", key: "materialKey", title: "Material" },
   { list: "finishes", key: "finishKey", title: "Colour and finish" },
   { list: "sizes", key: "sizeKey", title: "Size" },
+  { list: "pages", key: "pagesKey", title: "Pages" },
+  { list: "copies", key: "copiesKey", title: "Copies" },
 ] as const;
+export type VariantList = (typeof VARIANT_GROUPS)[number]["list"];
+
+/** The number of copies a copies choice stands for: its key ("100"), or one. */
+export const copyCount = (c: Choice | undefined) => {
+  const n = Number(c?.key);
+  return Number.isInteger(n) && n > 0 ? n : 1;
+};
+
+/** The first choice of every group, for a new design: { materialKey: "wood", ... }. */
+export function firstChoices(po: ProductOptions | null): Partial<Record<(typeof VARIANT_GROUPS)[number]["key"], string>> {
+  return Object.fromEntries(VARIANT_GROUPS.flatMap((g) => (po?.[g.list]?.[0] ? [[g.key, po[g.list]![0]!.key]] : [])));
+}
+
+/** Each chosen variant as "Title: Label", for people reading an order. */
+export function chosenLabels(po: ProductOptions | null, o: Partial<Record<string, unknown>>): { title: string; label: string }[] {
+  return VARIANT_GROUPS.flatMap((g) => {
+    const c = po?.[g.list]?.find((x) => x.key === o[g.key]);
+    return c ? [{ title: g.title, label: c.label }] : [];
+  });
+}
+
+/** What one choice costs at a given number of copies. */
+const choiceKes = (c: Choice, copies: number) => c.addKes + (c.perCopyKes ?? 0) * copies;
 
 /**
  * How many generations a family piece shows: the person (and their brothers and
@@ -53,9 +88,11 @@ const pick = (list: Choice[] | undefined, key: string | undefined) => list?.find
 
 export function priceBreakdown(basePriceKes: number, po: ProductOptions | null, layout: string | undefined, o: DraftOptions): Priced {
   const adds: PriceLine[] = [];
+  const copies = copyCount(pick(po?.copies, o.copiesKey));
   for (const g of VARIANT_GROUPS) {
     const c = pick(po?.[g.list], o[g.key]);
-    if (c && c.addKes) adds.push({ label: c.label, kes: c.addKes });
+    const kes = c ? choiceKes(c, copies) : 0;
+    if (c && kes) adds.push({ label: c.perCopyKes && copies > 1 ? `${c.label} (${copies} copies)` : c.label, kes });
   }
   const generations = generationsOf(layout, o);
   const gp = po?.generations;
@@ -72,14 +109,27 @@ export function priceBreakdown(basePriceKes: number, po: ProductOptions | null, 
 
 /** The cheapest and the dearest a product can come to, for "From KES x". */
 export function priceRange(basePriceKes: number, po: ProductOptions | null, layout: string | undefined): { from: number; to: number } {
-  const lo = (list?: Choice[]) => (list?.length ? Math.min(...list.map((c) => c.addKes)) : 0);
-  const hi = (list?: Choice[]) => (list?.length ? Math.max(...list.map((c) => c.addKes)) : 0);
   const gens = po?.generations && (layout === "tree" || layout === "banner" || layout === "wedding") ? po.generations : null;
   const maxGens = layout === "wedding" ? 3 : 4;
   const extraMax = gens ? Math.max(0, maxGens - gens.included) * gens.perExtraKes : 0;
-  const groups = [po?.materials, po?.finishes, po?.sizes];
-  return {
-    from: basePriceKes + groups.reduce((s, l) => s + lo(l), 0),
-    to: basePriceKes + groups.reduce((s, l) => s + hi(l), 0) + extraMax,
-  };
+  // per-copy prices depend on the copies chosen, so try each number of copies
+  const copyChoices: (Choice | undefined)[] = po?.copies?.length ? po.copies : [undefined];
+  let from = Infinity;
+  let to = -Infinity;
+  for (const cc of copyChoices) {
+    const n = copyCount(cc);
+    let lo = cc ? choiceKes(cc, n) : 0;
+    let hi = lo;
+    for (const g of VARIANT_GROUPS) {
+      if (g.list === "copies") continue;
+      const list = po?.[g.list];
+      if (!list?.length) continue;
+      const costs = list.map((c) => choiceKes(c, n));
+      lo += Math.min(...costs);
+      hi += Math.max(...costs);
+    }
+    from = Math.min(from, lo);
+    to = Math.max(to, hi);
+  }
+  return { from: basePriceKes + from, to: basePriceKes + to + extraMax };
 }

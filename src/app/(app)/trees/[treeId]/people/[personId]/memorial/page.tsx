@@ -9,7 +9,11 @@ import { getMemorialForEditor, normaliseOrder, groupByDay } from "@/lib/queries/
 import { getPaymentSettings } from "@/lib/payments";
 import { formatDate } from "@/lib/date";
 import { viewSummary } from "@/lib/queries/view-analytics";
-import { chamaEnabled } from "@/lib/chama/plugin";
+import { memorialFundEnabled } from "@/lib/chama/plugin";
+import { describeDestination, localPhone, PAY_KINDS } from "@/lib/fund-destination";
+import { partnerEnabled } from "@/lib/chama-partner";
+import { refreshFromChama } from "@/lib/chama-partner-funds";
+import type { BranchTotal } from "@/lib/chama-partner-rules";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
 import { PROGRAMME_TEMPLATES } from "@/lib/programme-templates";
@@ -45,6 +49,9 @@ import {
   setMemorialStatus,
   setMemorialTemplate,
   openMemorialFund,
+  setFundDestination,
+  linkFundToChamaAction,
+  convertFundAction,
   confirmFundContribution,
   voidFundContribution,
   setMemorialFundOpen,
@@ -65,10 +72,13 @@ const field = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
 
 export default async function MemorialEditorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ treeId: string; personId: string }>;
+  searchParams: Promise<{ fundError?: string; fundNotice?: string }>;
 }) {
   const { treeId, personId } = await params;
+  const { fundError, fundNotice } = await searchParams;
   const ctx = await loadTreeContext(treeId);
   if (!canEdit(ctx.role)) notFound();
   const style = { borderColor: "var(--border)", background: "var(--bg)" };
@@ -94,7 +104,20 @@ export default async function MemorialEditorPage({
   if (!person) notFound();
   const name = displayName(person.names);
 
+  // a fund run on Chama: bring its totals up to date before showing them (at most once a minute)
+  const partnerFund = memorialFundEnabled()
+    ? await db.chamaFund.findFirst({ where: { memorial: { personId, treeId }, partnerFundId: { not: null } }, select: { id: true } })
+    : null;
+  if (partnerFund) await refreshFromChama(partnerFund.id);
   const memorial = await getMemorialForEditor(treeId, personId);
+  // relatives with a phone on their account, as the starting list for a family chama after the burial
+  const relativesWithPhones = partnerFund
+    ? await db.person.findMany({
+        where: { treeId, claimedBy: { phone: { not: null } } },
+        take: 100,
+        select: { names: { where: { preferred: true }, take: 1, select: { first: true, surname: true } }, claimedBy: { select: { phone: true } } },
+      })
+    : [];
 
   if (!memorial) {
     return (
@@ -1073,19 +1096,25 @@ export default async function MemorialEditorPage({
       </section>
 
       {/* ---- Welfare fund (chama plugin) ---- */}
-      {chamaEnabled() && (
+      {memorialFundEnabled() && (
       <section
+        id="fund"
         className="rounded-xl border p-4"
         style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <h2 className="font-medium">Welfare fund</h2>
+        <h2 className="font-medium">Funeral fund (harambee)</h2>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          A family <em>chama</em> kitty for funeral costs. Share one link; supporters record what
-          they send by M-Pesa and the treasurer confirms each against the statement.
+          Collect contributions toward the funeral. People send money straight to your own M-Pesa number,
+          paybill or till; Family Compass never holds it. Each contributor records what they sent, and you
+          confirm it against your M-Pesa statement. The memorial page and the QR on the programme show a
+          Contribute button and the total raised.
         </p>
+        {fundError && <p role="alert" className="mt-2 rounded-lg border p-2 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>{fundError}</p>}
+        {fundNotice && <p className="mt-2 rounded-lg border p-2 text-sm" style={{ borderColor: "var(--border)" }}>{fundNotice}</p>}
 
         {!memorial.chamaFund ? (
           <form action={openMemorialFund.bind(null, treeId, memorial.id)} className="mt-3 flex flex-wrap items-end gap-2">
+            <FundDestinationFields />
             <label className="text-sm">
               <span style={{ color: "var(--muted)" }}>Target (optional)</span>
               <input
@@ -1097,10 +1126,17 @@ export default async function MemorialEditorPage({
               />
             </label>
             <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-              Open a welfare fund
+              Open the funeral fund
             </button>
           </form>
         ) : (
+          memorial.chamaFund.partnerFundId ? (
+            <ChamaFundPanel
+              fund={memorial.chamaFund}
+              convert={convertFundAction.bind(null, treeId, memorial.id, memorial.chamaFund.id)}
+              relatives={relativesWithPhones.map((p) => `${[p.names[0]?.first, p.names[0]?.surname].filter(Boolean).join(" ")}, 0${(p.claimedBy?.phone ?? "").replace(/^\+?254/, "").replace(/^0/, "")}`).join("\n")}
+            />
+          ) :
           (() => {
             const fund = memorial.chamaFund;
             const url = `${origin}/give/${fund.publicToken}`;
@@ -1109,8 +1145,39 @@ export default async function MemorialEditorPage({
             const pending = live.filter((c) => c.status === "PLEDGED");
             const raised = confirmed.reduce((s, c) => s + c.amountKes, 0);
             const pledged = pending.reduce((s, c) => s + c.amountKes, 0);
+            const payTo = describeDestination(fund);
             return (
               <div className="mt-3 flex flex-col gap-3 text-sm">
+                <div className="rounded-lg border p-3" style={{ borderColor: payTo ? "var(--border)" : "var(--danger)" }}>
+                  {payTo ? (
+                    <p>People send money to <strong>{payTo}</strong>.</p>
+                  ) : (
+                    <p className="text-red-600">Add where people send money. Until you do, the page cannot take contributions.</p>
+                  )}
+                  <details className="mt-1" open={!payTo}>
+                    <summary className="cursor-pointer text-xs" style={{ color: "var(--muted)" }}>{payTo ? "Change it" : "Add it"}</summary>
+                    <form action={setFundDestination.bind(null, treeId, memorial.id, fund.id)} className="mt-2 flex flex-wrap items-end gap-2">
+                      <FundDestinationFields value={fund} />
+                      <button className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)" }}>Save</button>
+                    </form>
+                  </details>
+                </div>
+                {partnerEnabled() && payTo && (
+                  <form action={linkFundToChamaAction.bind(null, treeId, memorial.id, fund.id)} className="flex flex-wrap items-end gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="w-full">
+                      <strong>Collect by M-Pesa prompt instead.</strong> Mourners type their number, approve on their phone, and every gift
+                      is recorded and counted by family branch, with no confirming by hand. The money is held for the family and can
+                      only be paid out to {payTo}, when two of the committee agree. You become the committee chair.
+                    </p>
+                    <label className="text-sm"><span style={{ color: "var(--muted)" }}>Your name</span>
+                      <input name="chairName" required className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                    </label>
+                    <label className="text-sm"><span style={{ color: "var(--muted)" }}>Your phone</span>
+                      <input name="chairPhone" required inputMode="tel" placeholder="0712 345 678" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+                    </label>
+                    <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Switch to M-Pesa prompts</button>
+                  </form>
+                )}
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-lg font-semibold">{KES(raised)}</span>
                   <span style={{ color: "var(--muted)" }}>
@@ -1202,6 +1269,109 @@ export default async function MemorialEditorPage({
       <form action={deleteMemorial.bind(null, treeId, memorial.id)}>
         <button className="text-xs text-red-600 hover:underline">Delete this memorial</button>
       </form>
+    </div>
+  );
+}
+
+/** Where contributors send money: the family's own phone, paybill or till. */
+function FundDestinationFields({ value }: { value?: { payKind: string | null; payNumber: string | null; payAccount: string | null; payName: string | null } }) {
+  const input = "mt-1 w-full rounded-lg border px-3 py-2 text-sm";
+  const st = { borderColor: "var(--border)", background: "var(--surface-2)" };
+  const number = value?.payKind === "PHONE" && value.payNumber ? localPhone(value.payNumber) : (value?.payNumber ?? "");
+  return (
+    <>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>People send money to</span>
+        <select name="payKind" defaultValue={value?.payKind ?? "PHONE"} className={input} style={st}>
+          {PAY_KINDS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Number</span>
+        <input name="payNumber" required defaultValue={number} inputMode="numeric" placeholder="0712 345 678" className={input} style={st} />
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Account (paybill only)</span>
+        <input name="payAccount" defaultValue={value?.payAccount ?? ""} placeholder="e.g. MUSUNGU" className={input} style={st} />
+      </label>
+      <label className="text-sm">
+        <span style={{ color: "var(--muted)" }}>Name M-Pesa shows</span>
+        <input name="payName" required defaultValue={value?.payName ?? ""} placeholder="e.g. Jane Okusimba" className={input} style={st} />
+      </label>
+    </>
+  );
+}
+
+/** A funeral fund run on Chama: live totals, totals by family branch (the committee only), and after the burial, a family chama. */
+function ChamaFundPanel({
+  fund,
+  convert,
+  relatives,
+}: {
+  fund: {
+    partnerGiveUrl: string | null; partnerStatus: string | null; partnerTotalKes: number | null; partnerGiftCount: number | null;
+    partnerByBranch: unknown; partnerSyncedAt: Date | null; convertedGroupId: number | null; targetKes: number | null;
+    payKind: string | null; payNumber: string | null; payAccount: string | null; payName: string | null;
+  };
+  convert: (formData: FormData) => Promise<void>;
+  relatives: string;
+}) {
+  const byBranch = (Array.isArray(fund.partnerByBranch) ? fund.partnerByBranch : []) as BranchTotal[];
+  const kes = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
+  const payTo = describeDestination(fund);
+  return (
+    <div className="mt-3 flex flex-col gap-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-lg font-semibold">{kes(fund.partnerTotalKes ?? 0)}</span>
+        <span style={{ color: "var(--muted)" }}>
+          from {fund.partnerGiftCount ?? 0} {fund.partnerGiftCount === 1 ? "gift" : "gifts"}{fund.targetKes ? ` of ${kes(fund.targetKes)}` : ""} · by M-Pesa prompt, recorded automatically
+        </span>
+        <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+          {fund.partnerStatus ?? "open"}
+        </span>
+      </div>
+      {fund.partnerGiveUrl && (
+        <div className="flex flex-wrap items-center gap-2">
+          <code className="max-w-full overflow-x-auto rounded bg-black/5 px-2 py-1 text-xs">{fund.partnerGiveUrl}</code>
+          <CopyButton value={fund.partnerGiveUrl} label="Copy link" />
+          <a href={`https://wa.me/?text=${encodeURIComponent(`Please support the funeral fund: ${fund.partnerGiveUrl}`)}`} target="_blank" rel="noreferrer" className="rounded-md px-2.5 py-1 text-xs font-medium text-white" style={{ background: "#25D366" }}>WhatsApp</a>
+        </div>
+      )}
+      {payTo && <p style={{ color: "var(--muted)" }}>Paid out only to {payTo}, when two of the committee agree in Chama.</p>}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>By family branch · only the committee sees this</p>
+        {byBranch.length === 0 ? (
+          <p className="mt-1" style={{ color: "var(--muted)" }}>No gifts tagged to a branch yet.</p>
+        ) : (
+          <ul className="mt-1">
+            {byBranch.map((b) => (
+              <li key={b.branch} className="flex justify-between border-t py-1" style={{ borderColor: "var(--border)" }}>
+                <span>{b.branch}</span>
+                <span>{kes(b.total)} <span className="text-xs" style={{ color: "var(--muted)" }}>({b.count})</span></span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {fund.partnerSyncedAt && <p className="text-xs" style={{ color: "var(--muted)" }}>Updated {fund.partnerSyncedAt.toISOString().slice(0, 16).replace("T", " ")} UTC</p>}
+      {fund.convertedGroupId ? (
+        <p className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>The committee now runs a family welfare chama on Chama. Relatives join from the SMS invite they received.</p>
+      ) : (
+        <details className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+          <summary className="cursor-pointer font-medium">After the burial: keep the family together</summary>
+          <p className="mt-2" style={{ color: "var(--muted)" }}>
+            Turn the committee into a family welfare chama, so the family is ready for the next time someone needs help. Gifts to
+            this fund stop. Each relative below gets an SMS invite and joins themselves; the committee stay as officials.
+          </p>
+          <form action={convert} className="mt-2 flex flex-col gap-2">
+            <label>
+              <span style={{ color: "var(--muted)" }}>Relatives to invite: one per line, a name, a comma, then their phone</span>
+              <textarea name="members" rows={6} defaultValue={relatives} placeholder={"John Kamau, 0733 000 001\nMary Wanjiku, 0722 000 002"} className="mt-1 w-full rounded-lg border px-3 py-2 font-mono text-xs" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+            </label>
+            <button className="self-start rounded-lg bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700">Start the family chama</button>
+          </form>
+        </details>
+      )}
     </div>
   );
 }

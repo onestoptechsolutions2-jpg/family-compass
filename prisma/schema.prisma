@@ -27,6 +27,9 @@ model User {
   passwordHash  String?
   image         String?
 
+  /// set when this person signs up to send customers (/refer)
+  referrer Referrer? @relation("UserReferrer")
+
   // Data & research consent (see /policies). consentVersion tracks the policy
   // version the user last accepted; a bump re-prompts on next sign-in.
   consentVersion   String?
@@ -1732,6 +1735,8 @@ model PaymentSettings {
   accountRef       String?
   instructions     String?          @db.Text
   verificationMode VerificationMode @default(MANUAL)
+  /// what a referrer earns on a paid order, as a percentage of what the customer paid
+  referralPercent  Int              @default(10)
   config           Json?
   updatedAt        DateTime         @updatedAt
 }
@@ -1835,6 +1840,28 @@ model ChamaFund {
   targetKes   Int?
   memorialId  String?         @unique
   publicToken String          @unique
+  /// where contributors send money: the family's own M-Pesa, never the platform's.
+  /// payKind is PHONE (send money), PAYBILL (with payAccount) or TILL (buy goods)
+  payKind     String?
+  payNumber   String?
+  payAccount  String?
+  /// the name M-Pesa shows the contributor, so they can check before sending
+  payName     String?
+  /// run by Chama (partner API): its fund id, the hosted contribute page and the signing secret
+  /// for its webhooks. Null for a fund this app runs itself (the family confirms each gift).
+  partnerFundId    Int?      @unique
+  partnerGiveUrl   String?
+  partnerSecret    String?
+  /// family branches the fund collects by, sent to Chama at creation
+  branches         String[]  @default([])
+  /// the latest totals Chama reported (webhook or read), whole KES
+  partnerTotalKes  Int?
+  partnerGiftCount Int?
+  partnerByBranch  Json?
+  partnerStatus    String?
+  partnerSyncedAt  DateTime?
+  /// set when the committee kept going as a family welfare chama on Chama
+  convertedGroupId Int?
   status      ChamaFundStatus @default(OPEN)
   opensAt     DateTime        @default(now())
   closesAt    DateTime?
@@ -2466,18 +2493,23 @@ model Order {
   /// delivery address, or the grave / installation location
   deliveryText String?     @db.Text
   notes        String?     @db.Text
+  /// who sent this customer (a funeral home, church or person), set at checkout
+  referrerId   String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  user      User?       @relation("OrderUser", fields: [userId], references: [id], onDelete: SetNull)
-  workspace Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  tree      Tree?       @relation(fields: [treeId], references: [id], onDelete: SetNull)
-  items     OrderItem[]
-  payments  Payment[]
+  referrer   Referrer?           @relation(fields: [referrerId], references: [id], onDelete: SetNull)
+  commission ReferralCommission?
+  user       User?               @relation("OrderUser", fields: [userId], references: [id], onDelete: SetNull)
+  workspace  Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  tree       Tree?               @relation(fields: [treeId], references: [id], onDelete: SetNull)
+  items      OrderItem[]
+  payments   Payment[]
 
   @@index([userId])
   @@index([treeId])
   @@index([status])
+  @@index([referrerId])
 }
 
 model OrderItem {
@@ -2679,4 +2711,79 @@ model JobFile {
   job ProductionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId, kind])
+}
+
+/// A photo a customer adds while designing a piece (the programme cover), before any family
+/// record exists. Kept apart from the order item so an edited copy of a cart item shares it.
+model DraftPhoto {
+  id        String   @id @default(cuid())
+  /// re-encoded JPEG, sized for print
+  bytes     Bytes
+  mimeType  String   @default("image/jpeg")
+  width     Int
+  height    Int
+  createdAt DateTime @default(now())
+}
+
+/// Someone who sends customers: a funeral home, a church, or a person. Anyone signed in may
+/// become one; they share /r/<code> and earn a share of every paid order it brings.
+model Referrer {
+  id          String   @id @default(cuid())
+  /// a person's own account; null for an organisation that refers through a partner (a chama group)
+  userId      String?  @unique
+  /// the partner's own id for an organisation referrer, e.g. "chama-15"
+  externalRef String?  @unique
+  /// where an organisation's commission is paid when it is not an M-Pesa phone (Chama's payout shape)
+  payout      Json?
+  /// what the customer types or the link carries, e.g. "GRACE24"
+  code        String   @unique
+  /// the name shown to the admin and on payouts (a person or the organisation)
+  name        String
+  /// funeral_home | church | individual | other
+  kind        String   @default("individual")
+  /// the M-Pesa number commission is sent to (null when `payout` says where)
+  payoutPhone String?
+  /// ACTIVE earns; SUSPENDED keeps its history but earns nothing new
+  status      String   @default("ACTIVE")
+  /// a different share for this referrer; null uses the shop's (PaymentSettings.referralPercent)
+  percent     Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User?                @relation("UserReferrer", fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  commissions ReferralCommission[]
+}
+
+/// What a referrer earned on one paid order. PENDING is owed; PAID has been sent by M-Pesa;
+/// CANCELLED is an order that was cancelled before it was paid out.
+model ReferralCommission {
+  id         String    @id @default(cuid())
+  referrerId String
+  orderId    String    @unique
+  /// what the customer paid, the share, and what that comes to, all frozen when the payment cleared
+  orderKes   Int
+  percent    Int
+  amountKes  Int
+  status     String    @default("PENDING")
+  paidAt     DateTime?
+  /// the M-Pesa confirmation code of the payout
+  payoutRef  String?
+  paidById   String?
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  referrer Referrer @relation(fields: [referrerId], references: [id], onDelete: Cascade)
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, status])
+  @@index([status])
+}
+
+/// A webhook event from a partner (Chama) already handled, so a resent one is ignored.
+model PartnerEvent {
+  eventId    String   @id
+  source     String   @default("chama")
+  receivedAt DateTime @default(now())
 }

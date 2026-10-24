@@ -94,3 +94,31 @@ describe("colour and finish decide how the piece looks", () => {
     expect(skinFor("poster", "oak")).toBe("paper");
   });
 });
+
+describe("pages and copies (a printed booklet)", () => {
+  const programme: ProductOptions = {
+    finishes: [
+      { key: "colour", label: "Full colour", addKes: 0, perCopyKes: 20 },
+      { key: "mono", label: "Black and white", addKes: 0, perCopyKes: 0 },
+    ],
+    pages: [
+      { key: "4", label: "4 pages", addKes: 0, perCopyKes: 15 },
+      { key: "8", label: "8 pages", addKes: 0, perCopyKes: 30 },
+    ],
+    copies: [
+      { key: "100", label: "100 copies", addKes: 0 },
+      { key: "300", label: "300 copies", addKes: 500 },
+    ],
+  };
+  it("charges per-copy choices once per copy", () => {
+    const p = priceBreakdown(1000, programme, "programme", { finishKey: "colour", pagesKey: "8", copiesKey: "300" });
+    expect(p.total).toBe(1000 + 20 * 300 + 30 * 300 + 500);
+    expect(p.adds.map((a) => a.label)).toEqual(["Full colour (300 copies)", "8 pages (300 copies)", "300 copies"]);
+  });
+  it("treats a product with no copies choice as one copy", () => {
+    expect(priceBreakdown(1000, { pages: programme.pages }, undefined, { pagesKey: "8" }).total).toBe(1030);
+  });
+  it("ranges over every number of copies", () => {
+    expect(priceRange(1000, programme, "programme")).toEqual({ from: 1000 + 15 * 100, to: 1000 + 500 + (20 + 30) * 300 });
+  });
+});

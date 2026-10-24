@@ -6,6 +6,8 @@ import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { cardPhoto, photosFor } from "@/lib/product-photos";
 import { priceRange, type ProductOptions } from "@/lib/product-pricing";
+import { getPaymentSettings } from "@/lib/payments";
+import { extrasEnabled } from "@/lib/features";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -55,6 +57,8 @@ export default async function LandingPage() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
   // an uploaded photo, else our own, else a generic picture of the piece
+  const { referralPercent } = await getPaymentSettings();
+  const programme = products.find((p) => p.layout === "programme");
   const shown = await photosFor(products);
   const withArt = products.map((p) => ({ p, photo: cardPhoto(shown.get(p.id)!, p.slug) }));
 
@@ -97,6 +101,24 @@ export default async function LandingPage() {
           <a href="#how" className="rounded-md border px-5 py-2.5 font-medium" style={{ borderColor: "var(--border)" }}>How it works</a>
         </div>
       </section>
+
+      {/* The piece most families need first, and fastest: the funeral programme. */}
+      {programme && (
+        <section className="mt-6 flex flex-col gap-3 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>Planning a funeral?</p>
+            <h2 className="mt-1 font-serif text-2xl text-[var(--fg)]">The funeral programme, designed and printed in 48 hours</h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+              Type their details, add a photo, and see the booklet as you go. Choose the pages and copies; we print and deliver countrywide.
+              {" "}From {kes(priceRange(programme.basePriceKes, programme.options as ProductOptions | null, programme.layout).from)}, delivery included.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 text-sm">
+            <Link href={`/shop/${programme.slug}`} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700">Start the programme</Link>
+            <a href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Hello, I need a funeral programme.")}`} className="rounded-md border px-5 py-2.5 font-medium" style={{ borderColor: "var(--border)" }}>Ask on WhatsApp</a>
+          </div>
+        </section>
+      )}
 
       <div id="shop" className="scroll-mt-4" />
       {withArt.length === 0 && (
@@ -196,9 +218,10 @@ export default async function LandingPage() {
       <section className="mt-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)" }}>
         <div>
           <p className="font-medium">Funeral home, church or workshop?</p>
-          <p style={{ color: "var(--muted)" }}>Order for the families you serve, or apply to make our pieces.</p>
+          <p style={{ color: "var(--muted)" }}>Send us families and earn {referralPercent}% on every order they pay for, or apply to make our pieces.</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Link href="/refer" className="rounded-md border px-4 py-2 font-medium" style={{ borderColor: "var(--border)" }}>Earn by referring</Link>
           <Link href="/partner/apply" className="rounded-md border px-4 py-2 font-medium" style={{ borderColor: "var(--border)" }}>Become a partner</Link>
           <a
             href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Hello, I have a question about Family Compass.")}`}
@@ -214,8 +237,9 @@ export default async function LandingPage() {
           <>
             <Link href="/about" className="hover:underline">About</Link> ·{" "}
             <Link href="/policies" className="hover:underline">Policies</Link> ·{" "}
-            <Link href="/discover" className="hover:underline">Find a family</Link> ·{" "}
-            <Link href="/partner/apply" className="hover:underline">Become a partner</Link>
+            {extrasEnabled() && <><Link href="/discover" className="hover:underline">Find a family</Link> ·{" "}</>}
+            <Link href="/partner/apply" className="hover:underline">Become a partner</Link> ·{" "}
+            <Link href="/refer" className="hover:underline">Earn by referring</Link>
           </>
         }
       />

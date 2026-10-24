@@ -52,6 +52,10 @@ export function SiteFooter({ links }: { links?: React.ReactNode }) {
         <a href="/policies" className="hover:underline">
           Policies and refunds
         </a>
+        <span aria-hidden>·</span>
+        <a href="/refer" className="hover:underline">
+          Earn by referring families
+        </a>
       </div>
     </footer>
   );

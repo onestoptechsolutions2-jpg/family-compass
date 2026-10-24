@@ -11,6 +11,7 @@ import { notifyWorkspaceOwners, notifyUser } from "@/lib/notify";
 import { resumeAwaitingGenerations } from "@/lib/generation/resume";
 import { publicOrigin } from "@/lib/origin";
 import { createJobsForOrder } from "@/lib/jobs";
+import { recordCommission } from "@/lib/referrals";
 
 /**
  * Mark a payment PAID and run everything downstream (credits / Family plan /
@@ -123,6 +124,8 @@ export async function fulfilPayment(
     });
     // Paid in full: now, and only now, the work is opened to partners.
     await createJobsForOrder(payment.orderId);
+    // The family that sent this customer earns their share, now the money is in.
+    await recordCommission(payment.orderId, payment.amountKes);
     summary = "order paid, production opened";
   } else if (payment.kind === PaymentKind.ORDER_BALANCE && payment.orderId) {
     summary = "order balance received";
