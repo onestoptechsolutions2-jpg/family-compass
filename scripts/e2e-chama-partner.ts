@@ -53,6 +53,7 @@ const server = createServer((req, res) => {
         ...(existing ? {} : { webhookSecret: SECRET }), invites: [],
       });
     }
+    if (req.method === "POST" && /\/funds\/\d+\/webhook-secret$/.test(req.url!)) return send(200, { webhookSecret: SECRET });
     const m = req.url!.match(/^\/api\/partner\/v1\/funds\/(\d+)(\/convert)?$/);
     if (m && req.method === "GET") return send(200, { fundId: Number(m[1]), status: "open", giveUrl: `http://chama.test/f/tok${m[1]}`, total: 1500, giftCount: 2, byBranch: [{ branch: "Willy Okusimba's household", total: 1000, count: 1 }], recent: [] });
     if (m && m[2] && req.method === "POST") return send(200, { groupId: Number(m[1]), status: "converted", invites: (body.members as unknown[]).map((x) => ({ phone: (x as { phone: string }).phone, invited: true, sms: true })) });
@@ -106,6 +107,12 @@ async function main() {
   check("branches come from the family", JSON.stringify(create?.body.branches) === JSON.stringify(["Rose Musungu's side", "Willy Okusimba's household", "Jane Okusimba's household"]), create?.body.branches);
   check("Chama is told where to send events", String(create?.body.webhookUrl).endsWith("/api/partners/chama/webhook"), create?.body.webhookUrl);
   check("we keep Chama's fund, page and secret", a.fund.partnerFundId === FIRST && a.fund.partnerGiveUrl === `http://chama.test/f/tok${FIRST}` && a.fund.partnerSecret === SECRET, a.fund);
+  // the first create's answer was lost: a retry gets the same fund without its secret, and asks for a new one
+  const { linkFundToChama } = await import("../src/lib/chama-partner-funds");
+  await db.chamaFund.update({ where: { id: a.fund.id }, data: { partnerFundId: null, partnerSecret: null } });
+  const relink = await linkFundToChama(a.fund.id, { name: "Jane Okusimba", phone: "0722111222" });
+  const relinked = await db.chamaFund.findUniqueOrThrow({ where: { id: a.fund.id } });
+  check("a lost secret is re-issued", relink.linked && relinked.partnerFundId === FIRST && relinked.partnerSecret === SECRET && seen.some((r) => r.url.endsWith("/webhook-secret")), relinked);
   check("a Chama-run fund takes no hand-recorded pledges", !(await recordPledge(a.fund.publicToken, { name: "Paul", amountKes: 500 })).ok);
 
   // 2. Chama's wallets off: the fund stays on the family's own M-Pesa

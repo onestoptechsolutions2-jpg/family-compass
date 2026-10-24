@@ -205,6 +205,8 @@ want that effortless feel, with the commercial step added at the end.
 - Chama's events (/api/partners/chama/webhook) are trusted only with a valid X-Chama-Signature-256
   over "<timestamp>.<raw body>", with the fund's own secret, at most 5 minutes old; a repeated eventId
   is ignored. Totals are also read from Chama (at most once a minute) when the committee opens the page.
+  If the first create's answer (with the fund's secret) was lost, a new secret is requested
+  (POST /funds/{id}/webhook-secret, Chama 23d1bfe, not yet on Chama main).
 - Totals by family branch are shown on the memorial's admin page only, never publicly.
 - After the burial the committee can start a family welfare chama on Chama, inviting relatives by
   phone (pre-filled from relatives in the tree with a phone on their account).

@@ -75,6 +75,14 @@ export function getFund(fundId: number): Promise<PartnerResult<PartnerFund>> {
   return call<PartnerFund>("GET", `/funds/${fundId}`);
 }
 
+/**
+ * A new signing secret for a fund's webhooks, for when the first one was lost (a timeout after
+ * Chama created the fund; the retry comes back without it). The old secret stops working at once.
+ */
+export function newWebhookSecret(fundId: number): Promise<PartnerResult<{ webhookSecret: string }>> {
+  return call("POST", `/funds/${fundId}/webhook-secret`);
+}
+
 /** After the burial: keep the committee going as a family welfare chama, inviting these relatives. */
 export function convertFund(
   fundId: number,

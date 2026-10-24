@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { normalisePhone } from "@/lib/referral-rules";
 import { branchesFor, readTotals, toChamaPayout } from "@/lib/chama-partner-rules";
-import { createFund, getFund, partnerEnabled } from "@/lib/chama-partner";
+import { createFund, getFund, newWebhookSecret, partnerEnabled } from "@/lib/chama-partner";
 import type { FundDestination } from "@/lib/fund-destination";
 
 /** Where Chama posts this app's fund events. */
@@ -56,13 +56,19 @@ export async function linkFundToChama(
 
   const f = res.data;
   const totals = readTotals(f as unknown as Record<string, unknown>);
+  // the secret comes only with the first create; if that answer was lost, ask Chama for a new one
+  let secret = f.webhookSecret;
+  if (!secret) {
+    const fresh = await newWebhookSecret(f.fundId);
+    if (fresh.ok) secret = fresh.data.webhookSecret;
+  }
   await db.chamaFund.update({
     where: { id: fund.id },
     data: {
       partnerFundId: f.fundId,
       partnerGiveUrl: f.giveUrl,
-      // shown once, on the first create; a repeat create (same memorial) keeps the one we hold
-      ...(f.webhookSecret ? { partnerSecret: f.webhookSecret } : {}),
+      // without one, Chama's events for this fund cannot be trusted; totals are then read instead
+      ...(secret ? { partnerSecret: secret } : {}),
       branches: f.branches?.length ? f.branches : branches,
       partnerStatus: f.status,
       partnerTotalKes: totals.total ?? 0,
