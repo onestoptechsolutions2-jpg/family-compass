@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { fundByToken, fundTotals, fundContributions } from "@/lib/chama";
@@ -34,6 +34,8 @@ export default async function GivePage({
 
   const fund = await fundByToken(token);
   if (!fund) notFound();
+  // a fund run on Chama takes gifts by M-Pesa prompt on Chama's own page
+  if (fund.partnerGiveUrl && fund.status === "OPEN") redirect(fund.partnerGiveUrl);
 
   const [totals, contributions] = await Promise.all([
     fundTotals(fund.id),

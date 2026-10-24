@@ -87,6 +87,13 @@ const schema = z.object({
     .string()
     .optional()
     .transform((v) => v !== "false" && v !== "0"),
+  // Chama partner API (funeral funds run on Chama's M-Pesa wallets). Both set = on; otherwise
+  // funeral funds stay on the family's own M-Pesa, confirmed by hand. The token is the one
+  // listed for "familycompass" in Chama's PARTNER_API_TOKENS.
+  CHAMA_PARTNER_URL: z.string().optional().default(""),
+  CHAMA_PARTNER_TOKEN: z.string().optional().default(""),
+  // Shared with Chama's FAMILY_COMPASS_REFERRAL_SECRET: signs its bereavement referrals.
+  CHAMA_REFERRAL_SECRET: z.string().optional().default(""),
   // Genealogy extras beyond the shop and the family record: research, the developer API,
   // the family directory, chama, deep search, friend invites and the family-energy score.
   // Off by default so the site leads with the shop; set GENEALOGY_EXTRAS=true to show them.

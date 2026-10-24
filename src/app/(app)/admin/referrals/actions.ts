@@ -27,7 +27,8 @@ export async function markReferrerPaid(referrerId: string, formData: FormData) {
     data: { status: "PAID", paidAt: new Date(), payoutRef, paidById: admin.id },
   });
   const r = await db.referrer.findUniqueOrThrow({ where: { id: referrerId }, select: { userId: true } });
-  await notifyUser(r.userId, {
+  // an organisation referrer (a chama group) has no account here to tell
+  if (r.userId) await notifyUser(r.userId, {
     kind: "referral.paid",
     title: "Your referral earnings were sent",
     body: `KES ${total.toLocaleString("en-KE")} was sent to your M-Pesa (${payoutRef}). Thank you for sending families to us.`,

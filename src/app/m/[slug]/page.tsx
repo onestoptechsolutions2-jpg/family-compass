@@ -554,7 +554,7 @@ export default async function MemorialPage({
             </p>
             {m.welfareFund.open && (
               <Link
-                href={`/give/${m.welfareFund.token}`}
+                href={m.welfareFund.giveHref}
                 className="mt-2 inline-block rounded-full px-4 py-1.5 text-sm font-medium text-white"
                 style={{ background: theme.accent }}
               >

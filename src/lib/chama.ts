@@ -176,6 +176,7 @@ export async function fundByToken(token: string) {
       payNumber: true,
       payAccount: true,
       payName: true,
+      partnerGiveUrl: true,
       chama: { select: { treeId: true, name: true, currency: true } },
       memorial: { select: { slug: true, headline: true } },
     },
@@ -221,11 +222,11 @@ export async function recordPledge(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const fund = await db.chamaFund.findUnique({
     where: { publicToken: token },
-    select: { id: true, chamaId: true, status: true, payNumber: true, chama: { select: { treeId: true } } },
+    select: { id: true, chamaId: true, status: true, payNumber: true, partnerFundId: true, chama: { select: { treeId: true } } },
   });
   if (!fund) return { ok: false, error: "not_found" };
-  // with nowhere to send money there is nothing to record yet
-  if (fund.status !== "OPEN" || !fund.payNumber) return { ok: false, error: "closed" };
+  // with nowhere to send money there is nothing to record yet; a fund run on Chama records its own gifts
+  if (fund.status !== "OPEN" || !fund.payNumber || fund.partnerFundId) return { ok: false, error: "closed" };
 
   const name = input.name.trim().slice(0, 120);
   const amountKes = Math.round(input.amountKes);

@@ -1847,6 +1847,21 @@ model ChamaFund {
   payAccount  String?
   /// the name M-Pesa shows the contributor, so they can check before sending
   payName     String?
+  /// run by Chama (partner API): its fund id, the hosted contribute page and the signing secret
+  /// for its webhooks. Null for a fund this app runs itself (the family confirms each gift).
+  partnerFundId    Int?      @unique
+  partnerGiveUrl   String?
+  partnerSecret    String?
+  /// family branches the fund collects by, sent to Chama at creation
+  branches         String[]  @default([])
+  /// the latest totals Chama reported (webhook or read), whole KES
+  partnerTotalKes  Int?
+  partnerGiftCount Int?
+  partnerByBranch  Json?
+  partnerStatus    String?
+  partnerSyncedAt  DateTime?
+  /// set when the committee kept going as a family welfare chama on Chama
+  convertedGroupId Int?
   status      ChamaFundStatus @default(OPEN)
   opensAt     DateTime        @default(now())
   closesAt    DateTime?
@@ -2714,15 +2729,20 @@ model DraftPhoto {
 /// become one; they share /r/<code> and earn a share of every paid order it brings.
 model Referrer {
   id          String   @id @default(cuid())
-  userId      String   @unique
+  /// a person's own account; null for an organisation that refers through a partner (a chama group)
+  userId      String?  @unique
+  /// the partner's own id for an organisation referrer, e.g. "chama-15"
+  externalRef String?  @unique
+  /// where an organisation's commission is paid when it is not an M-Pesa phone (Chama's payout shape)
+  payout      Json?
   /// what the customer types or the link carries, e.g. "GRACE24"
   code        String   @unique
   /// the name shown to the admin and on payouts (a person or the organisation)
   name        String
   /// funeral_home | church | individual | other
   kind        String   @default("individual")
-  /// the M-Pesa number commission is sent to
-  payoutPhone String
+  /// the M-Pesa number commission is sent to (null when `payout` says where)
+  payoutPhone String?
   /// ACTIVE earns; SUSPENDED keeps its history but earns nothing new
   status      String   @default("ACTIVE")
   /// a different share for this referrer; null uses the shop's (PaymentSettings.referralPercent)
@@ -2730,7 +2750,7 @@ model Referrer {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User                 @relation("UserReferrer", fields: [userId], references: [id], onDelete: Cascade)
+  user        User?                @relation("UserReferrer", fields: [userId], references: [id], onDelete: Cascade)
   orders      Order[]
   commissions ReferralCommission[]
 }
@@ -2759,4 +2779,11 @@ model ReferralCommission {
 
   @@index([referrerId, status])
   @@index([status])
+}
+
+/// A webhook event from a partner (Chama) already handled, so a resent one is ignored.
+model PartnerEvent {
+  eventId    String   @id
+  source     String   @default("chama")
+  receivedAt DateTime @default(now())
 }

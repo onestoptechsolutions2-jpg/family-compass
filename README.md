@@ -110,6 +110,8 @@ Create a tree in the UI, open **Import**, and upload `seed/family-compass.gramps
    | `OPEN_SIGNUP` | — | `false` (default) = invite-only, no self-service registration; `true` = anyone may sign in |
    | `ALLOWED_SIGNUP_EMAILS` / `_DOMAINS` | — | extra addresses / whole domains allowed to sign in |
    | `VAPID_PUBLIC_KEY` / `_PRIVATE_KEY` | — | Web Push for installed apps; `npx web-push generate-vapid-keys`. Unset = device notifications disabled. `VAPID_SUBJECT` optional (defaults to `mailto:<ADMIN_EMAILS[0]>`). |
+   | `CHAMA_PARTNER_URL` / `CHAMA_PARTNER_TOKEN` | — | Chama's partner API: funeral funds on Chama's M-Pesa wallets. Unset (or Chama's wallets off) = funds stay on the family's own M-Pesa, confirmed by hand |
+   | `CHAMA_REFERRAL_SECRET` | — | equals Chama's `FAMILY_COMPASS_REFERRAL_SECRET`; Chama's `FAMILY_COMPASS_REFERRAL_URL` is `<APP_URL>/api/partners/chama/bereavement` |
    | `GENEALOGY_EXTRAS` | — | `false` (default) = shop first; `true` shows research, the developer API, the family directory, chama, deep search, friend invites and the family-energy score |
    | `RUN_SEED_ON_MIGRATE` | — | `true` on the very first deploy only |
 

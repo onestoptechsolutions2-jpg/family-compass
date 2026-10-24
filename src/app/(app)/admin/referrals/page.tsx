@@ -3,6 +3,7 @@ import { kes } from "@/lib/money";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { getPaymentSettings } from "@/lib/payments";
 import { REFERRER_KINDS } from "@/lib/referrals";
+import { describeChamaPayout } from "@/lib/chama-partner-rules";
 import { markReferrerPaid, updateReferrer } from "./actions";
 
 export const metadata = { title: "Referrals" };
@@ -47,7 +48,7 @@ export default async function AdminReferralsPage({ searchParams }: { searchParam
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <p className="font-semibold">{r.name} <span className="font-mono text-xs" style={{ color: "var(--muted)" }}>{r.code}</span></p>
-              <p style={{ color: "var(--muted)" }}>{KIND[r.kind] ?? r.kind} · {r.user.email} · M-Pesa 0{r.payoutPhone.slice(3)} · joined {r.createdAt.toISOString().slice(0, 10)}</p>
+              <p style={{ color: "var(--muted)" }}>{KIND[r.kind] ?? r.kind} · {r.user?.email ?? "through Chama"} · {r.payoutPhone ? `M-Pesa 0${r.payoutPhone.slice(3)}` : describeChamaPayout(r.payout) ?? "no payout account yet"} · joined {r.createdAt.toISOString().slice(0, 10)}</p>
             </div>
             <p className={r.status === "ACTIVE" ? "" : "text-red-600"}>{r.status === "ACTIVE" ? "Active" : "Paused"}</p>
           </div>

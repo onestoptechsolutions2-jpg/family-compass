@@ -824,3 +824,59 @@ export async function setMemorialFundOpen(
   else await closeChamaFund(treeId, fundId);
   revalidate(treeId, m.personId);
 }
+
+// ---- Funeral fund on Chama (automatic M-Pesa) -----------------------------------
+
+/** Move the fund onto Chama: gifts by M-Pesa prompt that record themselves. The family's account stays the payout. */
+export async function linkFundToChamaAction(treeId: string, memorialId: string, fundId: string, formData: FormData) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const fund = await db.chamaFund.findFirst({ where: { id: fundId, memorialId }, select: { id: true } });
+  if (!fund) fundError(m.personId, treeId, "That fund is not on this memorial.");
+  const { linkFundToChama } = await import("@/lib/chama-partner-funds");
+  const family = await familyOf(m.personId);
+  const r = await linkFundToChama(fundId, { name: String(formData.get("chairName") ?? ""), phone: String(formData.get("chairPhone") ?? "") }, family);
+  if (!r.linked) fundError(m.personId, treeId, r.reason);
+  revalidate(treeId, m.personId);
+}
+
+/**
+ * After the burial: the committee keeps going as a family welfare chama on Chama. Each relative
+ * listed gets an SMS invite and joins themselves; the committee stay as officials.
+ */
+export async function convertFundAction(treeId: string, memorialId: string, fundId: string, formData: FormData) {
+  await requireTreeEdit(treeId);
+  const m = await ownMemorial(treeId, memorialId);
+  const fund = await db.chamaFund.findFirst({ where: { id: fundId, memorialId }, select: { id: true, partnerFundId: true } });
+  if (!fund?.partnerFundId) fundError(m.personId, treeId, "Only a fund run on Chama can become a family chama.");
+  const members = String(formData.get("members") ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.split(",").map((x) => x.trim()))
+    .filter(([name, phone]) => name && phone)
+    .slice(0, 200)
+    .map(([name, phone]) => ({ name: name!.slice(0, 120), phone: phone! }));
+  if (!members.length) fundError(m.personId, treeId, "List at least one relative: a name, a comma, then their phone number.");
+  const { convertFund } = await import("@/lib/chama-partner");
+  const r = await convertFund(fund!.partnerFundId!, members);
+  if (!r.ok) fundError(m.personId, treeId, r.unavailable ? "Chama is not available right now. Please try again later." : r.error);
+  await db.chamaFund.update({ where: { id: fund!.id }, data: { convertedGroupId: r.ok ? r.data.groupId : null, partnerStatus: "converted" } });
+  const skipped = r.ok ? r.data.invites.filter((i) => !i.invited).length : 0;
+  redirect(`/trees/${treeId}/people/${m.personId}/memorial?fundNotice=${encodeURIComponent(`The family chama is started. ${members.length - skipped} invited${skipped ? `; ${skipped} skipped (already a member or not a valid number)` : ""}.`)}#fund`);
+}
+
+/** The deceased's spouse and children, one name per line, for naming the fund's family branches. */
+async function familyOf(personId: string): Promise<{ spouse?: string; children?: string }> {
+  const fams = await db.family.findMany({
+    where: { OR: [{ partner1Id: personId }, { partner2Id: personId }] },
+    select: {
+      partner1Id: true,
+      partner1: { select: { names: { where: { preferred: true }, take: 1 } } },
+      partner2: { select: { names: { where: { preferred: true }, take: 1 } } },
+      childRefs: { orderBy: { order: "asc" }, select: { person: { select: { names: { where: { preferred: true }, take: 1 } } } } },
+    },
+  });
+  const nm = (p: { names: { first: string | null; surname: string | null }[] } | null) => (p ? [p.names[0]?.first, p.names[0]?.surname].filter(Boolean).join(" ") : "");
+  const spouses = fams.map((f) => nm(f.partner1Id === personId ? f.partner2 : f.partner1)).filter(Boolean);
+  const children = fams.flatMap((f) => f.childRefs.map((c) => nm(c.person))).filter(Boolean);
+  return { spouse: spouses.join("\n"), children: children.join("\n") };
+}

@@ -10,6 +10,7 @@ export const REFERRER_KINDS = [
   ["church", "Church or mosque"],
   ["individual", "Individual"],
   ["other", "Other organisation"],
+  ["chama", "Chama group"],
 ] as const;
 export type ReferrerKind = (typeof REFERRER_KINDS)[number][0];
 export const isReferrerKind = (v: string): v is ReferrerKind => REFERRER_KINDS.some(([k]) => k === v);
@@ -43,7 +44,7 @@ export function normalisePhone(raw: string): string | null {
  * Which referrer an order is credited to: a code the customer typed wins over one a link
  * left behind. Nobody earns on their own order, and a suspended referrer earns nothing new.
  */
-export function chooseReferrer<R extends { id: string; userId: string; status: string }>(
+export function chooseReferrer<R extends { id: string; userId: string | null; status: string }>(
   typed: R | null,
   fromLink: R | null,
   customerUserId: string,

@@ -48,7 +48,7 @@ export async function recordCommission(orderId: string, paidKes: number): Promis
     data: [{ referrerId: r.id, orderId, orderKes: paidKes, percent, amountKes }],
     skipDuplicates: true,
   });
-  if (made.count > 0) {
+  if (made.count > 0 && r.userId) {
     await notifyUser(r.userId, {
       kind: "referral.earned",
       title: "You earned a commission",

@@ -191,3 +191,23 @@ want that effortless feel, with the commercial step added at the end.
   generation) stays an extra.
 - The programme wizard asks, optionally, where contributions go; placing the order opens the fund
   and the back page reads "Scan to contribute", with the family's number printed under the QR.
+
+## Funeral funds on Chama (built 2026-10-24, off until Chama's wallets are signed off)
+- Contract: Chama's docs/api.md, "Partner API — funeral funds", merged in Chama 67c3a71.
+- With CHAMA_PARTNER_URL and CHAMA_PARTNER_TOKEN set, a programme order that collects contributions
+  creates the fund on Chama, keyed to the memorial (a retry never makes a second fund). The customer
+  chairs the committee; the family's own account is the only payout; branches are the spouse's side
+  and each child's household. If Chama cannot take it (unset, wallets off = 503, down), the fund
+  stays on the family's own M-Pesa, confirmed by hand. A family can switch an existing fund over
+  from the memorial ("Collect by M-Pesa prompt instead").
+- Mourners give on Chama's own page (/f/<token>); our /give and the memorial's Contribute go there.
+  Hand-recorded pledges are refused on a Chama-run fund.
+- Chama's events (/api/partners/chama/webhook) are trusted only with a valid X-Chama-Signature-256
+  over "<timestamp>.<raw body>", with the fund's own secret, at most 5 minutes old; a repeated eventId
+  is ignored. Totals are also read from Chama (at most once a minute) when the committee opens the page.
+- Totals by family branch are shown on the memorial's admin page only, never publicly.
+- After the burial the committee can start a family welfare chama on Chama, inviting relatives by
+  phone (pre-filled from relatives in the tree with a phone on their account).
+- Bereavement referrals (/api/partners/chama/bereavement): a chama group becomes an organisation
+  referrer (no Family Compass account; code CHAMA<groupId>; payout = the group's nominated account)
+  and earns the usual referral share on the programme the family orders. No personal details arrive.

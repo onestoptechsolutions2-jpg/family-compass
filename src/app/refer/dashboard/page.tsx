@@ -101,7 +101,7 @@ export default async function ReferDashboard({ searchParams }: { searchParams: P
         <form action={updatePayoutPhone} className="mt-3 flex flex-wrap items-end gap-2">
           <label className="min-w-48 flex-1">
             <span style={{ color: "var(--muted)" }}>M-Pesa number</span>
-            <input name="payoutPhone" defaultValue={`0${r.payoutPhone.slice(3)}`} inputMode="tel" className="mt-1 w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }} />
+            <input name="payoutPhone" defaultValue={r.payoutPhone ? `0${r.payoutPhone.slice(3)}` : ""} inputMode="tel" className="mt-1 w-full rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg)" }} />
           </label>
           <button className="rounded-md border px-4 py-2" style={{ borderColor: "var(--border)" }}>Save</button>
         </form>

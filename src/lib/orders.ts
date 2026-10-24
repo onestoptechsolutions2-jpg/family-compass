@@ -447,7 +447,7 @@ export async function checkoutCart(
     },
     { timeout: 60_000 },
   );
-  if (placed) await openFundsForOrder(order.id, workspaceId, userId);
+  if (placed) await openFundsForOrder(order.id, workspaceId, userId, { name: delivery.contactName, phone: delivery.contactPhone });
   return placed;
 }
 
@@ -456,9 +456,10 @@ export async function checkoutCart(
  * straight to the family's own M-Pesa. Done after the order is placed: a fund that fails to open
  * never costs the family their order, and the family can still open it from the memorial.
  */
-async function openFundsForOrder(orderId: string, workspaceId: string, userId: string): Promise<void> {
-  // loaded here, not at the top: the chama module reads the environment when it loads
+async function openFundsForOrder(orderId: string, workspaceId: string, userId: string, chair: { name: string; phone: string }): Promise<void> {
+  // loaded here, not at the top: these modules read the environment when they load
   const { ensureMemorialFund } = await import("@/lib/chama");
+  const { linkFundToChama } = await import("@/lib/chama-partner-funds");
   const items = await db.orderItem.findMany({ where: { orderId }, select: { layoutSnapshot: true, product: { select: { layout: true } } } });
   for (const it of items) {
     const o = (it.layoutSnapshot ?? {}) as DraftOptions & { memorialId?: string | null; name?: string };
@@ -468,12 +469,15 @@ async function openFundsForOrder(orderId: string, workspaceId: string, userId: s
     const memorial = await db.memorial.findUnique({ where: { id: o.memorialId }, select: { treeId: true } });
     if (!memorial) continue;
     try {
-      await ensureMemorialFund(memorial.treeId, o.memorialId, {
+      const { fundId } = await ensureMemorialFund(memorial.treeId, o.memorialId, {
         workspaceId,
         label: `Funeral fund — ${o.name || [o.first, o.surname].filter(Boolean).join(" ")}`,
         createdById: userId,
         destination: dest.value,
       });
+      // with Chama switched on, gifts come by M-Pesa prompt and record themselves; the customer chairs
+      // the committee. If Chama cannot take it, the fund stays on the family's own M-Pesa.
+      await linkFundToChama(fundId, chair, { spouse: o.spouse, children: o.children });
     } catch (e) {
       console.error("[orders] could not open the funeral fund", e);
     }
