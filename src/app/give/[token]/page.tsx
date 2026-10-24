@@ -26,11 +26,12 @@ export default async function GivePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ given?: string; err?: string }>;
+  searchParams: Promise<{ given?: string; err?: string; amount?: string }>;
 }) {
   if (!memorialFundEnabled()) notFound();
   const { token } = await params;
-  const { given, err } = await searchParams;
+  const { given, err, amount: rawAmount } = await searchParams;
+  const amount = /^\d{2,7}$/.test(rawAmount ?? "") ? rawAmount : undefined;
 
   const fund = await fundByToken(token);
   if (!fund) notFound();
@@ -112,6 +113,14 @@ export default async function GivePage({
               <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>The money goes straight to the family. Check the name M-Pesa shows before you confirm.</span>
             </p>
           )}
+          {/* the usual amounts, one tap each, like choosing a reply in WhatsApp */}
+          <div className="flex flex-wrap gap-2" aria-label="Choose an amount">
+            {["500", "1000", "2000", "5000"].map((a) => (
+              <Link key={a} href={`/give/${token}?amount=${a}`} scroll={false} className="wa-chip" aria-pressed={amount === a}>
+                KES {Number(a).toLocaleString("en-KE")}
+              </Link>
+            ))}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">
               <span style={{ color: "var(--muted)" }}>Your name</span>
@@ -119,7 +128,7 @@ export default async function GivePage({
             </label>
             <label className="text-sm">
               <span style={{ color: "var(--muted)" }}>Amount (KES)</span>
-              <input name="amountKes" required inputMode="numeric" placeholder="1000" className={field} style={fs} />
+              <input name="amountKes" required inputMode="numeric" placeholder="1000" defaultValue={amount} className={field} style={fs} />
             </label>
           </div>
           <label className="text-sm">

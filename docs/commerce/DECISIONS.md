@@ -230,3 +230,16 @@ want that effortless feel, with the commercial step added at the end.
   own line so the lines add up to the total.
 - The payment screen shows one way to pay (the paybill, else the till); others are a tap away.
 - The cookie choice is a thin bar at the top, never over the button being tapped.
+
+## A WhatsApp feeling (decided 2026-10-24)
+- People already know how to use WhatsApp, so the site borrows its habits: the green they tap
+  every day, chat bubbles, and one typing bar at the bottom.
+- Step 1 of an order is a chat: we ask one plain question at a time ("What was their first name?",
+  "Send a photo for the cover"), the answer comes back as a green bubble with ticks, any answer
+  can be tapped to change it, optional ones can be skipped, and the optional extras are offered
+  once ("Yes, add them now" / "Later"). It sends the same form as before, so nothing else changed.
+  Tree pieces keep the tap-the-tree builder.
+- The memorial page opens like a chat: the photo and name in a green header with a share button,
+  tributes as bubbles (flowers as small notices), and a bar at the bottom with Message and
+  Contribute. The contribute page offers KES 500, 1,000, 2,000 and 5,000 as one-tap amounts.
+- A WhatsApp help button sits in the order header.

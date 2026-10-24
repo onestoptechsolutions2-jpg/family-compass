@@ -20,7 +20,7 @@ import { draftPhotoUrl } from "@/lib/draft-photo";
 import { saveStep } from "./actions";
 import { TreeBuilder } from "@/components/TreeBuilder";
 import { VariantPicker } from "@/components/VariantPicker";
-import { PhotoPicker } from "@/components/PhotoPicker";
+import { ChatForm, type ChatQuestion } from "@/components/ChatForm";
 
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
@@ -37,6 +37,9 @@ const field = "mt-1 w-full rounded-lg border px-4 py-3 text-base";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
 const btn = "w-full rounded-lg bg-brand-600 px-5 py-3.5 text-base font-medium text-white hover:bg-brand-700";
 const back = "block text-center text-sm underline";
+
+/** Our WhatsApp, for anyone who gets stuck (the same number as the site footer). */
+const SUPPORT_WHATSAPP = "254113352048";
 
 const RELATIONS = [
   ["child", "Son or daughter"],
@@ -99,42 +102,29 @@ export default async function OrderWizard({
   );
   const previewSvg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
 
-  const label = (t: string) => <span className="text-sm font-medium">{t}</span>;
-  const renderField = (f: Field) => {
-    if (f.relation) {
-      return (
-        <label key="relation">{label(f.label || "You are their")}
-          <select name="relation" defaultValue={o.relation ?? "other"} className={field} style={fieldStyle}>
-            {RELATIONS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-          </select>
-        </label>
-      );
-    }
-    if (f.photo) return <PhotoPicker key={f.key} label={f.label} current={photoHref} />;
-    if (f.choices) {
-      return (
-        <label key={f.key}>
-          {label(f.label)}
-          {f.hint && <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>{f.hint}</span>}
-          <select name={f.key} defaultValue={(o[f.key] as string | undefined) ?? f.choices[0]?.[0]} className={field} style={fieldStyle}>
-            {f.choices.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-          </select>
-        </label>
-      );
-    }
-    const value = o[f.key] as string | undefined;
-    return (
-      <label key={f.key}>
-        {label(f.label)}
-        {f.hint && <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>{f.hint}</span>}
-        {f.rows ? (
-          <textarea name={f.key} rows={f.rows} defaultValue={value} placeholder={f.placeholder} className={field} style={fieldStyle} />
-        ) : (
-          <input name={f.key} defaultValue={value} placeholder={f.placeholder} required={f.key === requiredKey(layout) && step === 1} className={field} style={fieldStyle} />
-        )}
-      </label>
-    );
+  // Each question of the form, asked as a chat message, in words people use on WhatsApp.
+  const remembered = pathway === "REMEMBERED";
+  const ASK: Partial<Record<string, string>> = {
+    first: remembered ? "What was their first name?" : "What is your first name?",
+    surname: remembered ? "And their surname?" : "And your surname?",
+    birth: remembered ? "When were they born? A year is fine." : "When were you born? A year is fine (optional).",
+    death: "When did they pass on?",
+    photoId: "Send a photo for the cover 📷",
+    epitaph: "A verse or a short line for the cover? (optional)",
+    serviceWhen: "When is the service? Day and time.",
+    venue: "Where will it be held?",
+    place: remembered ? "Where will they be laid to rest? (optional)" : "Where? (optional)",
+    relation: remembered ? "You are their…" : "You are…",
   };
+  const toQuestion = (f: Field): ChatQuestion => ({
+    key: f.key,
+    ask: ASK[f.key] ?? (f.relation ? f.label || "You are their" : f.label),
+    hint: f.hint,
+    placeholder: f.placeholder,
+    kind: f.photo ? "photo" : f.relation || f.choices ? "choice" : f.rows ? "long" : "text",
+    choices: f.relation ? RELATIONS.map(([v, t]) => [v, t] as [string, string]) : f.choices,
+    required: f.key === requiredKey(layout),
+  });
 
   // Step 3 needs to know who is paying, what they already gave us, and who sent them.
   const payStep = current === "pay";
@@ -156,15 +146,26 @@ export default async function OrderWizard({
     return c ? [c.label] : [];
   });
   const headline = o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || o.surname || "";
-  const hasOptional = step2.fields.some((f) => !f.relation && (o[f.key] as string | undefined)?.trim());
 
   return (
     <main className="mx-auto min-h-dvh max-w-lg px-4 py-6">
       <div className="flex items-center justify-between text-sm">
         <Link href={step > 1 ? `/order/${token}?step=${before}` : `/shop/${item.product.slug}`} style={{ color: "var(--muted)" }} aria-label="Back">←</Link>
         <span className="font-medium">{item.product.name}</span>
-        {/* the live total is on step 2; up here only once it is settled */}
-        <span style={{ color: "var(--muted)" }}>{payStep ? kes(amountDueNow(price)) : ""}</span>
+        <span className="flex items-center gap-2">
+          {/* the live total is on step 2; up here only once it is settled */}
+          <span style={{ color: "var(--muted)" }}>{payStep ? kes(amountDueNow(price)) : ""}</span>
+          <a
+            href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`Hello, I need help with my ${item.product.name.toLowerCase()} order.`)}`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Need help? Chat with us on WhatsApp"
+            className="grid h-8 w-8 place-items-center rounded-full text-white"
+            style={{ background: "#25D366" }}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden><path d="M12.04 2c-5.46 0-9.9 4.44-9.9 9.9 0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.38a9.86 9.86 0 0 0 4.75 1.21c5.46 0 9.9-4.44 9.9-9.9S17.5 2 12.04 2Zm5.8 14.02c-.24.68-1.42 1.32-1.95 1.36-.5.04-.5.4-3.15-.66-2.66-1.05-4.3-3.76-4.43-3.94-.13-.18-1.05-1.4-1.05-2.66 0-1.26.66-1.88.9-2.14.24-.26.52-.32.7-.32h.5c.16 0 .38-.06.59.45.24.58.8 2 .87 2.14.07.14.12.31.02.5-.1.18-.15.3-.3.46-.14.18-.3.39-.43.53-.14.14-.29.3-.12.58.16.28.72 1.18 1.54 1.91 1.06.95 1.95 1.24 2.23 1.38.28.14.44.12.6-.07.17-.2.7-.81.88-1.09.18-.28.36-.23.6-.14.25.09 1.58.75 1.85.89.28.14.46.2.53.32.07.12.07.68-.17 1.36Z" /></svg>
+          </a>
+        </span>
       </div>
       <ol className="mt-4 grid grid-cols-3 gap-2 text-xs" aria-label="Steps">
         {flow.map((f, i) => (
@@ -198,20 +199,18 @@ export default async function OrderWizard({
       )}
 
       {current === "details" && (
-        <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">{step1.title}</h1>
-          {step1.fields.map(renderField)}
-          {step2.fields.length > 0 && (
-            <details open={hasOptional} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
-              <summary className="cursor-pointer text-sm font-medium">{step2.title} <span style={{ color: "var(--muted)" }}>(optional)</span></summary>
-              <div className="mt-4 flex flex-col gap-4">
-                {step2.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step2.intro}</p>}
-                {step2.fields.map(renderField)}
-              </div>
-            </details>
-          )}
-          <button className={btn}>Continue</button>
-        </form>
+        <section className="mt-4">
+          <ChatForm
+            intro={pathway === "REMEMBERED"
+              ? `Pole sana. I'll ask a few quick questions to make the ${item.product.name.toLowerCase()}. You can change any answer later.`
+              : `Karibu! I'll ask a few quick questions to make your ${item.product.name.toLowerCase()}. You can change any answer later.`}
+            questions={step1.fields.map(toQuestion)}
+            more={step2.fields.length ? { ask: `Would you like to add ${step2.title.toLowerCase()} now? It's optional; you can also do it later.`, questions: step2.fields.map(toQuestion) } : undefined}
+            initial={Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v === "string")) as Record<string, string>}
+            photoHref={photoHref}
+            action={save}
+          />
+        </section>
       )}
 
       {current === "choose" && (
