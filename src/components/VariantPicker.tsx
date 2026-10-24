@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import { previewBackground, SHIRT_COLOURS } from "@/lib/print-kit";
 import { priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
-import type { DraftOptions } from "@/lib/order-shared";
+import { amountDueNow, type DraftOptions } from "@/lib/order-shared";
 import type { Layout, Pathway } from "@/lib/layouts";
 import { kes } from "@/lib/money";
 
@@ -33,6 +33,8 @@ type Props = {
   initialWarnings?: string[];
   /** the cover photo, if the customer added one */
   photoHref?: string;
+  /** the choices folded into one line with a Change button; the preview and the total come first */
+  compact?: boolean;
 };
 
 /**
@@ -40,7 +42,7 @@ type Props = {
  * the piece in the chosen colour, update as each choice is made, so nothing about
  * the cost is a surprise at the cart.
  */
-export function VariantPicker({ basePriceKes, po, layout, pathway, productName, origin, options, initialSvg, initialWarnings = [], photoHref }: Props) {
+export function VariantPicker({ basePriceKes, po, layout, pathway, productName, origin, options, initialSvg, initialWarnings = [], photoHref, compact = false }: Props) {
   const groups = VARIANT_GROUPS.map((g) => ({ ...g, items: po[g.list] ?? [] })).filter((g) => g.items.length);
   const [sel, setSel] = useState<Record<string, string>>(() =>
     Object.fromEntries(groups.map((g) => [g.key, g.items.some((c) => c.key === options[g.key]) ? (options[g.key] as string) : g.items[0]!.key])),
@@ -50,6 +52,7 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
   const [svg, setSvg] = useState(initialSvg);
   const [warnings, setWarnings] = useState(initialWarnings);
   const first = useRef(true);
+  const [open, setOpen] = useState(!compact);
 
   useEffect(() => {
     if (first.current) {
@@ -73,6 +76,31 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
 
   return (
     <div className="flex flex-col gap-5">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>Preview</p>
+        {warnings.length > 0 && (
+          <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }} aria-live="polite">
+            {warnings.map((w) => <li key={w}>{w}</li>)}
+          </ul>
+        )}
+        <div
+          className="mt-2 overflow-hidden rounded-xl border"
+          style={{ borderColor: "var(--border)", background: previewBackground(layout, sel.finishKey) ?? (layout === "shirt" ? "#e8e8e8" : undefined) }}
+          dangerouslySetInnerHTML={{ __html: svg || '<div style="padding:3rem;text-align:center;opacity:.6">Drawing…</div>' }}
+        />
+      </div>
+      {compact ? (
+        <>
+      {/* the chosen values always travel with the form, whichever way they are shown */}
+      {groups.map((g) => <input key={g.key} type="hidden" name={g.key} value={sel[g.key]} />)}
+      {compact && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+          <span>{groups.map((g) => g.items.find((c) => c.key === sel[g.key])?.label).filter(Boolean).join(" · ")}</span>
+          <button type="button" onClick={() => setOpen((v) => !v)} className="shrink-0 underline" aria-expanded={open}>{open ? "Done" : "Change"}</button>
+        </div>
+      )}
+          {open && (
+            <>
       {groups.map((g) => (
         <fieldset key={g.key} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
           <legend className="px-1 text-sm font-medium">{g.title}</legend>
@@ -85,7 +113,7 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
                   className="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
                   style={{ borderColor: on ? "var(--color-brand-600, #1d6b4f)" : "var(--border)", background: on ? "var(--card)" : undefined, boxShadow: on ? "0 0 0 1px var(--color-brand-600, #1d6b4f)" : undefined }}
                 >
-                  <input type="radio" name={g.key} value={c.key} checked={on} onChange={() => setSel((s) => ({ ...s, [g.key]: c.key }))} className="sr-only" />
+                  <input type="radio" name={`pick-${g.key}`} value={c.key} checked={on} onChange={() => setSel((s) => ({ ...s, [g.key]: c.key }))} className="sr-only" />
                   {g.key === "finishKey" && SWATCH[c.key] && (
                     <span aria-hidden className="h-5 w-5 shrink-0 rounded-full border" style={{ background: SWATCH[c.key], borderColor: "var(--border)" }} />
                   )}
@@ -98,11 +126,48 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
         </fieldset>
       ))}
 
+            </>
+          )}
+        </>
+      ) : (
+        <>
+      {/* the chosen values always travel with the form, whichever way they are shown */}
+      {groups.map((g) => <input key={g.key} type="hidden" name={g.key} value={sel[g.key]} />)}
+      {groups.map((g) => (
+        <fieldset key={g.key} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
+          <legend className="px-1 text-sm font-medium">{g.title}</legend>
+          <div className="mt-1 grid gap-2 sm:grid-cols-2">
+            {g.items.map((c) => {
+              const on = sel[g.key] === c.key;
+              return (
+                <label
+                  key={c.key}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
+                  style={{ borderColor: on ? "var(--color-brand-600, #1d6b4f)" : "var(--border)", background: on ? "var(--card)" : undefined, boxShadow: on ? "0 0 0 1px var(--color-brand-600, #1d6b4f)" : undefined }}
+                >
+                  <input type="radio" name={`pick-${g.key}`} value={c.key} checked={on} onChange={() => setSel((s) => ({ ...s, [g.key]: c.key }))} className="sr-only" />
+                  {g.key === "finishKey" && SWATCH[c.key] && (
+                    <span aria-hidden className="h-5 w-5 shrink-0 rounded-full border" style={{ background: SWATCH[c.key], borderColor: "var(--border)" }} />
+                  )}
+                  <span className="min-w-0 flex-1">{c.label}</span>
+                  <span className="shrink-0 text-xs" style={{ color: "var(--muted)" }}>{choiceCost(c)}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ))}
+
+        </>
+      )}
       <div className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }} aria-live="polite">
         <div className="flex justify-between"><span>{productName}</span><span>{kes(priced.base)}</span></div>
         {priced.adds.map((a) => (
           <div key={a.label} className="mt-1 flex justify-between" style={{ color: "var(--muted)" }}><span>{a.label}</span><span>+{kes(a.kes)}</span></div>
         ))}
+        {amountDueNow(priced.total) > priced.total && (
+          <div className="mt-1 flex justify-between" style={{ color: "var(--muted)" }}><span>Rounded to the nearest 100</span><span>+{kes(amountDueNow(priced.total) - priced.total)}</span></div>
+        )}
         {priced.generations !== null && priced.included !== null && (
           <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
             Your piece shows {priced.generations} {priced.generations === 1 ? "generation" : "generations"}. The price includes {priced.included}; each extra generation adds {kes(po.generations?.perExtraKes ?? 0)}.
@@ -110,23 +175,10 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
         )}
         <div className="mt-3 flex items-baseline justify-between border-t pt-3 text-base font-semibold" style={{ borderColor: "var(--border)" }}>
           <span>Total <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></span>
-          <span>{kes(priced.total)}</span>
+          <span>{kes(amountDueNow(priced.total))}</span>
         </div>
       </div>
 
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>Preview of your {productName.toLowerCase()}</p>
-        {warnings.length > 0 && (
-          <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }} aria-live="polite">
-            {warnings.map((w) => <li key={w}>{w}</li>)}
-          </ul>
-        )}
-        <div
-          className="mt-2 overflow-hidden rounded-xl border"
-          style={{ borderColor: "var(--border)", background: previewBackground(layout, sel.finishKey) ?? (layout === "shirt" ? "#e8e8e8" : undefined) }}
-          dangerouslySetInnerHTML={{ __html: svg || '<div style="padding:3rem;text-align:center;opacity:.6">Drawing…</div>' }}
-        />
-      </div>
     </div>
   );
 }

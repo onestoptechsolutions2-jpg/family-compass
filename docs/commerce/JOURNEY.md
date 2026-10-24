@@ -1,5 +1,7 @@
 # The customer journey: landing, shop, order
 
+> Since 2026-10-24 the order is three steps to payment: Details, Choose, Pay (see DECISIONS.md, "Three steps to payment"). The table below is the earlier, longer path.
+
 One rule runs through every screen: **the customer always knows what it is, what it costs, and what happens next.** Price is shown before it is asked for, in shillings, with delivery included. Nobody is asked to sign in until they have something to keep.
 
 ## The path

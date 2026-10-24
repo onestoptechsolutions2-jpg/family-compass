@@ -6,21 +6,9 @@ import { useState } from "react";
 import type { ProductPhoto } from "@/lib/product-photo-selection";
 import { photosForVariants } from "@/lib/product-photo-selection";
 import { kes } from "@/lib/money";
-import { priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { priceRange, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import type { Layout } from "@/lib/layouts";
-import type { DraftOptions } from "@/lib/order-shared";
 
-const SWATCH: Record<string, string> = {
-  black: "#252a30",
-  grey: "#8c9298",
-  light: "#c79661",
-  dark: "#624733",
-  white: "#ffffff",
-  cream: "#f3ead8",
-  oak: "#c9a36b",
-  navy: "#223d59",
-  maroon: "#823e4d",
-};
 
 export function ProductGallery({
   slug,
@@ -44,13 +32,10 @@ export function ProductGallery({
   defaultSavedPersonId?: string | null;
 }) {
   const groups = VARIANT_GROUPS.map((group) => ({ ...group, items: options[group.list] ?? [] }));
-  const [selected, setSelected] = useState<Record<string, string>>(() =>
-    Object.fromEntries(groups.filter((group) => group.items.length).map((group) => [group.key, group.items[0]!.key])),
-  );
+  // the shop shows each product as it first comes; choices are made in step 2 of the order
+  const selected: Record<string, string> = Object.fromEntries(groups.filter((group) => group.items.length).map((group) => [group.key, group.items[0]!.key]));
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [prioritizeGenerated, setPrioritizeGenerated] = useState(false);
-  const selectedOptions: DraftOptions = { ...selected };
-  const price = priceBreakdown(basePriceKes, options, layout, selectedOptions);
+  const range = priceRange(basePriceKes, options, layout);
   const visiblePhotos = photosForVariants(photos, selected);
   const orderQuery = new URLSearchParams({ product: slug });
   const previewQuery = new URLSearchParams();
@@ -66,9 +51,7 @@ export function ProductGallery({
     alt: `Generated preview of ${name} in the selected variants`,
   };
   const uploadedPhotos = visiblePhotos.filter((photo) => !photo.src.startsWith("/api/sample/"));
-  const galleryPhotos = prioritizeGenerated
-    ? [generatedPreview, ...uploadedPhotos]
-    : [...uploadedPhotos, generatedPreview];
+  const galleryPhotos = [...uploadedPhotos, generatedPreview];
   const activePhoto = galleryPhotos[photoIndex] ?? galleryPhotos[0];
 
   return (
@@ -111,54 +94,15 @@ export function ProductGallery({
         <div>
           <h1 className="font-serif text-3xl leading-tight sm:text-4xl">{name}</h1>
           <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{description}</p>
-          <p className="mt-4 text-2xl font-semibold tabular-nums" aria-live="polite">
-            {kes(price.total)} <span className="text-sm font-normal" style={{ color: "var(--muted)" }}>KES · delivery included</span>
+          <p className="mt-4 text-2xl font-semibold tabular-nums">
+            {range.to > range.from ? "From " : ""}{kes(range.from)} <span className="text-sm font-normal" style={{ color: "var(--muted)" }}>delivery included</span>
           </p>
         </div>
 
-        {groups.filter((group) => group.items.length).map((group) => (
-          <fieldset key={group.key}>
-            <legend className="mb-2 text-sm font-semibold">{group.title}</legend>
-            <div className="flex flex-wrap gap-2">
-              {group.items.map((choice) => {
-                const active = selected[group.key] === choice.key;
-                return (
-                  <button
-                    key={choice.key}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      setSelected((current) => ({ ...current, [group.key]: choice.key }));
-                      setPrioritizeGenerated(true);
-                      setPhotoIndex(0);
-                    }}
-                    className="flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition"
-                    style={{
-                      borderColor: active ? "var(--primary)" : "var(--border)",
-                      background: active ? "color-mix(in srgb, var(--primary) 8%, var(--surface))" : "var(--surface)",
-                      boxShadow: active ? "0 0 0 1px var(--primary)" : undefined,
-                    }}
-                  >
-                    {group.key === "finishKey" && SWATCH[choice.key] && (
-                      <span className="size-4 shrink-0 rounded-full border" style={{ background: SWATCH[choice.key], borderColor: "var(--border)" }} aria-hidden />
-                    )}
-                    <span>{choice.label}</span>
-                    {choice.addKes > 0 && <span className="text-xs tabular-nums" style={{ color: "var(--muted)" }}>+{kes(choice.addKes)}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-        ))}
-
-        {price.adds.length > 0 && (
-          <div className="border-t pt-3 text-xs" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-            {price.adds.map((line) => <div key={line.label} className="flex justify-between"><span>{line.label}</span><span>+{kes(line.kes)}</span></div>)}
-          </div>
-        )}
         <Link href={`/order/new?${orderQuery.toString()}`} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-700">
-          Personalise and add to cart
+          Start
         </Link>
+        <p className="-mt-2 text-center text-xs" style={{ color: "var(--muted)" }}>3 steps: your details, check and choose, pay by M-Pesa.</p>
         {savedPeople.length > 0 && (
           <form action="/order/new" method="get" className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
             <input type="hidden" name="product" value={slug} />
@@ -175,7 +119,6 @@ export function ProductGallery({
             <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>Names, dates and relatives are copied into this design. Your family record stays saved to your account.</p>
           </form>
         )}
-        <p className="text-xs" style={{ color: "var(--muted)" }}>You can review the family details before anything is ordered or made.</p>
       </div>
     </section>
   );

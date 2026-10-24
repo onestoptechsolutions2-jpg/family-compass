@@ -114,7 +114,7 @@ export default async function LandingPage() {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 text-sm">
-            <Link href={`/shop/${programme.slug}`} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700">Start the programme</Link>
+            <Link href={`/order/new?product=${programme.slug}`} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700">Start the programme</Link>
             <a href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Hello, I need a funeral programme.")}`} className="rounded-md border px-5 py-2.5 font-medium" style={{ borderColor: "var(--border)" }}>Ask on WhatsApp</a>
           </div>
         </section>
@@ -128,7 +128,9 @@ export default async function LandingPage() {
         </div>
       )}
       {DOORS.map((door) => {
-        const rows = withArt.filter((r) => r.p.pathway === door.pathway);
+        // a few to choose from here; the shop has the rest
+        const all = withArt.filter((r) => r.p.pathway === door.pathway);
+        const rows = all.slice(0, 4);
         if (!rows.length) return null;
         return (
           <section key={door.id} id={door.id} className="mt-8 scroll-mt-4">
@@ -137,9 +139,9 @@ export default async function LandingPage() {
                 <h2 className="font-serif text-2xl text-[var(--fg)]">{door.title}</h2>
                 <p className="text-sm" style={{ color: "var(--muted)" }}>{door.line}</p>
               </div>
-              <Link href="/shop" className="text-sm underline">See the whole shop</Link>
+              {all.length > rows.length && <Link href="/shop" className="text-sm underline">See all {all.length}</Link>}
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {rows.map(({ p, photo }) => {
                 const po = (p.options ?? null) as ProductOptions | null;
                 const range = priceRange(p.basePriceKes, po, p.layout);
@@ -161,16 +163,11 @@ export default async function LandingPage() {
                         loading="lazy"
                       />
                     </div>
-                    <div className="flex flex-1 flex-col p-4">
-                      <h3 className="font-semibold">{p.name}</h3>
-                      <p className="mt-1 line-clamp-2 text-sm" style={{ color: "var(--muted)" }}>{p.summary}</p>
-                      <p className="mt-3 font-medium">
-                        {range.to > range.from ? "From " : ""}{kes(range.from)}{" "}
-                        <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>delivery included</span>
+                    <div className="flex flex-1 flex-col p-3">
+                      <h3 className="text-sm font-semibold leading-snug">{p.name}</h3>
+                      <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+                        {range.to > range.from ? "From " : ""}{kes(range.from)}
                       </p>
-                      <span className="mt-3 inline-block self-start rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white group-hover:bg-brand-700">
-                        Personalise
-                      </span>
                     </div>
                   </Link>
                 );
