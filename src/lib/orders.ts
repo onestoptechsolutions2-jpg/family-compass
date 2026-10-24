@@ -6,27 +6,21 @@ import { slugify, randomToken, paymentReference } from "@/lib/slug";
 import { addChildRef, createBarePerson, setVitalEvent, type Db } from "@/lib/person-write";
 import { getPaymentSettings } from "@/lib/payments";
 import { personalWorkspaceId } from "@/lib/workspace";
-import { lines, normaliseName, pair, splitName, type DraftOptions } from "@/lib/order-shared";
+import { amountDueNow, lines, normaliseName, pair, splitName, PAY_UP_FRONT_SHARE, type DraftOptions } from "@/lib/order-shared";
 import { parseBirthdays } from "@/lib/print-layouts";
 
-export { lines, normaliseName, splitName, type DraftOptions };
+export { amountDueNow, lines, normaliseName, splitName, PAY_UP_FRONT_SHARE, type DraftOptions };
 
 import { priceBreakdown, type ProductOptions } from "@/lib/product-pricing";
 
 export type { ProductOptions };
 
-/** Full payment up front: nothing is made until the whole price is paid (docs/commerce/DECISIONS.md). */
-export const PAY_UP_FRONT_SHARE = 1;
 
 /** The price of one piece: the base, plus the variants chosen, plus the generations it carries. */
 export function unitPrice(basePriceKes: number, productOptions: ProductOptions | null, o: DraftOptions, layout?: string): number {
   return priceBreakdown(basePriceKes, productOptions, layout, o).total;
 }
 
-/** What the customer pays before production starts. */
-export function amountDueNow(totalKes: number): number {
-  return Math.ceil((totalKes * PAY_UP_FRONT_SHARE) / 100) * 100;
-}
 
 async function person(tx: Db, treeId: string, full: string, living = true) {
   const { first, surname } = splitName(full);

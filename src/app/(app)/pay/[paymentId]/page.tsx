@@ -91,20 +91,21 @@ export default async function PayPage({
   });
 
   const codeForm = (
-    <form action={submitPaymentCode.bind(null, payment.id)} className="mt-3 flex flex-wrap items-end gap-2">
+    <form action={submitPaymentCode.bind(null, payment.id)} className="mt-4 flex flex-col gap-3">
       <label className="text-sm">
-        <span style={{ color: "var(--muted)" }}>M-Pesa code</span>
-        <input name="mpesaCode" required className="mt-1 block rounded-lg border px-3 py-2 uppercase" style={fieldStyle} />
+        <span className="font-medium">Then paste the M-Pesa code from the confirmation SMS</span>
+        <input name="mpesaCode" required autoCapitalize="characters" placeholder="e.g. SJK3ABCDEF" className="mt-1 block w-full rounded-lg border px-4 py-3 font-mono text-base uppercase" style={fieldStyle} />
       </label>
-      <label className="text-sm">
-        <span style={{ color: "var(--muted)" }}>Phone (optional)</span>
-        <input name="payerPhone" className="mt-1 block rounded-lg border px-3 py-2" style={fieldStyle} />
-      </label>
-      <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+      <button className="w-full rounded-lg bg-brand-600 px-4 py-3.5 text-base font-medium text-white hover:bg-brand-700">
         I&apos;ve paid
       </button>
     </form>
   );
+  // One way to pay up front (the paybill, else the till); anything else is a tap away.
+  const rows = (checkout.mode === "stk" ? [] : checkout.payTo) ?? [];
+  const hasPaybill = rows.some((r) => /paybill/i.test(r.label));
+  const primary = rows.filter((r) => !/^bank/i.test(r.label) && !(hasPaybill && /till/i.test(r.label)));
+  const others = rows.filter((r) => !primary.includes(r));
 
   const invite = inviteLink && (
     <div className="mt-6 rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
@@ -213,18 +214,28 @@ export default async function PayPage({
             </>
           ) : (
             <>
-              <table className="text-sm">
-                <tbody>
-                  {checkout.payTo?.map((r) => (
-                    <tr key={r.label}>
-                      <td className="pr-4" style={{ color: "var(--muted)" }}>{r.label}</td>
-                      <td className="font-mono font-medium">{r.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {checkout.note && (
-                <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{checkout.note}</p>
+              <p className="text-sm font-medium">Send by M-Pesa</p>
+              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                {primary.map((r) => (
+                  <div key={r.label} className="contents">
+                    <dt style={{ color: "var(--muted)" }}>{r.label}</dt>
+                    <dd className="font-mono text-base font-semibold">{r.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {(others.length > 0 || checkout.note) && (
+                <details className="mt-3 text-sm">
+                  <summary className="cursor-pointer" style={{ color: "var(--muted)" }}>Other ways to pay</summary>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                    {others.map((r) => (
+                      <div key={r.label} className="contents">
+                        <dt style={{ color: "var(--muted)" }}>{r.label}</dt>
+                        <dd className="font-mono">{r.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {checkout.note && <p className="mt-2" style={{ color: "var(--muted)" }}>{checkout.note}</p>}
+                </details>
               )}
               {payment.status === "AWAITING_VERIFICATION" ? (
                 <p className="mt-3 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--border)" }}>

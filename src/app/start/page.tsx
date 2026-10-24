@@ -138,6 +138,11 @@ export default async function StartPage({
       {err === "phone" && (
         <p className="mt-3 text-sm" style={{ color: "var(--danger)" }}>Enter a valid Safaricom / WhatsApp number.</p>
       )}
+      {err === "exists" && (
+        <p className="mt-3 text-sm" style={{ color: "var(--danger)" }}>
+          That number already has an account. <Link href="/login" className="underline">Sign in</Link> to open your family tree.
+        </p>
+      )}
 
       <form action={startCheck} className="mt-5 flex flex-col gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <div className="grid grid-cols-2 gap-3">

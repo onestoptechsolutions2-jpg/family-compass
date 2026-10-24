@@ -14,6 +14,11 @@ import { requestIdentityClaim, provisionSelfTree } from "@/lib/identity";
 
 const COOKIE = "fc_start";
 
+/** The account already using this phone number (as its number, or as its WhatsApp identity), if any. */
+async function accountForPhone(phone: string): Promise<boolean> {
+  return Boolean(await db.user.findFirst({ where: { OR: [{ phone }, { email: `${phone}@wa.local` }] }, select: { id: true } }));
+}
+
 const schema = z.object({
   first: z.string().trim().min(1).max(80),
   surname: z.string().trim().min(1).max(80),
@@ -49,6 +54,8 @@ export async function startCheck(formData: FormData) {
     phone: formData.get("phone"),
   });
   if (!isValidPhone(d.phone)) redirect("/start?err=phone");
+  // A number that already has an account is its owner's: they sign in, never get in from here.
+  if (await accountForPhone(normalizePhone(d.phone))) redirect("/start?err=exists");
 
   const jar = await cookies();
   jar.set(COOKIE, JSON.stringify({ ...d, phone: normalizePhone(d.phone) }), {
@@ -76,26 +83,13 @@ export async function startCreate() {
   const synthEmail = `${phone}@wa.local`;
   const name = `${d.first} ${d.surname}`.trim();
 
-  // find or create the user (WhatsApp-number identity, no email/password)
-  let user = await db.user.findFirst({
-    where: { OR: [{ phone }, { email: synthEmail }] },
-    select: { id: true, memberships: { where: { role: "OWNER" }, select: { id: true }, take: 1 } },
+  // Only a brand-new number gets an account here. Knowing someone's phone number must never be
+  // enough to get into their account (or to add a tree to it): an existing owner signs in.
+  if (await accountForPhone(phone)) redirect("/start?err=exists");
+  const user = await db.user.create({
+    data: { name, email: synthEmail, phone },
+    select: { id: true },
   });
-
-  if (user && user.memberships.length > 0) {
-    // already has a workspace — just sign them in
-    await startDbSession(user.id);
-    (await cookies()).delete(COOKIE);
-    redirect("/app");
-  }
-
-  if (!user) {
-    const created = await db.user.create({
-      data: { name, email: synthEmail, phone },
-      select: { id: true },
-    });
-    user = { id: created.id, memberships: [] };
-  }
 
   const { treeId, personId } = await provisionSelfTree(user.id, name, {
     first: d.first,

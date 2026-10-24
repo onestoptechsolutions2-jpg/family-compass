@@ -268,7 +268,7 @@ export function TreeBuilder({ token, slug, initial, pathway, layout, origin, mat
 
       <form action={continueBuilder.bind(null, token)} className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="options" value={JSON.stringify(options)} />
-        <button className={btn} disabled={!hasName}>Continue: choose material and size</button>
+        <button className={btn} disabled={!hasName}>Continue</button>
         <span className="text-xs" style={{ color: "var(--muted)" }}>
           {!hasName ? "Tap the middle to add a name first." : status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "error" ? "Could not save just now; Continue will save it." : ""}
         </span>

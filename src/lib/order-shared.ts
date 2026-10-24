@@ -86,3 +86,11 @@ export function splitName(full: string): { first: string; surname: string } {
 
 /** One key for a name, so "Ann  Kamau" and "ann kamau" are the same person. */
 export const normaliseName = (n: string) => n.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Full payment up front: nothing is made until the whole price is paid (docs/commerce/DECISIONS.md). */
+export const PAY_UP_FRONT_SHARE = 1;
+
+/** What the customer pays now, rounded up to the nearest 100 shillings. Shown and charged alike. */
+export function amountDueNow(totalKes: number): number {
+  return Math.ceil((totalKes * PAY_UP_FRONT_SHARE) / 100) * 100;
+}

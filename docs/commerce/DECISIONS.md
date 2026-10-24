@@ -213,3 +213,20 @@ want that effortless feel, with the commercial step added at the end.
 - Bereavement referrals (/api/partners/chama/bereavement): a chama group becomes an organisation
   referrer (no Family Compass account; code CHAMA<groupId>; payout = the group's nominated account)
   and earns the usual referral share on the programme the family orders. No personal details arrive.
+
+## Three steps to payment (decided 2026-10-24)
+- Minimalism first: from any product, **1. Details** (or the tree, for tree pieces), **2. Choose**
+  (preview, one line of choices with Change, the total), **3. Pay** (name, M-Pesa number, where to
+  deliver, one agreement box), then the M-Pesa payment screen. No account form, no cart, no
+  separate consent page in the way.
+- The phone number is the account: a new customer gets an account from it at step 3, with no
+  password, and is signed in. A number that already has an account is never signed in from here:
+  its owner signs in first and comes back to finish.
+- Step 1 shows the essential questions; the rest sits under "(optional)". The photo is a large
+  tap area with an instant preview.
+- The product page is a picture, a short description, "From KES x" and one Start button; choices
+  are made in step 2. The cart stays for anyone buying several things ("Add to cart instead").
+- The amount charged is rounded up to the nearest 100 (as before); step 2 shows the rounding as its
+  own line so the lines add up to the total.
+- The payment screen shows one way to pay (the paybill, else the till); others are a tap away.
+- The cookie choice is a thin bar at the top, never over the button being tapped.

@@ -10,30 +10,22 @@ export async function ShopHeader({ q, sent, confirmed }: { q?: string; sent?: bo
   const count = user ? await cartCount(user.id) : 0;
   return (
     <>
-      <header
-        className="glass-toolbar mb-8 grid grid-cols-1 items-center gap-3 rounded-xl border p-3 sm:grid-cols-[auto_auto_minmax(12rem,1fr)_auto]"
-      >
-        <Link href="/" className="flex items-center gap-2.5 font-semibold">
+      {/* one row on a phone: the name, the shop, the cart; search lives in the shop */}
+      <header className="glass-toolbar mb-6 flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
           <span className="grid size-8 place-items-center rounded-lg border text-xs font-bold" style={{ borderColor: "var(--glass-edge)", color: "var(--accent)" }}>FC</span>
-          <span>Family Compass</span>
+          <span className="hidden sm:inline">Family Compass</span>
         </Link>
-        <Link href="/shop" className="rounded-md px-2 py-1.5 text-sm font-medium text-[var(--link)] hover:bg-[var(--surface-2)]">Shop</Link>
-        <form action="/shop" className="w-full">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Search the shop"
-            aria-label="Search the shop"
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-          />
-        </form>
-        <nav className="flex items-center gap-3 text-sm sm:justify-self-end">
-          {user && <Link href="/orders" className="rounded-md px-2 py-1.5 hover:bg-[var(--surface-2)]">My orders</Link>}
-          <Link href="/cart" className="rounded-md border px-3 py-1.5 font-medium" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
-            Cart{count > 0 ? ` (${count})` : ""}
-          </Link>
-          {!user && <Link href="/login?callbackUrl=%2Fshop" className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Sign in</Link>}
+        {q !== undefined && (
+          <form action="/shop" className="min-w-0 flex-1">
+            <input name="q" defaultValue={q} placeholder="Search" aria-label="Search the shop" className="w-full rounded-md border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }} />
+          </form>
+        )}
+        <nav className="flex items-center gap-1 text-sm">
+          <Link href="/shop" className="rounded-md px-2 py-1.5 hover:bg-[var(--surface-2)]">Shop</Link>
+          {user && <Link href="/orders" className="rounded-md px-2 py-1.5 hover:bg-[var(--surface-2)]">Orders</Link>}
+          <Link href="/cart" className="rounded-md px-2 py-1.5 hover:bg-[var(--surface-2)]">Cart{count > 0 ? ` (${count})` : ""}</Link>
+          {!user && <Link href="/login?callbackUrl=%2Fshop" className="rounded-md px-2 py-1.5 font-medium text-[var(--link)] hover:bg-[var(--surface-2)]">Sign in</Link>}
         </nav>
       </header>
       {user && <VerifyBanner userId={user.id} sent={sent} confirmed={confirmed} />}

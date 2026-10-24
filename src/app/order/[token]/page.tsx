@@ -8,26 +8,35 @@ import { getSessionUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { renderPrintSheet } from "@/lib/print-sheet";
 import { isLayout, isReady, requiredKey, stepsFor, type Field, type Layout } from "@/lib/layouts";
-import { amountDueNow, lines, type DraftOptions } from "@/lib/orders";
+import { cookies } from "next/headers";
+import { findMatchQuestions } from "@/lib/matching";
+import { userConsentState } from "@/lib/consent";
+import { REF_COOKIE, referrerByCode } from "@/lib/referrals";
+import { payNow } from "./pay-actions";
+import { amountDueNow, type DraftOptions } from "@/lib/orders";
 import { firstChoices, priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import { previewBackground } from "@/lib/print-kit";
 import { draftPhotoUrl } from "@/lib/draft-photo";
 import { saveStep } from "./actions";
 import { TreeBuilder } from "@/components/TreeBuilder";
 import { VariantPicker } from "@/components/VariantPicker";
+import { PhotoPicker } from "@/components/PhotoPicker";
 
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
 
-/** A tree is built by tapping it; everything else is a short form. */
-const FLOW_FORM = ["about", "details", "material", "review"] as const;
-const FLOW_BUILD = ["build", "material", "review"] as const;
-const STEP_LABEL = { build: "Build your tree", about: "About it", details: "The details", material: "Your choices", review: "Review" } as const;
-const field = "mt-1 w-full rounded-lg border px-4 py-2.5 text-sm";
+/**
+ * Three steps to payment, for every product: the details (or the tree, built by tapping it),
+ * the choices (with one already picked), and pay. Nothing else stands between a family and
+ * placing their order: no account form, no cart, no separate consent page.
+ */
+const FLOW_FORM = ["details", "choose", "pay"] as const;
+const FLOW_BUILD = ["build", "choose", "pay"] as const;
+const STEP_LABEL = { build: "Family", details: "Details", choose: "Choose", pay: "Pay" } as const;
+const field = "mt-1 w-full rounded-lg border px-4 py-3 text-base";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
-const btn = "rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700";
-const ghost = "rounded-md border px-5 py-2.5 text-sm";
-const ghostStyle = { borderColor: "var(--border)" } as const;
+const btn = "w-full rounded-lg bg-brand-600 px-5 py-3.5 text-base font-medium text-white hover:bg-brand-700";
+const back = "block text-center text-sm underline";
 
 const RELATIONS = [
   ["child", "Son or daughter"],
@@ -71,8 +80,7 @@ export default async function OrderWizard({
   const flow: readonly (keyof typeof STEP_LABEL)[] = tapTree ? FLOW_BUILD : FLOW_FORM;
   const step = Math.min(Math.max(Number(rawStep) || 1, 1), flow.length);
   const current = flow[step - 1]!;
-  const at = (s: keyof typeof STEP_LABEL) => flow.indexOf(s) + 1;
-  const before = flow[step - 2] ? at(flow[step - 2]!) : 1;
+  const before = Math.max(step - 1, 1);
   const o = (item.options ?? {}) as DraftOptions;
   const po = (item.product.options ?? null) as ProductOptions | null;
   const save = saveStep.bind(null, token, step);
@@ -90,19 +98,6 @@ export default async function OrderWizard({
     previewOptions.sizeKey,
   );
   const previewSvg = sheet.svg.replace(/ width="[\d.]+mm" height="[\d.]+mm"/, ' width="100%"');
-  const preview = (current === "details" || current === "review") && (
-    <div className="mt-6">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-        Preview of your {item.product.name.toLowerCase()}
-      </p>
-      <div className="mt-2 overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: previewBackground(layout, previewOptions.finishKey) }} dangerouslySetInnerHTML={{ __html: previewSvg }} />
-      {sheet.warnings.length > 0 && (
-        <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }}>
-          {sheet.warnings.map((w) => <li key={w}>{w}</li>)}
-        </ul>
-      )}
-    </div>
-  );
 
   const label = (t: string) => <span className="text-sm font-medium">{t}</span>;
   const renderField = (f: Field) => {
@@ -115,23 +110,7 @@ export default async function OrderWizard({
         </label>
       );
     }
-    if (f.photo) {
-      return (
-        <div key={f.key}>
-          {label(f.label)}
-          {f.hint && <span className="ml-1 text-xs" style={{ color: "var(--muted)" }}>{f.hint}</span>}
-          {photoHref && (
-            <div className="mt-2 flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoHref} alt="The photo you added" className="h-20 w-16 rounded-md border object-cover" style={{ borderColor: "var(--border)" }} />
-              <label className="flex items-center gap-2 text-xs"><input type="checkbox" name="removePhoto" /> Remove it</label>
-            </div>
-          )}
-          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" className="mt-2 block w-full text-sm" />
-          {photoHref && <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>Choose another to replace it.</span>}
-        </div>
-      );
-    }
+    if (f.photo) return <PhotoPicker key={f.key} label={f.label} current={photoHref} />;
     if (f.choices) {
       return (
         <label key={f.key}>
@@ -157,23 +136,48 @@ export default async function OrderWizard({
     );
   };
 
-  // What was entered, in the customer's own words, for the review.
-  const filled = [...step1.fields, ...step2.fields].filter((f) => !f.relation && !f.photo && !f.choices && (o[f.key] as string | undefined)?.trim());
-  const headline = o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || "Name missing";
+  // Step 3 needs to know who is paying, what they already gave us, and who sent them.
+  const payStep = current === "pay";
+  const consentNeeded = payStep && (!me || (await userConsentState(me.id)).stale);
+  const questions = payStep && me ? await findMatchQuestions(me.id, [item]) : [];
+  const meRow = payStep && me ? await db.user.findUnique({ where: { id: me.id }, select: { name: true, phone: true } }) : null;
+  const lastOrder = payStep && me && !order.contactName
+    ? await db.order.findFirst({ where: { userId: me.id, contactName: { not: null } }, orderBy: { createdAt: "desc" }, select: { contactName: true, contactPhone: true, deliveryText: true } })
+    : null;
+  const prefill = {
+    name: order.contactName ?? lastOrder?.contactName ?? meRow?.name ?? "",
+    phone: order.contactPhone ?? lastOrder?.contactPhone ?? (meRow?.phone ? `0${meRow.phone.replace(/^254/, "")}` : ""),
+    address: order.deliveryText ?? lastOrder?.deliveryText ?? "",
+  };
+  const linked = payStep ? await referrerByCode((await cookies()).get(REF_COOKIE)?.value) : null;
+  const referredBy = linked && linked.status === "ACTIVE" && linked.userId !== me?.id ? linked : null;
+  const choices = VARIANT_GROUPS.flatMap((g) => {
+    const c = po?.[g.list]?.find((x) => x.key === previewOptions[g.key]);
+    return c ? [c.label] : [];
+  });
+  const headline = o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || o.surname || "";
+  const hasOptional = step2.fields.some((f) => !f.relation && (o[f.key] as string | undefined)?.trim());
 
   return (
-    <main className="mx-auto min-h-dvh max-w-xl px-6 py-8">
-      <Link href={`/shop/${item.product.slug}`} className="text-sm hover:underline" style={{ color: "var(--muted)" }}>
-        ← {item.product.name}
-      </Link>
-      <p className="mt-4 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-        Step {step} of {flow.length} · {STEP_LABEL[current]}
-      </p>
-      <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--border)" }}>
-        <div className="h-1.5 rounded-full bg-brand-600" style={{ width: `${(step / flow.length) * 100}%` }} />
+    <main className="mx-auto min-h-dvh max-w-lg px-4 py-6">
+      <div className="flex items-center justify-between text-sm">
+        <Link href={step > 1 ? `/order/${token}?step=${before}` : `/shop/${item.product.slug}`} style={{ color: "var(--muted)" }} aria-label="Back">←</Link>
+        <span className="font-medium">{item.product.name}</span>
+        {/* the live total is on step 2; up here only once it is settled */}
+        <span style={{ color: "var(--muted)" }}>{payStep ? kes(amountDueNow(price)) : ""}</span>
       </div>
+      <ol className="mt-4 grid grid-cols-3 gap-2 text-xs" aria-label="Steps">
+        {flow.map((f, i) => (
+          <li key={f} aria-current={i + 1 === step ? "step" : undefined}>
+            <div className="h-1.5 rounded-full" style={{ background: i + 1 <= step ? "var(--color-brand-600, #1d6b4f)" : "var(--border)" }} />
+            <span className="mt-1 block" style={{ color: i + 1 === step ? "var(--fg)" : "var(--muted)", fontWeight: i + 1 === step ? 600 : 400 }}>
+              {i + 1}. {STEP_LABEL[f]}
+            </span>
+          </li>
+        ))}
+      </ol>
 
-      {error && <p className="mt-4 rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>{error}</p>}
+      {error && <p role="alert" className="mt-4 rounded-lg border p-3 text-sm text-red-600" style={{ borderColor: "var(--border)" }}>{error}</p>}
 
       {current === "build" && (
         <section className="mt-6">
@@ -193,30 +197,26 @@ export default async function OrderWizard({
         </section>
       )}
 
-      {current === "about" && (
+      {current === "details" && (
         <form action={save} className="mt-6 flex flex-col gap-4">
           <h1 className="font-serif text-2xl">{step1.title}</h1>
-          {step1.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step1.intro}</p>}
           {step1.fields.map(renderField)}
+          {step2.fields.length > 0 && (
+            <details open={hasOptional} className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
+              <summary className="cursor-pointer text-sm font-medium">{step2.title} <span style={{ color: "var(--muted)" }}>(optional)</span></summary>
+              <div className="mt-4 flex flex-col gap-4">
+                {step2.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step2.intro}</p>}
+                {step2.fields.map(renderField)}
+              </div>
+            </details>
+          )}
           <button className={btn}>Continue</button>
         </form>
       )}
 
-      {current === "details" && (
+      {current === "choose" && (
         <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">{step2.title}</h1>
-          {step2.intro && <p className="text-sm" style={{ color: "var(--muted)" }}>{step2.intro}</p>}
-          {step2.fields.map(renderField)}
-          <div className="flex gap-3">
-            <Link href={`/order/${token}?step=${before}`} className={ghost} style={ghostStyle}>Back</Link>
-            <button className={btn}>Continue</button>
-          </div>
-        </form>
-      )}
-
-      {current === "material" && (
-        <form action={save} className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">{layout === "programme" ? "Choose pages, paper and copies" : "Choose material and size"}</h1>
+          <h1 className="font-serif text-2xl">Check and choose</h1>
           <VariantPicker
             basePriceKes={item.product.basePriceKes}
             po={po ?? {}}
@@ -228,56 +228,76 @@ export default async function OrderWizard({
             initialSvg={previewSvg}
             initialWarnings={sheet.warnings}
             photoHref={photoHref}
+            compact
           />
-          <div className="flex gap-3">
-            <Link href={`/order/${token}?step=${before}`} className={ghost} style={ghostStyle}>Back</Link>
-            <button className={btn}>Continue</button>
-          </div>
+          {!isReady(layout, o) ? (
+            <Link href={`/order/${token}?step=1`} className={`${btn} text-center`}>Add a name first</Link>
+          ) : (
+            <button className={btn}>Continue to pay</button>
+          )}
+          <Link href={`/order/${token}?step=${before}`} className={back}>Back</Link>
         </form>
       )}
 
-      {preview}
-
-      {current === "review" && (
-        <section className="mt-6 flex flex-col gap-4">
-          <h1 className="font-serif text-2xl">Review your design</h1>
-          <div className="rounded-2xl border p-5 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-            <p className="text-lg font-semibold">{headline}</p>
-            <ul className="mt-3 list-disc pl-5" style={{ color: "var(--muted)" }}>
-              {filled.map((f) => {
-                const v = (o[f.key] as string).trim();
-                const n = lines(v).length;
-                return <li key={f.key}>{f.label}: {f.rows ? (n > 4 ? `${n} entries` : lines(v).join(", ")) : v}</li>;
-              })}
-            </ul>
-            <p className="mt-3 font-medium">{item.product.name}</p>
-            <ul className="mt-1 list-disc pl-5" style={{ color: "var(--muted)" }}>
-              {VARIANT_GROUPS.map((g) => {
-                const c = po?.[g.list]?.find((x) => x.key === previewOptions[g.key]);
-                return c ? <li key={g.key}>{g.title}: {c.label}</li> : null;
-              })}
-              {priced.generations !== null && <li>{priced.generations} {priced.generations === 1 ? "generation" : "generations"} of family</li>}
-            </ul>
-            <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
-              <div className="flex justify-between"><span>Base price</span><span>{kes(priced.base)}</span></div>
-              {priced.adds.map((a) => (
-                <div key={a.label} className="flex justify-between" style={{ color: "var(--muted)" }}><span>{a.label}</span><span>+{kes(a.kes)}</span></div>
-              ))}
-              <div className="mt-2 flex justify-between text-base font-semibold"><span>Total <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>· delivery included</span></span><span>{kes(amountDueNow(price))}</span></div>
+      {payStep && (
+        <form action={payNow.bind(null, token)} className="mt-6 flex flex-col gap-4">
+          <h1 className="font-serif text-2xl">Pay</h1>
+          <div className="flex gap-3 rounded-xl border p-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            <div className="w-16 shrink-0 overflow-hidden rounded border" style={{ borderColor: "var(--border)", background: previewBackground(layout, previewOptions.finishKey) }} dangerouslySetInnerHTML={{ __html: previewSvg }} />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{item.product.name}{headline ? `: ${headline}` : ""}</p>
+              <p style={{ color: "var(--muted)" }}>{choices.join(" · ")}</p>
+              <p className="mt-1 text-base font-semibold">{kes(amountDueNow(price))} <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>delivery included</span></p>
             </div>
           </div>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            {pathway === "LIVING"
-              ? "When you place your order, this layout is locked for printing and a QR code is created on it. Anyone who scans the QR code can see the people on your family page, with birth years only, and relatives can ask to join it. You can keep shopping and check out when you are ready."
-              : "When you place your order, this layout is locked for printing, their memorial page is published and a QR code is created on it. You can keep shopping and check out when you are ready."}
-          </p>
-          {!isReady(layout, o) ? (
-            <Link href={`/order/${token}?step=1`} className={btn}>Complete the first step</Link>
-          ) : (
-            <Link href={`/order/${token}/add`} className={`${btn} text-center`}>Add to cart</Link>
+
+          {questions.length > 0 && (
+            <fieldset className="flex flex-col gap-3 rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)" }}>
+              <legend className="px-1 font-semibold">Is this someone already in your family?</legend>
+              {questions.map((q) => (
+                <div key={`${q.itemId}:${q.key}`} className="flex flex-col gap-1">
+                  <p>You typed <strong>{q.typed}</strong> as {q.role}.</p>
+                  {q.candidates.map((c) => (
+                    <label key={c.id} className="flex items-start gap-2">
+                      <input type="radio" required name={`match:${q.itemId}:${q.key}`} value={c.id} className="mt-1" />
+                      <span>Yes, it is {c.name}{c.born ? `, born ${c.born}` : ""}{c.you ? " (you)" : ""}</span>
+                    </label>
+                  ))}
+                  <label className="flex items-start gap-2">
+                    <input type="radio" required name={`match:${q.itemId}:${q.key}`} value="new" className="mt-1" />
+                    <span>No, a different person</span>
+                  </label>
+                </div>
+              ))}
+            </fieldset>
           )}
-          <Link href={`/order/${token}?step=${before}`} className="text-center text-sm underline">Back</Link>
-        </section>
+
+          <label><span className="text-sm font-medium">Your name</span>
+            <input name="contactName" required autoComplete="name" defaultValue={prefill.name} className={field} style={fieldStyle} />
+          </label>
+          <label><span className="text-sm font-medium">M-Pesa number</span>
+            <input name="contactPhone" required type="tel" inputMode="tel" autoComplete="tel" placeholder="0712 345 678" defaultValue={prefill.phone} className={field} style={fieldStyle} />
+            <span className="mt-1 block text-xs" style={{ color: "var(--muted)" }}>We send order updates here. No password needed.</span>
+          </label>
+          <label><span className="text-sm font-medium">Deliver to</span>
+            <input name="deliveryText" required autoComplete="street-address" placeholder="Town and place, e.g. Ematsuli, Vihiga" defaultValue={prefill.address} className={field} style={fieldStyle} />
+          </label>
+          <details className="text-sm" open={Boolean(referredBy)}>
+            <summary className="cursor-pointer" style={{ color: "var(--muted)" }}>{referredBy ? `Sent by ${referredBy.name}` : "Have a referral code?"}</summary>
+            <input name="referralCode" defaultValue={referredBy?.code ?? ""} maxLength={20} autoCapitalize="characters" placeholder="e.g. UPENDO123" className={`${field} font-mono uppercase`} style={fieldStyle} />
+          </details>
+          {consentNeeded && (
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" name="agree" required className="mt-1" />
+              <span style={{ color: "var(--muted)" }}>
+                I agree to the <Link href="/policies/terms" className="underline">terms</Link>, <Link href="/policies/privacy" className="underline">privacy</Link> and <Link href="/policies/orders" className="underline">orders and refunds</Link> policies.
+              </span>
+            </label>
+          )}
+          <button className={btn}>Pay {kes(amountDueNow(price))}</button>
+          <p className="text-center text-xs" style={{ color: "var(--muted)" }}>By M-Pesa on the next screen. Nothing is made until your payment is confirmed.</p>
+          <Link href={`/order/${token}/add`} className={back} style={{ color: "var(--muted)" }}>Add to cart instead and keep shopping</Link>
+        </form>
       )}
     </main>
   );
