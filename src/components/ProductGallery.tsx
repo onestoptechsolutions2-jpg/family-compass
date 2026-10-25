@@ -6,7 +6,7 @@ import { useState } from "react";
 import type { ProductPhoto } from "@/lib/product-photo-selection";
 import { photosForVariants } from "@/lib/product-photo-selection";
 import { kes } from "@/lib/money";
-import { priceRange, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { listPrice, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import type { Layout } from "@/lib/layouts";
 
 
@@ -35,7 +35,7 @@ export function ProductGallery({
   // the shop shows each product as it first comes; choices are made in step 2 of the order
   const selected: Record<string, string> = Object.fromEntries(groups.filter((group) => group.items.length).map((group) => [group.key, group.items[0]!.key]));
   const [photoIndex, setPhotoIndex] = useState(0);
-  const range = priceRange(basePriceKes, options, layout);
+  const range = listPrice(basePriceKes, options, layout);
   const visiblePhotos = photosForVariants(photos, selected);
   const orderQuery = new URLSearchParams({ product: slug });
   const previewQuery = new URLSearchParams();

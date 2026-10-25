@@ -18,8 +18,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
         <ConsentBanner />
+        {children}
       </body>
     </html>
   );

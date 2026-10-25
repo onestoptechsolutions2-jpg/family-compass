@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { dayText, kenyaToday } from "@/lib/order-shared";
+
 /**
  * The details step as a WhatsApp-style chat: we ask one thing at a time in a bubble, the answer
  * goes back as the customer's green bubble, and the typing bar sits at the bottom. Tap an answer
@@ -13,9 +15,15 @@ export type ChatQuestion = {
   ask: string;
   hint?: string;
   placeholder?: string;
-  kind: "text" | "long" | "photo" | "choice";
+  kind: "text" | "long" | "photo" | "choice" | "date";
   choices?: [string, string][];
   required?: boolean;
+  /** "year": the answer must carry a real year, e.g. "1948" or "2 October 2026" */
+  check?: "year";
+  /** the key of an earlier answer whose year this one cannot come before (death after birth) */
+  notBefore?: string;
+  /** a second way to answer: "I'll send it on WhatsApp", which sets `key` to `value` */
+  later?: { label: string; key: string; value: string };
 };
 
 type Props = {
@@ -30,6 +38,24 @@ type Props = {
 
 const now = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+const yearIn = (v: string) => Number(v.match(/\b(1[89]\d\d|20\d\d)\b/)?.[1] ?? NaN);
+/** Why an answer cannot be taken, in a line the chat says back; null if it is fine. */
+function problem(q: ChatQuestion, v: string, answers: Record<string, string>): string | null {
+  if (!v || q.check !== "year") return null;
+  const y = yearIn(v);
+  if (!y) return "Please include the year, e.g. 1948 or 2 October 2026.";
+  if (y > new Date().getFullYear()) return `${y} has not come yet. Please check the year.`;
+  const before = q.notBefore ? yearIn(answers[q.notBefore] ?? "") : NaN;
+  if (before && y < before) return `That is before they were born (${before}). Please check the year.`;
+  return null;
+}
+
+/** Today and the next days in Kenya, as yyyy-mm-dd. */
+const nextDays = (n: number) => {
+  const today = new Date(`${kenyaToday()}T00:00:00Z`);
+  return Array.from({ length: n }, (_, i) => new Date(today.getTime() + i * 86_400_000).toISOString().slice(0, 10));
+};
+
 export function ChatForm({ intro, questions, more, initial, photoHref, action }: Props) {
   const [answers, setAnswers] = useState<Record<string, string>>(initial);
   const [times, setTimes] = useState<Record<string, string>>({});
@@ -42,6 +68,7 @@ export function ChatForm({ intro, questions, more, initial, photoHref, action }:
   );
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -61,18 +88,24 @@ export function ChatForm({ intro, questions, more, initial, photoHref, action }:
     setDone((d) => (d.includes(key) ? d : [...d, key]));
     setEditing(null);
     setDraft("");
+    setErr(null);
   };
   const send = () => {
     if (!current) return;
     const v = draft.trim();
     if (!v && current.required) return;
+    const why = problem(current, v, answers);
+    if (why) return setErr(why);
     answer(current.key, v);
   };
   const shown = (q: ChatQuestion) => {
     const v = answers[q.key] ?? "";
     if (q.kind === "choice") return q.choices?.find(([k]) => k === v)?.[1] ?? "Skipped";
+    if (q.kind === "date") return v ? dayText(v) : "Skipped";
+    if (!v && q.later && answers[q.later.key] === q.later.value) return q.later.label;
     return v || "Skipped";
   };
+  const laterKeys = [...new Set([...questions, ...(more?.questions ?? [])].flatMap((q) => (q.later ? [q.later.key] : [])))];
 
   return (
     <form ref={formRef} action={action} className="flex flex-col">
@@ -80,6 +113,7 @@ export function ChatForm({ intro, questions, more, initial, photoHref, action }:
       {[...questions, ...(more?.questions ?? [])].filter((q) => q.kind !== "photo").map((q) => (
         <input key={q.key} type="hidden" name={q.key} value={answers[q.key] ?? ""} />
       ))}
+      {laterKeys.map((k) => <input key={k} type="hidden" name={k} value={answers[k] ?? ""} />)}
       {removePhoto && <input type="hidden" name="removePhoto" value="on" />}
       <input
         ref={fileRef}
@@ -124,6 +158,7 @@ export function ChatForm({ intro, questions, more, initial, photoHref, action }:
             {current.hint && <span className="mt-0.5 block text-xs" style={{ color: "#667781" }}>{current.hint}</span>}
           </p>
         )}
+        {err && <p className="wa-bubble-in" role="alert">{err}</p>}
         {askMore && <p className="wa-bubble-in">{more!.ask}</p>}
         {finished && <p className="wa-bubble-in">That&apos;s all I need. Tap any answer to change it, or see how it looks.</p>}
         <div ref={endRef} />
@@ -137,6 +172,31 @@ export function ChatForm({ intro, questions, more, initial, photoHref, action }:
               <button key={k} type="button" className="wa-chip" aria-pressed={answers[current.key] === k} onClick={() => answer(current.key, k)}>{label}</button>
             ))}
           </div>
+        )}
+        {current?.kind === "date" && (
+          <div className="flex flex-wrap gap-2">
+            {nextDays(8).map((d, i) => (
+              <button key={d} type="button" className="wa-chip" aria-pressed={answers[current.key] === d} onClick={() => answer(current.key, d)}>
+                {i === 0 ? "Today" : i === 1 ? "Tomorrow" : dayText(d, true)}
+              </button>
+            ))}
+            <label className="wa-chip flex items-center gap-1">
+              📅 Another day
+              <input type="date" min={nextDays(1)[0]} className="bg-transparent text-sm" aria-label="Pick another day" onChange={(e) => e.target.value && answer(current.key, e.target.value)} />
+            </label>
+          </div>
+        )}
+        {current?.later && (
+          <button
+            type="button"
+            className="wa-chip self-start"
+            onClick={() => {
+              setAnswers((a) => ({ ...a, [current.later!.key]: current.later!.value }));
+              answer(current.key, "");
+            }}
+          >
+            {current.later.label}
+          </button>
         )}
         {current?.kind === "photo" && (
           <div className="flex flex-wrap gap-2">
@@ -185,7 +245,7 @@ export function ChatForm({ intro, questions, more, initial, photoHref, action }:
             </button>
           </div>
         )}
-        {current && !current.required && current.kind !== "photo" && current.kind !== "choice" && (
+        {current && !current.required && current.kind !== "photo" && current.kind !== "choice" && !current.later && (
           <button type="button" onClick={() => answer(current.key, answers[current.key] ?? "")} className="self-start text-sm" style={{ color: "#667781" }}>Skip</button>
         )}
         {finished && (

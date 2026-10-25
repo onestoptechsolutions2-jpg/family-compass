@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
+import { listPrice, type ProductOptions } from "@/lib/product-pricing";
 import { productImage } from "@/lib/product-images";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -44,7 +45,7 @@ export default async function LivingPage() {
             </p>
             <h2 className="mt-1 text-xl font-semibold">{p.name}</h2>
             <p className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{p.summary}</p>
-            <p className="mt-4 text-sm font-medium">From {kes(p.basePriceKes)}</p>
+            <p className="mt-4 text-sm font-medium">From {kes(listPrice(p.basePriceKes, (p.options ?? null) as ProductOptions | null, p.layout).from)}</p>
           </Link>
         ))}
         {products.length === 0 && (

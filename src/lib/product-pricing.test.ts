@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { generationsOf, priceBreakdown, priceRange, type ProductOptions } from "./product-pricing";
+import { generationsOf, listPrice, priceBreakdown, priceRange, type ProductOptions } from "./product-pricing";
 import { skinFor } from "./print-kit";
 
 const po: ProductOptions = {
@@ -120,5 +120,29 @@ describe("pages and copies (a printed booklet)", () => {
   });
   it("ranges over every number of copies", () => {
     expect(priceRange(1000, programme, "programme")).toEqual({ from: 1000 + 15 * 100, to: 1000 + 500 + (20 + 30) * 300 });
+  });
+});
+
+describe("the advertised price", () => {
+  const programme: ProductOptions = {
+    finishes: [
+      { key: "colour", label: "Full colour", addKes: 0, perCopyKes: 10 },
+      { key: "bw", label: "Black and white", addKes: 0 },
+    ],
+    pages: [{ key: "4", label: "4 pages", addKes: 0, perCopyKes: 15 }],
+    copies: [
+      { key: "50", label: "50 copies", addKes: 0 },
+      { key: "100", label: "100 copies", addKes: 0 },
+    ],
+  };
+  it("is what the customer sees when they start, not the cheapest they could make it", () => {
+    // first choices: colour, 4 pages, 50 copies → 2000 + 500 + 750 = 3250, charged as 3300
+    expect(listPrice(2000, programme, "programme").from).toBe(3300);
+    expect(priceRange(2000, programme, "programme").from).toBe(2750);
+  });
+  it("is rounded up as it is charged", () => {
+    expect(listPrice(2100, programme, "programme").from).toBe(3400);
+    // dearest: colour and 4 pages on 100 copies → 2010 + 1000 + 1500 = 4510
+    expect(listPrice(2010, programme, "programme").to).toBe(4600);
   });
 });

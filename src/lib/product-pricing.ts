@@ -1,4 +1,4 @@
-import { lines, type DraftOptions } from "@/lib/order-shared";
+import { amountDueNow, lines, type DraftOptions } from "@/lib/order-shared";
 
 /**
  * What a piece costs, from its variants and from how much family it carries.
@@ -132,4 +132,14 @@ export function priceRange(basePriceKes: number, po: ProductOptions | null, layo
     to = Math.max(to, hi);
   }
   return { from: basePriceKes + from, to: basePriceKes + to + extraMax };
+}
+
+/**
+ * The price a product is advertised at: exactly what the customer sees when they start, with
+ * the first choice of each group picked, rounded as it is charged. "from" is that price, and
+ * "to" the dearest it can come to, so "From KES x" never rises before they change anything.
+ */
+export function listPrice(basePriceKes: number, po: ProductOptions | null, layout: string | undefined): { from: number; to: number } {
+  const from = amountDueNow(priceBreakdown(basePriceKes, po, layout, firstChoices(po)).total);
+  return { from, to: Math.max(from, amountDueNow(priceRange(basePriceKes, po, layout).to)) };
 }

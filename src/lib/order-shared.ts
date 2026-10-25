@@ -27,6 +27,12 @@ export type DraftOptions = {
   attendees?: string;
   /** programme: when and where the service is, e.g. "Saturday 14 November 2026, 10am" */
   serviceWhen?: string;
+  /** programme: the day of the service, yyyy-mm-dd, picked in the chat; serviceWhen is made from it */
+  serviceDate?: string;
+  /** programme: what time it starts, as they typed it, e.g. "10am" */
+  serviceTime?: string;
+  /** programme: "whatsapp" when the family will send the inside pages on WhatsApp */
+  insideLater?: string;
   venue?: string;
   /** programme: the order of service, one per line, "10:00 Arrival of the body" */
   service?: string;
@@ -93,4 +99,43 @@ export const PAY_UP_FRONT_SHARE = 1;
 /** What the customer pays now, rounded up to the nearest 100 shillings. Shown and charged alike. */
 export function amountDueNow(totalKes: number): number {
   return Math.ceil((totalKes * PAY_UP_FRONT_SHARE) / 100) * 100;
+}
+
+/** Printing and delivery take this many days from payment, countrywide. */
+export const DELIVERY_DAYS = 2;
+
+const isDay = (v: string | undefined): v is string => Boolean(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)));
+
+/** "2026-11-14" → "Saturday 14 November 2026" (or "Sat 14 Nov" short); anything else back as it came. */
+export function dayText(iso: string, short = false): string {
+  if (!isDay(iso)) return iso;
+  const d = new Date(`${iso}T12:00:00Z`);
+  const part = (o: Intl.DateTimeFormatOptions) => d.toLocaleDateString("en-GB", { ...o, timeZone: "UTC" });
+  const date = part(short ? { day: "numeric", month: "short" } : { day: "numeric", month: "long", year: "numeric" });
+  return `${part({ weekday: short ? "short" : "long" })} ${date}`;
+}
+
+/** The service line printed on the programme, from the day picked and the time typed. */
+export function serviceWhenText(day: string | undefined, time: string | undefined): string | null {
+  if (!isDay(day)) return null;
+  const t = time?.trim();
+  return t ? `${dayText(day)}, ${t}` : dayText(day);
+}
+
+/** Today in Kenya, as yyyy-mm-dd. */
+export function kenyaToday(now: Date = new Date()): string {
+  return new Date(now.getTime() + 3 * 3600_000).toISOString().slice(0, 10);
+}
+
+/**
+ * When an order paid now arrives, against the day of the service:
+ * "early" (at least a day before), "same-day" (on the day itself), "late" (after it),
+ * or "open" when we do not know the service day.
+ */
+export function arrival(serviceDate: string | undefined, now: Date = new Date()): { by: string; fit: "early" | "same-day" | "late" | "open" } {
+  const t = new Date(`${kenyaToday(now)}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + DELIVERY_DAYS);
+  const by = t.toISOString().slice(0, 10);
+  if (!isDay(serviceDate)) return { by, fit: "open" };
+  return { by, fit: by < serviceDate ? "early" : by === serviceDate ? "same-day" : "late" };
 }

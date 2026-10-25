@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { cardPhoto, photosFor } from "@/lib/product-photos";
-import { priceRange, type ProductOptions } from "@/lib/product-pricing";
+import { listPrice, type ProductOptions } from "@/lib/product-pricing";
 import { getPaymentSettings } from "@/lib/payments";
 import { extrasEnabled } from "@/lib/features";
 import { ShopHeader } from "@/components/ShopHeader";
@@ -110,7 +110,7 @@ export default async function LandingPage() {
             <h2 className="mt-1 font-serif text-2xl text-[var(--fg)]">The funeral programme, designed and printed in 48 hours</h2>
             <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
               Type their details, add a photo, and see the booklet as you go. Choose the pages and copies; we print and deliver countrywide.
-              {" "}From {kes(priceRange(programme.basePriceKes, programme.options as ProductOptions | null, programme.layout).from)}, delivery included.
+              {" "}From {kes(listPrice(programme.basePriceKes, programme.options as ProductOptions | null, programme.layout).from)}, delivery included.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 text-sm">
@@ -144,7 +144,7 @@ export default async function LandingPage() {
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
               {rows.map(({ p, photo }) => {
                 const po = (p.options ?? null) as ProductOptions | null;
-                const range = priceRange(p.basePriceKes, po, p.layout);
+                const range = listPrice(p.basePriceKes, po, p.layout);
                 return (
                   <Link
                     key={p.id}
