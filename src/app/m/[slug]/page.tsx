@@ -54,19 +54,33 @@ export default async function MemorialPage({
   if (!m) notFound();
 
   const theme = templateTheme(m.template);
+  const avatarSrc = m.coverMediaId ? `/api/media/${m.coverMediaId}?v=thumb&m=${slug}` : null;
+  const shareText = `In loving memory of ${m.name}. See the service details, share a memory${m.welfareFund?.open ? " or contribute" : ""}: ${await publicOrigin()}/m/${slug}`;
 
   const Frame = ({ children }: { children: React.ReactNode }) => (
     <main
-      className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 py-8"
+      className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pb-28 pt-0"
       style={{ ...theme.wrapper, color: "var(--fg)" }}
     >
-      <header className="flex items-center justify-between">
-        <span className="font-semibold">🧭 Family Compass</span>
-        <Link href="/shop" className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--border)" }}>
-          Shop
-        </Link>
+      {/* like the top of a WhatsApp chat: who it is about, and share */}
+      <header className="sticky top-0 z-20 -mx-4 flex items-center gap-3 px-3 py-2.5 text-white" style={{ background: "#008069" }}>
+        <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-white/25 text-sm font-semibold">
+          {avatarSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
+          ) : (
+            monogram(m.name)
+          )}
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate font-semibold">{m.name}</span>
+          <span className="block truncate text-xs text-white/80">In loving memory{m.born || m.died ? ` · ${[m.born, m.died].filter(Boolean).join(" – ")}` : ""}</span>
+        </span>
+        <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer" aria-label="Share on WhatsApp" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden><path d="M18 16.1c-.8 0-1.5.3-2 .8L8.9 12.7a3 3 0 0 0 0-1.4L16 7.2A3 3 0 1 0 15 5l-7.1 4.1a3 3 0 1 0 0 5.8L15 19a3 3 0 1 0 3-2.9Z" /></svg>
+        </a>
       </header>
-      <div className="mt-8 flex-1">{children}</div>
+      <div className="mt-6 flex-1">{children}</div>
       <footer className="mt-10 flex flex-col gap-3 border-t pt-4 text-xs" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
         <RecentMemorials exceptSlug={slug} />
         <span>
@@ -135,7 +149,7 @@ export default async function MemorialPage({
   const tributeCount = m.guestbook.length + m._count.flowers;
   const flowerCounts: Record<string, number> = {};
   for (const f of m.flowers) flowerCounts[f.kind] = (flowerCounts[f.kind] ?? 0) + 1;
-  const coverSrc = m.coverMediaId ? `/api/media/${m.coverMediaId}?v=thumb&m=${slug}` : null;
+  const coverSrc = avatarSrc;
 
   // ── Memorial book: page-turning viewer built from the same data as the PDF ──
   const book = await getMemorialBookData(m.treeId, m.person.id);
@@ -749,17 +763,30 @@ export default async function MemorialPage({
                     </Dialog>
                   )}
                 </div>
-                <ul className="mt-1 flex flex-col">
-                  {preview.map((it) => (it.kind === "flower" ? flowerLine(it) : messageCard(it, false)))}
-                  {feed.length === 0 && (
-                    <li className="py-2 text-sm" style={{ color: "var(--muted)" }}>Be the first to leave a tribute.</li>
+                {/* the latest tributes, as a chat: messages are bubbles, flowers are small notices */}
+                <ul className="wa-chat -mx-4 mt-2 flex flex-col gap-2 px-3 py-3 text-sm">
+                  {[...preview].reverse().map((it) =>
+                    it.kind === "flower" ? (
+                      <li key={it.id} className="self-center rounded-lg bg-white/90 px-3 py-1 text-xs" style={{ color: "#54656f" }}>
+                        {it.emoji} {it.name} laid a tribute
+                      </li>
+                    ) : (
+                      <li key={it.id} className="wa-bubble-in">
+                        <span className="block text-xs font-semibold" style={{ color: "#008069" }}>
+                          {it.name}{it.relation ? <span className="font-normal" style={{ color: "#667781" }}> · {it.relation}</span> : null}
+                        </span>
+                        <span className="whitespace-pre-wrap">{it.message}</span>
+                        <span className="wa-time">{timeAgo(it.at)}</span>
+                      </li>
+                    ),
                   )}
-                  {feed.length > preview.length && (
-                    <li className="py-2 text-xs" style={{ color: "var(--muted)" }}>
-                      + {feed.length - preview.length} more
-                    </li>
+                  {feed.length === 0 && (
+                    <li className="self-center rounded-lg bg-white/90 px-3 py-1 text-xs" style={{ color: "#54656f" }}>Be the first to leave a tribute.</li>
                   )}
                 </ul>
+                {feed.length > preview.length && (
+                  <p className="pt-2 text-xs" style={{ color: "var(--muted)" }}>+ {feed.length - preview.length} more</p>
+                )}
               </div>
             );
           })()}
@@ -776,6 +803,16 @@ export default async function MemorialPage({
           <SaveMemorial url={url} pdfUrl={`${url}/pdf`} name={m.name} />
         </div>
       </article>
+
+      {/* the two things a mourner came to do, always one tap away, like WhatsApp's typing bar */}
+      <nav className="wa-bar fixed inset-x-0 bottom-0 z-30 flex justify-center gap-2 px-3 py-2.5">
+        <div className="flex w-full max-w-2xl gap-2">
+          <a href="#tributes" className="flex-1 rounded-full bg-white px-4 py-3 text-center text-sm font-medium" style={{ color: "#111b21" }}>💬 Message</a>
+          {memorialFundEnabled() && m.welfareFund?.open && (
+            <Link href={m.welfareFund.giveHref} className="flex-1 rounded-full px-4 py-3 text-center text-sm font-semibold text-white" style={{ background: "#00a884" }}>Contribute</Link>
+          )}
+        </div>
+      </nav>
     </Frame>
   );
 }

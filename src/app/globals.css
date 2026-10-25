@@ -4,14 +4,14 @@
   --font-sans: "Segoe UI Variable", "Aptos", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
-  /* System blue actions with quiet graphite and silver surfaces. */
-  --color-brand-50: #edf5ff;
-  --color-brand-100: #d9eaff;
-  --color-brand-200: #b9d8fa;
-  --color-brand-500: #2d83dc;
-  --color-brand-600: #0068d7;
-  --color-brand-700: #0059b8;
-  --color-brand-800: #174a83;
+  /* WhatsApp-familiar: the green people already tap every day, on calm grey surfaces. */
+  --color-brand-50: #e7fce3;
+  --color-brand-100: #d9fdd3;
+  --color-brand-200: #b6f0c2;
+  --color-brand-500: #00a884;
+  --color-brand-600: #008069;
+  --color-brand-700: #006d59;
+  --color-brand-800: #005446;
 
   --color-accent-100: #e9eef4;
   --color-accent-300: #c3cfdb;
@@ -20,7 +20,7 @@
   --color-accent-700: #45586e;
 
   --color-ink: #202733;
-  --color-parchment: #f2f4f7;
+  --color-parchment: #f0f2f5;
 
   --color-surface: #ffffff;
   --color-surface-2: #f2f5f8;
@@ -46,9 +46,9 @@
   --glass: rgb(255 255 255 / 0.62);
   --glass-edge: rgb(255 255 255 / 0.88);
 
-  --primary: #0068d7;
+  --primary: #008069;
   --primary-fg: #ffffff;
-  --link: #005eb8;
+  --link: #027eb5;
   --accent: #586b82;
   --accent-soft: #e9eef4;
   --ring: color-mix(in srgb, var(--primary) 42%, transparent);
@@ -74,8 +74,66 @@
 
 html,
 body {
-  background: linear-gradient(135deg, #f7f9fb 0%, #edf1f5 100%);
+  background: var(--bg);
   color: var(--fg);
+}
+
+/* ---- chat: the look people know from WhatsApp ---- */
+.wa-chat {
+  background-color: #efeae2;
+}
+.wa-bubble-in,
+.wa-bubble-out {
+  position: relative;
+  max-width: 85%;
+  border-radius: 8px;
+  padding: 6px 9px 7px;
+  box-shadow: 0 1px 0.5px rgb(11 20 26 / 0.13);
+  color: #111b21;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.wa-bubble-in {
+  align-self: flex-start;
+  background: #ffffff;
+  border-top-left-radius: 0;
+}
+.wa-bubble-out {
+  align-self: flex-end;
+  background: #d9fdd3;
+  border-top-right-radius: 0;
+}
+.wa-time {
+  float: right;
+  margin: 6px 0 -4px 8px;
+  font-size: 11px;
+  color: #667781;
+}
+.wa-bar {
+  background: #f0f2f5;
+  border-top: 1px solid #e9edef;
+}
+.wa-send {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: #00a884;
+  color: #ffffff;
+}
+.wa-chip {
+  border: 1px solid #d1d7db;
+  border-radius: 9999px;
+  background: #ffffff;
+  padding: 6px 14px;
+  font-size: 14px;
+  color: #111b21;
+}
+.wa-chip[aria-pressed="true"] {
+  border-color: #00a884;
+  background: #d9fdd3;
 }
 
 body {
