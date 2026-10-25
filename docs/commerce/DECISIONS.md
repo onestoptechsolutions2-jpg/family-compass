@@ -266,3 +266,20 @@ want that effortless feel, with the commercial step added at the end.
   keep their choices: a choice keeps its key when renamed. A number of copies is always its own
   key, so editing 100 to 150 charges for 150, and copies are listed smallest first.
 - Nothing is for sale until its prices are saved and "On sale" is ticked.
+
+## Order flow: fewer surprises for a grieving family
+
+- The advertised price is the price they start at. Shop, home and product pages show the price
+  of the first choice in each group, rounded as it is charged (`listPrice`), so "From KES 3,300"
+  is what step 2 shows. To advertise a lower price, put the cheaper choice first in Admin.
+- No "rounded to the nearest 100" line. The round-up sits in the product's own line.
+- The inside of the programme is asked for in the chat: the order of service and the life story,
+  each with "I'll send it on WhatsApp". The rest (family names, hymns, contributions) stays optional.
+- Step 2 notes are calm ("Before we print"), never red: nothing in them stops the order.
+- The service day is picked from a calendar (today, the next 7 days, or another day) and the time
+  typed; the printed line is made from them. Years are checked: a year must be there, not in the
+  future, and death not before birth.
+- Step 3 says when it arrives: two days after payment, against the service day. If the service
+  is sooner, it asks them to chat with us on WhatsApp first.
+- The analytics question no longer covers the page: it sits above it, and is not shown at all
+  while ordering or paying (analytics stays off until someone allows it).

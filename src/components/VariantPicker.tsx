@@ -78,10 +78,14 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
     <div className="flex flex-col gap-5">
       <div>
         <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--muted)" }}>Preview</p>
+        {/* notes, not errors: calm words for a family in mourning, and nothing here stops the order */}
         {warnings.length > 0 && (
-          <ul className="mt-2 list-disc pl-5 text-xs" style={{ color: "var(--danger, #b45309)" }} aria-live="polite">
-            {warnings.map((w) => <li key={w}>{w}</li>)}
-          </ul>
+          <div className="mt-2 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }} aria-live="polite">
+            <p className="font-medium">Before we print</p>
+            <ul className="mt-1 list-disc pl-5" style={{ color: "var(--muted)" }}>
+              {warnings.map((w) => <li key={w}>{w}</li>)}
+            </ul>
+          </div>
         )}
         <div
           className="mt-2 overflow-hidden rounded-xl border"
@@ -161,13 +165,11 @@ export function VariantPicker({ basePriceKes, po, layout, pathway, productName, 
         </>
       )}
       <div className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }} aria-live="polite">
-        <div className="flex justify-between"><span>{productName}</span><span>{kes(priced.base)}</span></div>
+        {/* the round-up to the nearest 100 sits in the product's own line, never as a fee of its own */}
+        <div className="flex justify-between"><span>{productName}</span><span>{kes(priced.base + amountDueNow(priced.total) - priced.total)}</span></div>
         {priced.adds.map((a) => (
           <div key={a.label} className="mt-1 flex justify-between" style={{ color: "var(--muted)" }}><span>{a.label}</span><span>+{kes(a.kes)}</span></div>
         ))}
-        {amountDueNow(priced.total) > priced.total && (
-          <div className="mt-1 flex justify-between" style={{ color: "var(--muted)" }}><span>Rounded to the nearest 100</span><span>+{kes(amountDueNow(priced.total) - priced.total)}</span></div>
-        )}
         {priced.generations !== null && priced.included !== null && (
           <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
             Your piece shows {priced.generations} {priced.generations === 1 ? "generation" : "generations"}. The price includes {priced.included}; each extra generation adds {kes(po.generations?.perExtraKes ?? 0)}.

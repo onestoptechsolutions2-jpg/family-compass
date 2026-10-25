@@ -14,6 +14,7 @@ import { userConsentState } from "@/lib/consent";
 import { REF_COOKIE, referrerByCode } from "@/lib/referrals";
 import { payNow } from "./pay-actions";
 import { amountDueNow, type DraftOptions } from "@/lib/orders";
+import { arrival, dayText } from "@/lib/order-shared";
 import { firstChoices, priceBreakdown, VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
 import { previewBackground } from "@/lib/print-kit";
 import { draftPhotoUrl } from "@/lib/draft-photo";
@@ -110,6 +111,10 @@ export default async function OrderWizard({
     photoId: "Send a photo for the cover 📷",
     epitaph: "A verse or a short line for the cover? (optional)",
     serviceWhen: "When is the service? Day and time.",
+    serviceDate: "What day is the service?",
+    serviceTime: "What time does it start? (optional)",
+    service: "What is the order of service? One item per line, time first.",
+    bio: "Tell us about their life: the eulogy, as you would like it printed.",
     venue: "Where will it be held?",
     place: remembered ? "Where will they be laid to rest? (optional)" : "Where? (optional)",
     relation: remembered ? "You are their…" : "You are…",
@@ -122,7 +127,26 @@ export default async function OrderWizard({
     kind: f.photo ? "photo" : f.relation || f.choices ? "choice" : f.rows ? "long" : "text",
     choices: f.relation ? RELATIONS.map(([v, t]) => [v, t] as [string, string]) : f.choices,
     required: f.key === requiredKey(layout),
+    check: f.key === "birth" || f.key === "death" ? "year" : undefined,
+    notBefore: f.key === "death" ? "birth" : undefined,
+    later: layout === "programme" && (f.key === "service" || f.key === "bio")
+      ? { label: "📲 I'll send it on WhatsApp", key: "insideLater", value: "whatsapp" }
+      : undefined,
   });
+  // The programme asks for the service day from a calendar (so we can promise delivery before
+  // it), and asks for the inside pages in the chat itself, so a booklet is never printed empty.
+  const chatFields = (fields: Field[]): ChatQuestion[] =>
+    fields.flatMap((f) =>
+      layout === "programme" && f.key === "serviceWhen"
+        ? [
+            { key: "serviceDate", ask: ASK.serviceDate!, kind: "date" as const },
+            { key: "serviceTime", ask: ASK.serviceTime!, placeholder: "e.g. 10am", kind: "text" as const },
+          ]
+        : [toQuestion(f)],
+    );
+  const inside = new Set(layout === "programme" ? ["service", "bio"] : []);
+  const mainQuestions = [...chatFields(step1.fields), ...step2.fields.filter((f) => inside.has(f.key)).map(toQuestion)];
+  const moreQuestions = step2.fields.filter((f) => !inside.has(f.key)).map(toQuestion);
 
   // Step 3 needs to know who is paying, what they already gave us, and who sent them.
   const payStep = current === "pay";
@@ -143,6 +167,7 @@ export default async function OrderWizard({
     const c = po?.[g.list]?.find((x) => x.key === previewOptions[g.key]);
     return c ? [c.label] : [];
   });
+  const due = arrival(o.serviceDate);
   const headline = o.title?.trim() || [o.first, o.surname].filter(Boolean).join(" ") || o.surname || "";
 
   return (
@@ -202,8 +227,8 @@ export default async function OrderWizard({
             intro={pathway === "REMEMBERED"
               ? `Pole sana. I'll ask a few quick questions to make the ${item.product.name.toLowerCase()}. You can change any answer later.`
               : `Karibu! I'll ask a few quick questions to make your ${item.product.name.toLowerCase()}. You can change any answer later.`}
-            questions={step1.fields.map(toQuestion)}
-            more={step2.fields.length ? { ask: `Would you like to add ${step2.title.toLowerCase()} now? It's optional; you can also do it later.`, questions: step2.fields.map(toQuestion) } : undefined}
+            questions={mainQuestions}
+            more={moreQuestions.length ? { ask: layout === "programme" ? "Would you like to add the family names, hymns and contributions now? It's optional; you can also do it later." : `Would you like to add ${step2.title.toLowerCase()} now? It's optional; you can also do it later.`, questions: moreQuestions } : undefined}
             initial={Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v === "string")) as Record<string, string>}
             photoHref={photoHref}
             action={save}
@@ -247,6 +272,32 @@ export default async function OrderWizard({
               <p className="mt-1 text-base font-semibold">{kes(amountDueNow(price))} <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>delivery included</span></p>
             </div>
           </div>
+
+          {/* when it arrives, against the service day: the promise that sells the programme */}
+          {layout === "programme" && (
+            <p
+              className="rounded-xl border p-3 text-sm"
+              style={{ borderColor: due.fit === "late" || due.fit === "same-day" ? "#d97706" : "var(--border)", background: "var(--card)" }}
+            >
+              🚚 <strong>Arrives by {dayText(due.by, true)}</strong> if you pay today
+              {due.fit === "early" && <>, before the service on {dayText(o.serviceDate!, true)}.</>}
+              {due.fit === "open" && <>, anywhere in Kenya.</>}
+              {(due.fit === "same-day" || due.fit === "late") && (
+                <>
+                  . The service is on {dayText(o.serviceDate!, true)}, so{" "}
+                  <a className="underline" target="_blank" rel="noreferrer" href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`Hello, I need a funeral programme urgently. The service is on ${dayText(o.serviceDate!)}.`)}`}>
+                    chat with us on WhatsApp
+                  </a>{" "}
+                  first and we will see how fast we can get it to you.
+                </>
+              )}
+            </p>
+          )}
+          {layout === "programme" && o.insideLater === "whatsapp" && (
+            <p className="text-sm" style={{ color: "var(--muted)" }}>
+              📲 After you pay, send us what is still to come (the order of service or the life story) on WhatsApp. We add it and send you the booklet to check before printing.
+            </p>
+          )}
 
           {questions.length > 0 && (
             <fieldset className="flex flex-col gap-3 rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)" }}>

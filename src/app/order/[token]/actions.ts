@@ -8,6 +8,7 @@ import type { DraftOptions } from "@/lib/orders";
 import { saveDraftPhoto } from "@/lib/draft-photo";
 import { parseDestination } from "@/lib/fund-destination";
 import { VARIANT_GROUPS, type ProductOptions } from "@/lib/product-pricing";
+import { serviceWhenText } from "@/lib/order-shared";
 
 const TEXT_KEYS = [
   "first",
@@ -28,6 +29,9 @@ const TEXT_KEYS = [
   "birthdays",
   "attendees",
   "serviceWhen",
+  "serviceDate",
+  "serviceTime",
+  "insideLater",
   "venue",
   "service",
   "bio",
@@ -71,6 +75,13 @@ export async function saveStep(token: string, step: number, formData: FormData) 
     if (typeof v === "string" && !offered(key, v)) continue;
     if (typeof v === "string") next[key] = v.trim().slice(0, key === "epitaph" ? 300 : LONG_KEYS.has(key) ? 8000 : key === "birthdays" || key === "attendees" ? 4000 : 600);
   }
+  // The service day is picked from a calendar; the line printed on the programme is made from it.
+  if (formData.has("serviceDate")) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(next.serviceDate ?? "")) delete next.serviceDate;
+    const when = serviceWhenText(next.serviceDate, next.serviceTime);
+    if (when) next.serviceWhen = when;
+  }
+  if (next.insideLater && next.insideLater !== "whatsapp") delete next.insideLater;
   // Where funeral contributions go must be a real M-Pesa destination, or nothing.
   if (formData.has("fundKind")) {
     const dest = parseDestination({ payKind: next.fundKind, payNumber: next.fundNumber, payAccount: next.fundAccount, payName: next.fundName });

@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const KEY = "fc_consent_v2";
+
+/** Where a family is ordering or paying: nothing extra on screen there. Analytics stays off until asked. */
+const QUIET = /^\/(order|pay|start|start-order|give|cart|login)(\/|$)/;
 
 type Choice = "essential" | "all";
 
@@ -22,6 +26,7 @@ function read(): Choice | null {
  */
 export function ConsentBanner() {
   const [choice, setChoice] = useState<Choice | null | undefined>(undefined);
+  const path = usePathname();
 
   useEffect(() => {
     const c = read();
@@ -39,12 +44,13 @@ export function ConsentBanner() {
     setChoice(c);
   };
 
-  if (choice === undefined || choice !== null) return null;
+  if (choice === undefined || choice !== null || QUIET.test(path ?? "")) return null;
 
-  // A thin bar at the top, so it never sits over the button someone is about to tap.
+  // A thin bar above the page, not over it: it pushes the page down, so it never hides the
+  // header, a question or the button someone is about to tap.
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 flex items-center gap-2 border-b px-3 py-2 text-xs shadow-sm"
+      className="relative z-50 flex items-center gap-2 border-b px-3 py-2 text-xs shadow-sm"
       style={{ borderColor: "var(--border)", background: "var(--card)" }}
     >
       <p className="min-w-0 flex-1">

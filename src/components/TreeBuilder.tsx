@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { renderPrintSheet } from "@/lib/print-sheet";
 import { cleanName, getSlot, removeSlot, setSlot, slotLabel } from "@/lib/tree-edit";
-import type { DraftOptions } from "@/lib/order-shared";
+import { amountDueNow, type DraftOptions } from "@/lib/order-shared";
 import type { Layout, Pathway } from "@/lib/layouts";
 import { priceBreakdown, type ProductOptions } from "@/lib/product-pricing";
 import { kes } from "@/lib/money";
@@ -259,7 +259,7 @@ export function TreeBuilder({ token, slug, initial, pathway, layout, origin, mat
 
       {priced && priced.generations !== null && (
         <p className="rounded-xl border p-3 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }} aria-live="polite">
-          <strong>{priced.generations} {priced.generations === 1 ? "generation" : "generations"}</strong> so far · from <strong>{kes(priced.total)}</strong>, delivery included.
+          <strong>{priced.generations} {priced.generations === 1 ? "generation" : "generations"}</strong> so far · from <strong>{kes(amountDueNow(priced.total))}</strong>, delivery included.
           {priced.included !== null && pricing?.po.generations && (
             <span style={{ color: "var(--muted)" }}> The price includes {priced.included}; each extra adds {kes(pricing.po.generations.perExtraKes)}.</span>
           )}

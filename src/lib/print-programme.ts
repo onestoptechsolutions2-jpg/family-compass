@@ -203,7 +203,9 @@ export function renderProgramme(input: PrintInput, sizeKey: string | undefined):
     if (enough < total) warnings.push(`It fits in fewer pages: ${enough} pages would do.`);
   }
   if (insidePages > 0 && pagesInside[0]!.length === 0) {
-    warnings.push("The inside is empty. Add the order of service or their life story.");
+    warnings.push(o.insideLater === "whatsapp"
+      ? "Send us the order of service and life story on WhatsApp after you pay; we add them and show you before printing."
+      : "The inside pages are still blank. Add the order of service or their life story, or send them to us on WhatsApp after you pay.");
   }
 
   // ---- the back page ----

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { AISLES, aisleLabel } from "@/lib/aisles";
 import { cardPhoto, photosFor } from "@/lib/product-photos";
-import { priceRange, type ProductOptions } from "@/lib/product-pricing";
+import { listPrice, type ProductOptions } from "@/lib/product-pricing";
 import { ShopHeader } from "@/components/ShopHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -80,7 +80,7 @@ export default async function ShopPage({
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
           const img = cardPhoto(shown.get(p.id)!, p.slug);
-          const range = priceRange(p.basePriceKes, (p.options ?? null) as ProductOptions | null, p.layout);
+          const range = listPrice(p.basePriceKes, (p.options ?? null) as ProductOptions | null, p.layout);
           return (
             <Link key={p.id} href={`/shop/${p.slug}`} className="overflow-hidden rounded-2xl border transition hover:shadow-md" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}

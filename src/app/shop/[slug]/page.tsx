@@ -10,7 +10,7 @@ import { ContinueDraft } from "@/components/ContinueDraft";
 import { aisleLabel } from "@/lib/aisles";
 import { ProductGallery } from "@/components/ProductGallery";
 import { isLayout } from "@/lib/layouts";
-import { priceRange, type ProductOptions } from "@/lib/product-pricing";
+import { listPrice, type ProductOptions } from "@/lib/product-pricing";
 import { cardPhoto } from "@/lib/product-photos";
 import { getSessionUser } from "@/lib/rbac";
 import { savedOrderSources } from "@/lib/order-sources";
@@ -95,7 +95,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {relatedProducts.map((related) => {
               const relatedOptions = (related.options ?? null) as ProductOptions | null;
-              const relatedPrice = priceRange(related.basePriceKes, relatedOptions, related.layout);
+              const relatedPrice = listPrice(related.basePriceKes, relatedOptions, related.layout);
               const image = cardPhoto(relatedPhotos.get(related.id) ?? [], related.slug);
               return (
                 <Link key={related.id} href={`/shop/${related.slug}`} className="group overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
