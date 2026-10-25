@@ -255,3 +255,14 @@ want that effortless feel, with the commercial step added at the end.
   WhatsApp" on the payment screen, each with the order reference written in.
 - One support number for the whole site: SUPPORT_WHATSAPP in src/lib/whatsapp.ts.
 - Later: the WhatsApp Business API would let these go out on their own at each stage.
+
+## Prices are set in Admin > Products, as a table
+
+- Each option group (paper, colour, size, pages, copies) is a small table: name, price, and
+  price per copy. "+ Add a choice" adds a row; × removes one; an empty group is not offered.
+- The base price is labelled "Base price". Customers pay base + each choice's price + each
+  choice's per-copy price × the copies they choose.
+- Saving is unchanged underneath (the same key|label|price|per-copy lines), so existing orders
+  keep their choices: a choice keeps its key when renamed. A number of copies is always its own
+  key, so editing 100 to 150 charges for 150, and copies are listed smallest first.
+- Nothing is for sale until its prices are saved and "On sale" is ticked.
