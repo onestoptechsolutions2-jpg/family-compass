@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { publicOrigin } from "@/lib/origin";
 import { requirePlatformAdmin } from "@/lib/rbac";
-import { ORDER_STATUS_LABEL } from "@/lib/order-status";
+import { ORDER_STATUS_LABEL, itemStatus } from "@/lib/order-status";
+import { orderUpdateMessage, waLink } from "@/lib/whatsapp";
 import { JOB_STATUS_LABEL, skillLabel } from "@/lib/jobs";
 import {
   acceptQuoteAction, approveProofAction, cancelOrder, deliveredAction, dispatchAction,
@@ -32,10 +33,10 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       take: 100,
       include: {
         user: { select: { name: true, email: true } },
-        payments: { select: { status: true, amountKes: true } },
+        payments: { select: { id: true, kind: true, status: true, amountKes: true } },
         items: {
           include: {
-            product: { select: { name: true, shipVia: true } },
+            product: { select: { name: true, shipVia: true, pathway: true } },
             qrCode: { select: { code: true } },
             jobs: {
               orderBy: { stage: "asc" },
@@ -68,6 +69,22 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         const hasCost = jobs.some((j) => j.agreedCostKes != null);
         const paid = o.payments.filter((p) => p.status === "PAID").reduce((n, p) => n + p.amountKes, 0);
         const isPaid = paid > 0 && o.status !== OrderStatus.AWAITING_DEPOSIT;
+        // the update for where this order is now, ready to send from the admin's own WhatsApp
+        const deposit = o.payments.find((p) => p.kind === "ORDER_DEPOSIT");
+        const memorialQr = o.items.find((i) => i.product.pathway === "REMEMBERED" && i.qrCode)?.qrCode;
+        const waUpdate = waLink(
+          o.contactPhone,
+          orderUpdateMessage({
+            orderId: o.id,
+            status: o.status,
+            contactName: o.contactName,
+            totalKes: o.totalKes,
+            items: o.items.map((i) => ({ name: i.product.name, progress: itemStatus(i, o.status) })),
+            ordersUrl: `${origin}/orders`,
+            payUrl: deposit ? `${origin}/pay/${deposit.id}` : null,
+            memorialUrl: memorialQr ? `${origin}/q/${memorialQr.code}` : null,
+          }),
+        );
 
         return (
           <div key={o.id} className="rounded-xl border p-4 text-sm" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
@@ -75,6 +92,11 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
               <span className="font-mono text-xs">{o.id.slice(-8)}</span>
               <span className="font-medium">{ORDER_STATUS_LABEL[o.status]}</span>
               <span style={{ color: "var(--muted)" }}>{o.contactName ?? o.user?.name ?? o.user?.email} · {o.contactPhone ?? ""}</span>
+              {waUpdate && (
+                <a href={waUpdate} target="_blank" rel="noreferrer" className="ml-auto rounded-full px-3 py-1 text-xs font-medium text-white" style={{ background: "#25D366" }}>
+                  Send update on WhatsApp
+                </a>
+              )}
             </div>
             <p className="mt-1" style={{ color: "var(--muted)" }}>Deliver to: {o.deliveryText ?? "—"}</p>
             <p className="mt-1">

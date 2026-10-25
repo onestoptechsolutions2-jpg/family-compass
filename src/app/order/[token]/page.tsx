@@ -21,6 +21,7 @@ import { saveStep } from "./actions";
 import { TreeBuilder } from "@/components/TreeBuilder";
 import { VariantPicker } from "@/components/VariantPicker";
 import { ChatForm, type ChatQuestion } from "@/components/ChatForm";
+import { SUPPORT_WHATSAPP } from "@/lib/whatsapp";
 
 export const metadata = { title: "Design your order" };
 export const dynamic = "force-dynamic";
@@ -37,9 +38,6 @@ const field = "mt-1 w-full rounded-lg border px-4 py-3 text-base";
 const fieldStyle = { borderColor: "var(--border)", background: "var(--card)" } as const;
 const btn = "w-full rounded-lg bg-brand-600 px-5 py-3.5 text-base font-medium text-white hover:bg-brand-700";
 const back = "block text-center text-sm underline";
-
-/** Our WhatsApp, for anyone who gets stuck (the same number as the site footer). */
-const SUPPORT_WHATSAPP = "254113352048";
 
 const RELATIONS = [
   ["child", "Son or daughter"],
