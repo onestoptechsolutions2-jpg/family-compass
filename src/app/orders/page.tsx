@@ -1,36 +1,16 @@
 import Link from "next/link";
-import { JobStatus, OrderStatus } from "@prisma/client";
+import { OrderStatus } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { kes } from "@/lib/money";
 import { getSessionUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
-import { ORDER_STATUS_LABEL } from "@/lib/order-status";
+import { ORDER_STATUS_LABEL, itemStatus } from "@/lib/order-status";
 import { ShopHeader } from "@/components/ShopHeader";
+import { orderRef, supportLink } from "@/lib/whatsapp";
 
 export const metadata = { title: "My orders" };
 export const dynamic = "force-dynamic";
-
-type ItemLike = {
-  shippedAt: Date | null;
-  deliveredAt: Date | null;
-  customerTracking: string | null;
-  jobs: { status: JobStatus }[];
-};
-
-/** What the customer reads about one item, in plain words. */
-function itemStatus(item: ItemLike, order: OrderStatus): string {
-  if (item.deliveredAt) return "Delivered";
-  if (item.shippedAt) return item.customerTracking ? `On its way · ${item.customerTracking}` : "On its way";
-  if (order === OrderStatus.AWAITING_DEPOSIT) return "Waiting for your payment";
-  if (order === OrderStatus.CANCELLED) return "Cancelled";
-  const s = item.jobs.map((j) => j.status);
-  if (s.some((x) => x === JobStatus.SHIPPED || x === JobStatus.DELIVERED)) return "Quality check";
-  if (s.some((x) => x === JobStatus.PROOF_SUBMITTED || x === JobStatus.PROOF_APPROVED)) return "Finished, being checked";
-  if (s.some((x) => x === JobStatus.IN_PRODUCTION)) return "Being made";
-  if (s.some((x) => x === JobStatus.ASSIGNED)) return "Assigned to a maker";
-  return "Paid, getting ready";
-}
 
 export default async function OrdersPage() {
   const user = await getSessionUser();
@@ -105,6 +85,9 @@ export default async function OrdersPage() {
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3" style={{ borderColor: "var(--border)" }}>
                 <span>Total {kes(o.totalKes)} · delivery included</span>
+                <a href={supportLink(`Hello, about my order ${orderRef(o.id)}:`)} target="_blank" rel="noreferrer" className="text-sm underline" style={{ color: "#008069" }}>
+                  Chat with us about this order
+                </a>
                 {o.status === OrderStatus.AWAITING_DEPOSIT && pay && (
                   <Link href={`/pay/${pay.id}`} className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white">
                     {pay.status === "AWAITING_VERIFICATION" ? "Payment being checked" : "Pay now"}

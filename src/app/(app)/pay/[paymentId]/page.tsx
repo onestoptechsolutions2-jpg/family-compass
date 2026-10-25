@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
 import { getPaymentSettings, getProvider } from "@/lib/payments";
+import { orderRef, supportLink } from "@/lib/whatsapp";
 import { submitPaymentCode, cancelPaymentById, startStkPush, pollStk } from "./actions";
 
 export const metadata = { title: "Complete payment" };
@@ -250,6 +251,15 @@ export default async function PayPage({
             </>
           )}
 
+          <a
+            href={supportLink(`Hello, I need help paying for my order${payment.orderId ? ` ${orderRef(payment.orderId)}` : ""} (reference ${payment.reference}).`)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 block text-center text-sm underline"
+            style={{ color: "#008069" }}
+          >
+            Need help? Chat with us on WhatsApp
+          </a>
           <form action={cancelPaymentById.bind(null, payment.id)} className="mt-2">
             <button className="text-xs" style={{ color: "var(--danger)" }}>cancel</button>
           </form>

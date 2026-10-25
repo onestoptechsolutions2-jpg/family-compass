@@ -243,3 +243,15 @@ want that effortless feel, with the commercial step added at the end.
   tributes as bubbles (flowers as small notices), and a bar at the bottom with Message and
   Contribute. The contribute page offers KES 500, 1,000, 2,000 and 5,000 as one-tap amounts.
 - A WhatsApp help button sits in the order header.
+
+## Order updates on WhatsApp, the free way (decided 2026-10-25)
+- No WhatsApp Business API yet (it is paid). Instead a wa.me link opens WhatsApp with the message
+  already written, and a person taps Send.
+- Admin > Orders: "Send update on WhatsApp" on every order with a valid Kenyan mobile. The message
+  matches where the order is: unpaid (amount and the pay link), being made (each piece and its
+  stage), delivered (thanks), cancelled; with the memorial link for the family to share and the
+  link to follow the order.
+- Customers: "Chat with us about this order" on My Orders, and "Need help? Chat with us on
+  WhatsApp" on the payment screen, each with the order reference written in.
+- One support number for the whole site: SUPPORT_WHATSAPP in src/lib/whatsapp.ts.
+- Later: the WhatsApp Business API would let these go out on their own at each stage.
