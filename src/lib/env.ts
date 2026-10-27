@@ -127,6 +127,15 @@ const schema = z.object({
   // backup survives losing whatever BACKUP_DIR lives on. Best-effort: a
   // failure to copy here is logged but never fails the primary backup.
   BACKUP_DIR_SECONDARY: z.string().optional().default(""),
+  // Off-server copy: every backup is also uploaded to S3-compatible storage (Cloudflare R2,
+  // Backblaze B2, AWS S3...), so losing this server never loses the data. Off until the bucket
+  // and keys are set. How long copies are kept there is the bucket's own lifecycle rule.
+  BACKUP_S3_ENDPOINT: z.string().optional().default(""), // e.g. https://<account>.r2.cloudflarestorage.com
+  BACKUP_S3_BUCKET: z.string().optional().default(""),
+  BACKUP_S3_REGION: z.string().optional().default("auto"),
+  BACKUP_S3_ACCESS_KEY_ID: z.string().optional().default(""),
+  BACKUP_S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
+  BACKUP_S3_PREFIX: z.string().optional().default("backups/"),
   // How many scheduled backups to keep before pruning the oldest.
   BACKUP_RETENTION: z
     .string()

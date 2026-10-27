@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
+import { createReadStream } from "node:fs";
 import { mkdir, readdir, stat, unlink, writeFile, copyFile } from "node:fs/promises";
+import { Readable } from "node:stream";
 import path from "node:path";
 
 import { env } from "@/lib/env";
+import { signS3 } from "@/lib/s3-sign";
 import { writeAudit, lastAuditAt } from "@/lib/audit";
 
 export type BackupFile = { name: string; sizeBytes: number; createdAt: Date };
@@ -34,6 +37,54 @@ async function copyToSecondary(name: string, actorId?: string | null): Promise<v
   }
 }
 
+/** Off-server copies are on once a bucket, its endpoint and keys are all set. */
+export function offsiteEnabled(): boolean {
+  return Boolean(env.BACKUP_S3_ENDPOINT && env.BACKUP_S3_BUCKET && env.BACKUP_S3_ACCESS_KEY_ID && env.BACKUP_S3_SECRET_ACCESS_KEY);
+}
+
+/** Where a backup lives in the bucket (path-style, which every S3-compatible store accepts). */
+function offsiteUrl(name: string): string {
+  const prefix = env.BACKUP_S3_PREFIX.replace(/^\/+/, "");
+  return `${env.BACKUP_S3_ENDPOINT.replace(/\/+$/, "")}/${env.BACKUP_S3_BUCKET}/${prefix}${name}`;
+}
+
+/**
+ * Upload a backup off this server, streamed so a large dump never sits in memory. Tried three
+ * times; a failure is audited (and shown on the System page) but never fails the backup itself,
+ * which is already safe on disk.
+ */
+async function copyOffsite(name: string, actorId?: string | null): Promise<void> {
+  if (!offsiteEnabled()) return;
+  const file = path.join(env.BACKUP_DIR, name);
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { size } = await stat(file);
+      const url = offsiteUrl(name);
+      const headers = signS3({
+        method: "PUT",
+        url,
+        region: env.BACKUP_S3_REGION || "auto",
+        accessKeyId: env.BACKUP_S3_ACCESS_KEY_ID,
+        secretAccessKey: env.BACKUP_S3_SECRET_ACCESS_KEY,
+        payloadHash: "UNSIGNED-PAYLOAD",
+        headers: { "content-type": "application/octet-stream", "content-length": String(size) },
+      });
+      const body = Readable.toWeb(createReadStream(file)) as ReadableStream<Uint8Array>;
+      const res = await fetch(url, { method: "PUT", headers, body, duplex: "half" } as RequestInit & { duplex: "half" });
+      if (res.ok) {
+        await writeAudit({ actorId, action: "backup.offsite_copied", targetType: "system", meta: { name, sizeBytes: size } });
+        return;
+      }
+      lastError = `${res.status} ${(await res.text().catch(() => "")).slice(0, 300)}`;
+    } catch (e) {
+      lastError = (e as Error).message;
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 5000));
+  }
+  await writeAudit({ actorId, action: "backup.offsite_failed", targetType: "system", meta: { name, error: lastError } });
+}
+
 async function pruneSecondary(keepNames: Set<string>): Promise<void> {
   if (!secondaryEnabled()) return;
   const names = await readdir(env.BACKUP_DIR_SECONDARY).catch(() => [] as string[]);
@@ -41,6 +92,20 @@ async function pruneSecondary(keepNames: Set<string>): Promise<void> {
     if (name.endsWith(".dump") && !keepNames.has(name)) {
       await unlink(path.join(env.BACKUP_DIR_SECONDARY, name)).catch(() => {});
     }
+  }
+}
+
+/** Settings only Prisma understands; pg_dump and pg_restore refuse a URL that carries them. */
+const PRISMA_ONLY = ["schema", "connection_limit", "pool_timeout", "pgbouncer", "statement_cache_size", "socket_timeout"];
+
+/** The database URL as pg_dump/pg_restore accept it: "?schema=public" and the like taken off. */
+export function libpqUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    for (const k of PRISMA_ONLY) u.searchParams.delete(k);
+    return u.toString();
+  } catch {
+    return url;
   }
 }
 
@@ -110,7 +175,7 @@ export async function createBackup(
     "--format=custom",
     "--file",
     dest,
-    env.DATABASE_URL,
+    libpqUrl(env.DATABASE_URL),
   ]);
   const durationMs = Date.now() - started;
 
@@ -133,6 +198,7 @@ export async function createBackup(
   });
 
   await copyToSecondary(name, actorId);
+  await copyOffsite(name, actorId);
   await pruneOldBackups();
   return { ok: true, name };
 }
@@ -159,7 +225,7 @@ export async function restoreFromFile(sourcePath: string, actorId: string): Prom
     "--clean",
     "--if-exists",
     "-d",
-    env.DATABASE_URL,
+    libpqUrl(env.DATABASE_URL),
     sourcePath,
   ]);
   const durationMs = Date.now() - started;
@@ -213,13 +279,19 @@ export type BackupStatus = {
   lastFailureAt: Date | null;
   secondaryDir: string | null;
   secondaryLastFailureAt: Date | null;
+  /** the bucket off this server, or null when it is not set up */
+  offsite: string | null;
+  offsiteLastCopyAt: Date | null;
+  offsiteLastFailureAt: Date | null;
 };
 
 export async function backupStatus(): Promise<BackupStatus> {
-  const [lastSuccessAt, lastFailureAt, secondaryLastFailureAt] = await Promise.all([
+  const [lastSuccessAt, lastFailureAt, secondaryLastFailureAt, offsiteLastCopyAt, offsiteLastFailureAt] = await Promise.all([
     lastAuditAt("backup.created"),
     lastAuditAt("backup.failed"),
     secondaryEnabled() ? lastAuditAt("backup.secondary_failed") : Promise.resolve(null),
+    offsiteEnabled() ? lastAuditAt("backup.offsite_copied") : Promise.resolve(null),
+    offsiteEnabled() ? lastAuditAt("backup.offsite_failed") : Promise.resolve(null),
   ]);
   return {
     dir: env.BACKUP_DIR,
@@ -228,5 +300,8 @@ export async function backupStatus(): Promise<BackupStatus> {
     lastFailureAt,
     secondaryDir: secondaryEnabled() ? env.BACKUP_DIR_SECONDARY : null,
     secondaryLastFailureAt,
+    offsite: offsiteEnabled() ? `${env.BACKUP_S3_BUCKET}/${env.BACKUP_S3_PREFIX}` : null,
+    offsiteLastCopyAt,
+    offsiteLastFailureAt,
   };
 }

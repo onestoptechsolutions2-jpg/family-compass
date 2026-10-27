@@ -470,8 +470,15 @@ async function openFundsForOrder(orderId: string, workspaceId: string, userId: s
         destination: dest.value,
       });
       // with Chama switched on, gifts come by M-Pesa prompt and record themselves; the customer chairs
-      // the committee. If Chama cannot take it, the fund stays on the family's own M-Pesa.
-      await linkFundToChama(fundId, chair, { spouse: o.spouse, children: o.children });
+      // the committee. If Chama cannot take it, the fund stays on the family's own M-Pesa. The worker
+      // asks Chama, retrying while it is down, so the customer never waits on it at checkout.
+      const family = { spouse: o.spouse, children: o.children };
+      try {
+        const { enqueue, QUEUE } = await import("@/lib/queue");
+        await enqueue(QUEUE.chamaLink, { fundId, chair, family }, { singletonKey: fundId, retryLimit: 8, retryDelay: 60, retryBackoff: true });
+      } catch {
+        await linkFundToChama(fundId, chair, family);
+      }
     } catch (e) {
       console.error("[orders] could not open the funeral fund", e);
     }

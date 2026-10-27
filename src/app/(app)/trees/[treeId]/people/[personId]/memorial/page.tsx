@@ -12,7 +12,7 @@ import { viewSummary } from "@/lib/queries/view-analytics";
 import { memorialFundEnabled } from "@/lib/chama/plugin";
 import { describeDestination, localPhone, PAY_KINDS } from "@/lib/fund-destination";
 import { partnerEnabled } from "@/lib/chama-partner";
-import { refreshFromChama } from "@/lib/chama-partner-funds";
+import { refreshFromChamaLater } from "@/lib/chama-partner-funds";
 import type { BranchTotal } from "@/lib/chama-partner-rules";
 import { sectionLabel } from "@/lib/memorial-sections";
 import { MEMORIAL_TEMPLATES } from "@/lib/memorial-templates";
@@ -108,7 +108,7 @@ export default async function MemorialEditorPage({
   const partnerFund = memorialFundEnabled()
     ? await db.chamaFund.findFirst({ where: { memorial: { personId, treeId }, partnerFundId: { not: null } }, select: { id: true } })
     : null;
-  if (partnerFund) await refreshFromChama(partnerFund.id);
+  if (partnerFund) await refreshFromChamaLater(partnerFund.id);
   const memorial = await getMemorialForEditor(treeId, personId);
   // relatives with a phone on their account, as the starting list for a family chama after the burial
   const relativesWithPhones = partnerFund

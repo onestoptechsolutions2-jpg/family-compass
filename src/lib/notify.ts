@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import type { EventName } from "@/lib/events-catalog";
 import { sendPushToUser } from "@/lib/push";
 import { sendBranded } from "@/lib/email";
+import { renderEmail } from "@/lib/email-template";
 import { hasEmailProvider } from "@/lib/env";
 import { publicOrigin } from "@/lib/origin";
 
@@ -54,12 +55,21 @@ async function emailUser(userId: string, n: NotifyInput): Promise<void> {
     const u = await db.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
     if (!u?.email) return;
     const url = n.linkPath ? `${(await publicOrigin()).replace(/\/$/, "")}${n.linkPath}` : "";
-    await sendBranded(u.email, n.title, {
+    const content = {
       heading: n.title,
       paragraphs: [`Hello${u.name ? ` ${u.name.split(" ")[0]}` : ""},`, ...(n.body ? [n.body] : [])],
       items: n.items,
       button: url ? { label: n.button ?? "Open", url } : undefined,
-    });
+    };
+    // Sent by the worker, retried if the mail server is slow or down, so a payment or an order
+    // never waits on email. If the queue itself cannot be reached, send it now as before.
+    try {
+      const { text, html } = renderEmail(content);
+      const { enqueue, QUEUE } = await import("@/lib/queue");
+      await enqueue(QUEUE.sendEmail, { to: u.email, subject: n.title.slice(0, 200), text, html }, { retryLimit: 5, retryDelay: 30, retryBackoff: true });
+    } catch {
+      await sendBranded(u.email, n.title, content);
+    }
   } catch (err) {
     console.error("[notify] email failed", err);
   }

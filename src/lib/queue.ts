@@ -16,6 +16,9 @@ export const QUEUE = {
   keeperRenewalScan: "keeper.renewal_scan",
   backupScheduled: "backup.scheduled",
   shopMaintenance: "shop.maintenance",
+  paymentReconcile: "payments.reconcile",
+  chamaLink: "chama.link",
+  chamaRefresh: "chama.refresh",
 } as const;
 
 export type QueueName = (typeof QUEUE)[keyof typeof QUEUE];
@@ -38,6 +41,9 @@ export type JobPayloads = {
   [QUEUE.keeperRenewalScan]: Record<string, never>;
   [QUEUE.backupScheduled]: Record<string, never>;
   [QUEUE.shopMaintenance]: Record<string, never>;
+  [QUEUE.paymentReconcile]: Record<string, never>;
+  [QUEUE.chamaLink]: { fundId: string; chair: { name: string; phone: string }; family: { spouse?: string; children?: string } };
+  [QUEUE.chamaRefresh]: { fundId: string };
 };
 
 const globalForBoss = globalThis as unknown as { boss?: PgBoss; bossStarted?: Promise<PgBoss> };

@@ -1,4 +1,5 @@
-import "server-only";
+// Server code (the app and the worker). Not "server-only": that package refuses to load in the
+// worker. The token is safe anyway: only NEXT_PUBLIC_ settings ever reach a browser.
 
 import { env } from "@/lib/env";
 import type { ChamaPayout } from "@/lib/chama-partner-rules";

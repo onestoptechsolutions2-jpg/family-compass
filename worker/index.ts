@@ -12,6 +12,8 @@ import { handleGenerationGc } from "./jobs/generation";
 import { handleKeeperRenewalScan } from "./jobs/keeper-renewal";
 import { handleBackupScheduled } from "./jobs/backup";
 import { handleShopMaintenance } from "./jobs/maintenance";
+import { handlePaymentReconcile } from "./jobs/payments";
+import { handleChamaLink, handleChamaRefresh } from "./jobs/chama";
 
 async function main() {
   const boss = new PgBoss({
@@ -39,6 +41,9 @@ async function main() {
   await boss.work(QUEUE.keeperRenewalScan, handleKeeperRenewalScan);
   await boss.work(QUEUE.backupScheduled, handleBackupScheduled);
   await boss.work(QUEUE.shopMaintenance, handleShopMaintenance);
+  await boss.work(QUEUE.paymentReconcile, handlePaymentReconcile);
+  await boss.work(QUEUE.chamaLink, handleChamaLink);
+  await boss.work(QUEUE.chamaRefresh, handleChamaRefresh);
 
   // daily sweep for upcoming birthdays / death & wedding anniversaries
   await boss.schedule(QUEUE.anniversaryScan, "0 6 * * *", {}, { tz: "Africa/Nairobi" });
@@ -54,6 +59,9 @@ async function main() {
 
   // nightly: remove abandoned guest designs and spent tokens
   await boss.schedule(QUEUE.shopMaintenance, "30 3 * * *", {}, { tz: "Africa/Nairobi" });
+
+  // every two minutes: M-Pesa prompts whose callback never arrived are asked about and settled
+  await boss.schedule(QUEUE.paymentReconcile, "*/2 * * * *", {}, { tz: "Africa/Nairobi" });
 
   console.log("[worker] ready — listening on", Object.values(QUEUE).join(", "));
 
