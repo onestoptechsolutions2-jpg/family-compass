@@ -1,4 +1,5 @@
-import "server-only";
+// Server code (the app and the worker). Not "server-only": that package refuses to load in the
+// worker. The token is safe anyway: only NEXT_PUBLIC_ settings ever reach a browser.
 
 import { db } from "@/lib/db";
 import { publicOrigin } from "@/lib/origin";
@@ -10,7 +11,8 @@ import type { FundDestination } from "@/lib/fund-destination";
 /** Where Chama posts this app's fund events. */
 export const chamaWebhookPath = "/api/partners/chama/webhook";
 
-export type LinkOutcome = { linked: true } | { linked: false; reason: string };
+/** `retry`: Chama could not be reached or was down, so trying again later may work. */
+export type LinkOutcome = { linked: true } | { linked: false; reason: string; retry?: boolean };
 
 /**
  * Move a family's funeral fund onto Chama, where mourners give by M-Pesa prompt and every gift
@@ -52,7 +54,7 @@ export async function linkFundToChama(
     payout: toChamaPayout(destination),
     webhookUrl: `${await publicOrigin()}${chamaWebhookPath}`,
   });
-  if (!res.ok) return { linked: false, reason: res.unavailable ? "Automatic M-Pesa is not available yet; contributions stay on your own M-Pesa." : res.error };
+  if (!res.ok) return { linked: false, reason: res.unavailable ? "Automatic M-Pesa is not available yet; contributions stay on your own M-Pesa." : res.error, retry: res.unavailable };
 
   const f = res.data;
   const totals = readTotals(f as unknown as Record<string, unknown>);
@@ -99,4 +101,20 @@ export async function refreshFromChama(fundId: string): Promise<void> {
       partnerSyncedAt: new Date(),
     },
   });
+}
+
+/**
+ * For a page that shows a fund's totals: never wait on Chama while the page loads. If the totals
+ * are over a minute old (a missed webhook), the worker fetches them; the page shows what it has.
+ */
+export async function refreshFromChamaLater(fundId: string): Promise<void> {
+  const fund = await db.chamaFund.findUnique({ where: { id: fundId }, select: { partnerFundId: true, partnerSyncedAt: true } });
+  if (!fund?.partnerFundId) return;
+  if (fund.partnerSyncedAt && Date.now() - fund.partnerSyncedAt.getTime() < 60_000) return;
+  try {
+    const { enqueue, QUEUE } = await import("@/lib/queue");
+    await enqueue(QUEUE.chamaRefresh, { fundId }, { singletonKey: fundId, singletonSeconds: 60 });
+  } catch (err) {
+    console.error("[chama] could not queue a refresh", err);
+  }
 }

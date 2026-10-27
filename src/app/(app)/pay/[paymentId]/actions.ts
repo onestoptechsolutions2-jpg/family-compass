@@ -8,8 +8,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/rbac";
 import { publicOrigin } from "@/lib/origin";
 import { getPaymentSettings } from "@/lib/payments";
-import { fulfilPayment } from "@/lib/payments/fulfil";
-import { stkPush, stkQuery, mpesaMsisdn, darajaConfigured, DARAJA_PROVIDER_ID } from "@/lib/payments/daraja";
+import { settleStk } from "@/lib/payments/reconcile";
+import { stkPush, mpesaMsisdn, darajaConfigured, DARAJA_PROVIDER_ID } from "@/lib/payments/daraja";
 import { emitEvent } from "@/lib/webhooks";
 import { notifyPlatformAdmins } from "@/lib/notify";
 import { codeUsedElsewhere, normaliseCode } from "@/lib/payments/verification";
@@ -87,26 +87,7 @@ export async function startStkPush(paymentId: string, formData: FormData) {
 /** Re-check an STK payment (fallback for a missed callback). */
 export async function pollStk(paymentId: string) {
   const p = await ownPayment(paymentId);
-  if (p.status === PaymentStatus.PAID || !p.checkoutRequestId) {
-    revalidatePath(`/pay/${paymentId}`);
-    return;
-  }
-  const q = await stkQuery(p.checkoutRequestId);
-  if (!q.pending) {
-    if (q.resultCode === 0) {
-      await fulfilPayment(paymentId, { note: "M-Pesa STK (query)" });
-    } else {
-      await db.payment.update({
-        where: { id: paymentId },
-        data: {
-          status: PaymentStatus.REJECTED,
-          resultCode: q.resultCode,
-          resultDesc: q.resultDesc,
-          rejectionReason: q.resultDesc || "Payment not completed",
-        },
-      });
-    }
-  }
+  if (p.status !== PaymentStatus.PAID && p.checkoutRequestId) await settleStk(paymentId);
   revalidatePath(`/pay/${paymentId}`);
 }
 

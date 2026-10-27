@@ -283,3 +283,24 @@ want that effortless feel, with the commercial step added at the end.
   is sooner, it asks them to chat with us on WhatsApp first.
 - The analytics question no longer covers the page: it sits above it, and is not shown at all
   while ordering or paying (analytics stays off until someone allows it).
+
+## Reliability: Phase A
+
+- Payments never stay stuck on a lost M-Pesa callback. Every 2 minutes the worker asks M-Pesa
+  about each prompt still open after a minute (`payments.reconcile`), and settles it exactly as
+  the callback would. Fulfilment claims a payment in one conditional write, so the callback and
+  the sweep can never both release an order.
+- The pay page updates itself: it checks every 4 seconds while the M-Pesa prompt is open (and
+  asks M-Pesa itself, at most every 15 seconds) and shows "Paid" the moment it is. "Check now"
+  stays as a small link.
+- Order emails go through the worker's email queue, retried 5 times with backoff, so a slow
+  mail server never slows a payment. Sign-in and confirm-email links are still sent at once.
+- Opening a family's fund on Chama is a worker job, retried while Chama is down (createFund is
+  idempotent on the memorial). The memorial editor no longer waits on Chama to load: stale
+  totals are refreshed by a job.
+- The worker now has the M-Pesa and Chama settings in docker-compose.
+- Backups: every backup is also uploaded to S3-compatible storage once `BACKUP_S3_*` is set
+  (streamed, 3 tries, shown on Admin > System). Two bugs fixed on the way, which stopped
+  production backups from running at all: pg_dump refused the `?schema=public` in
+  DATABASE_URL, and Debian's pg_dump 15 refuses a Postgres 16 server (the image now installs
+  postgresql-client-16 from the PostgreSQL apt repository).

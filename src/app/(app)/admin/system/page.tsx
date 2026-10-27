@@ -314,6 +314,21 @@ export default async function AdminSystemPage() {
             <div className="text-xs" style={{ color: "var(--muted)" }}>Secondary location</div>
             <div className="font-mono text-xs">{bStatus.secondaryDir ?? "not configured"}</div>
           </div>
+          <div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Off-server copy</div>
+            <div className="font-mono text-xs" style={bStatus.offsite ? undefined : { color: "var(--danger)" }}>
+              {bStatus.offsite ?? "not set up: a lost server loses the backups too"}
+            </div>
+          </div>
+          {bStatus.offsite && (
+            <div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>Last off-server copy</div>
+              <div style={bStatus.offsiteLastFailureAt && (!bStatus.offsiteLastCopyAt || bStatus.offsiteLastFailureAt > bStatus.offsiteLastCopyAt) ? { color: "var(--danger)" } : undefined}>
+                {fmtDate(bStatus.offsiteLastCopyAt)}
+                {bStatus.offsiteLastFailureAt && (!bStatus.offsiteLastCopyAt || bStatus.offsiteLastFailureAt > bStatus.offsiteLastCopyAt) ? ` (last try failed ${fmtDate(bStatus.offsiteLastFailureAt)})` : ""}
+              </div>
+            </div>
+          )}
           {bStatus.secondaryDir && (
             <div>
               <div className="text-xs" style={{ color: "var(--muted)" }}>Secondary copy last failure</div>
@@ -329,7 +344,10 @@ export default async function AdminSystemPage() {
           <code>BACKUP_RETENTION</code> to change how many are kept. Set{" "}
           <code>BACKUP_DIR_SECONDARY</code> to a second mounted path (a different volume/disk) to keep
           a mirror copy of every backup there too — a copy failure there is logged but never blocks the
-          primary backup, which has already succeeded by the time it's attempted.
+          primary backup, which has already succeeded by the time it's attempted. Set the{" "}
+          <code>BACKUP_S3_*</code> settings (Cloudflare R2, Backblaze B2 or any S3-compatible bucket) to
+          also upload every backup off this server; set how long copies are kept as a lifecycle rule on
+          the bucket.
         </p>
         <form action={runBackupNow} className="mt-3">
           <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">

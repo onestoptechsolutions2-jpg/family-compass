@@ -23,6 +23,7 @@ export async function handleSendEmail(jobs: Job<EmailPayload>[]) {
       console.warn(`[email] EMAIL_SERVER not configured — dropping "${subject}" to ${to}`);
       continue;
     }
+    // a failure throws, so pg-boss tries again later with the retries the sender asked for
     await t.sendMail({ from: env.EMAIL_FROM, to, subject, html, text: text ?? undefined });
     console.log(`[email] sent "${subject}" to ${to}`);
   }

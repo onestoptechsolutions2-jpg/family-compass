@@ -4,12 +4,19 @@
 # Debian (glibc) rather than Alpine — sharp / @resvg/resvg-js / tailwind-oxide /
 # unrs-resolver all ship glibc prebuilds and this avoids musl edge cases.
 FROM node:22-bookworm-slim AS base
-# postgresql-client: pg_dump/pg_restore for the in-app backup & restore
-# feature (src/app/api/admin/backup, worker/jobs/backup.ts). A client/server
-# minor-version gap is fine for dump/restore; only matters across major
-# versions, and the compose Postgres service is pinned to 16.
+# postgresql-client-16: pg_dump/pg_restore for the in-app backup & restore
+# feature (src/app/api/admin/backup, worker/jobs/backup.ts). It must match the
+# server's major version: pg_dump refuses to dump a newer server, and Debian
+# bookworm's own client is 15 while the compose Postgres is 16. So it comes from
+# the PostgreSQL project's apt repository, pinned to 16 like the server.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates postgresql-client \
+  && apt-get install -y --no-install-recommends openssl ca-certificates curl \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client-16 \
+  && apt-get purge -y curl && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \

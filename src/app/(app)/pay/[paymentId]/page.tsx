@@ -7,6 +7,7 @@ import { publicOrigin } from "@/lib/origin";
 import { getPaymentSettings, getProvider } from "@/lib/payments";
 import { orderRef, supportLink } from "@/lib/whatsapp";
 import { submitPaymentCode, cancelPaymentById, startStkPush, pollStk } from "./actions";
+import { PaymentWatcher } from "@/components/PaymentWatcher";
 
 export const metadata = { title: "Complete payment" };
 
@@ -155,6 +156,9 @@ export default async function PayPage({
         </ul>
       )}
 
+      {(payment.status === "AWAITING_STK" || payment.status === "AWAITING_VERIFICATION") && (
+        <PaymentWatcher paymentId={payment.id} status={payment.status} />
+      )}
       {payment.status === "PAID" ? (
         <p className="mt-4 rounded-lg border p-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--success)" }}>
           Paid — you&apos;re all set.
@@ -171,11 +175,11 @@ export default async function PayPage({
                   <p className="text-sm font-medium">Check your phone 📲</p>
                   <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
                     We sent an M-Pesa request{payment.payerPhone ? ` to ${payment.payerPhone}` : ""}.
-                    Enter your PIN to approve it, then tap refresh.
+                    Enter your PIN to approve it. This page updates by itself.
                   </p>
                   <form action={pollStk.bind(null, payment.id)} className="mt-3">
-                    <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                      I&apos;ve approved it — check
+                    <button className="text-sm underline" style={{ color: "var(--muted)" }}>
+                      Still waiting? Check now
                     </button>
                   </form>
                   <details className="mt-3 text-sm">
